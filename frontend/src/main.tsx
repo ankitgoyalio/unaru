@@ -15,6 +15,7 @@ import {
 } from "@tanstack/react-router";
 import { getSession, startLogin } from "./session";
 import "./styles.css";
+import { Reconnect } from "./Reconnect";
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 0 } },
 });
@@ -183,6 +184,7 @@ export function App() {
             ? "Connected to Zerodha"
             : "Zerodha reconnection required"}
         </p>
+        <Reconnect required={session.data.connection !== "active"} />
         <p>Your investment dashboard is ready.</p>
       </section>
     </main>
