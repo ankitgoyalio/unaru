@@ -155,8 +155,22 @@ function Login() {
   );
 }
 export function App() {
-  const session = useQuery({ queryKey: ["session"], queryFn: getSession });
-  if (session.isPending)
+  const session = useQuery({
+    queryKey: ["session"],
+    queryFn: getSession,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchInterval: (query) => {
+      const current = query.state.data;
+      return current?.kind === "signed_in"
+        ? Math.max(
+            1000,
+            Math.min(2_147_483_647, Date.parse(current.expiresAt) - Date.now()),
+          )
+        : false;
+    },
+  });
+  if (session.isPending || session.isFetching)
     return (
       <main className="status-page" role="status">
         Opening your dashboard…
