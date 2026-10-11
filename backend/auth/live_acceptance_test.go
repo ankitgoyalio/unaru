@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ankitgoyalio/unaru/backend/auth"
 	"github.com/jackc/pgx/v5/pgxpool"
+	kiteconnect "github.com/zerodha/gokiteconnect/v4"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -26,7 +27,9 @@ func (b *acceptanceBroker) Exchange(ctx context.Context, token string) (auth.Aut
 	return b.fakeBroker.Exchange(ctx, token)
 }
 func (b *acceptanceBroker) RevokeAccess(context.Context, string) error {
-	b.invalid.Store(true)
+	if b.invalid.Swap(true) {
+		return kiteconnect.Error{ErrorType: kiteconnect.TokenError, Message: "already invalid"}
+	}
 	return nil
 }
 func (b *acceptanceBroker) CheckAccess(context.Context, string) error {
@@ -87,6 +90,13 @@ func TestAcceptanceObservesHTTPLogout(t *testing.T) {
 		t.Fatal(err)
 	}
 	res.Body.Close()
+	// Retrying live invalidation converges even when Kite returns its actual SDK error.
+	for i := 0; i < 2; i++ {
+		if err := server.InvalidateBrokerForAcceptance(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b.invalid.Store(false)
 	// Provider invalidation alone must not be reported as dashboard logout.
 	short, stop := context.WithTimeout(ctx, 25*time.Millisecond)
 	if err = server.VerifyLogoutForAcceptance(short, func() { b.invalid.Store(true) }); err == nil {
@@ -130,6 +140,9 @@ func TestAcceptanceObservesHTTPLogout(t *testing.T) {
 			return
 		}
 		res.Body.Close()
+		if err := server.RetryRevocations(ctx); err != nil {
+			t.Error(err)
+		}
 		if res.StatusCode != 204 {
 			t.Errorf("logout %d", res.StatusCode)
 		}

@@ -3,6 +3,10 @@ package auth
 import (
 	"context"
 	"errors"
+	"io"
+	"log"
+	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -14,9 +18,18 @@ type TokenRevoker interface {
 }
 
 func (b KiteBroker) RevokeAccess(ctx context.Context, token string) error {
-	c := b.client()
-	c.SetAccessToken(token)
-	_, err := c.InvalidateAccessToken()
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	// The SDK client logs transport failures with a token-bearing URL even
+	// with debug disabled. Its public HTTP helper permits a private logger,
+	// while retaining the official envelope parser and TokenException type.
+	client := kiteconnect.NewHTTPClient(&http.Client{Transport: contextTransport{ctx: ctx}}, log.New(io.Discard, "", 0), false)
+	headers := http.Header{"X-Kite-Version": {"3"}, "Authorization": {"token " + b.APIKey + ":" + token}}
+	var invalidated bool
+	err := client.DoEnvelope(http.MethodDelete, "https://api.kite.trade/session/token", url.Values{"api_key": {b.APIKey}, "access_token": {token}}, headers, &invalidated)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	return err
 }
 func tokenAlreadyInvalid(err error) bool {

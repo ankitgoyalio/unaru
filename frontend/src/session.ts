@@ -6,11 +6,12 @@ export const sessionSchema = z.discriminatedUnion("kind", [
     userId: z.string(),
     connection: z.enum([
       "active",
+      "temporarily_unavailable",
       "reconnect_required",
       "pending_revocation",
       "revoked",
     ]),
-    expiresAt: z.string(),
+    expiresAt: z.iso.datetime({ offset: true }),
   }),
 ]);
 export type Session = z.infer<typeof sessionSchema>;

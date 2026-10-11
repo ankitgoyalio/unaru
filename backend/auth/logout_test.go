@@ -20,10 +20,11 @@ import (
 
 type revokingBroker struct {
 	fakeBroker
-	fail        bool
-	revocations int
-	entered     chan struct{}
-	release     chan struct{}
+	fail          bool
+	revocations   int
+	entered       chan struct{}
+	release       chan struct{}
+	revokeRelease chan struct{}
 }
 
 func (b *revokingBroker) Exchange(ctx context.Context, token string) (auth.Authorization, error) {
@@ -34,6 +35,9 @@ func (b *revokingBroker) Exchange(ctx context.Context, token string) (auth.Autho
 	return b.fakeBroker.Exchange(ctx, token)
 }
 func (b *revokingBroker) RevokeAccess(context.Context, string) error {
+	if b.revokeRelease != nil {
+		<-b.revokeRelease
+	}
 	b.revocations++
 	if b.fail {
 		return errors.New("outage")
@@ -76,7 +80,13 @@ func testLogout(t *testing.T, pendingPath string) {
 	if err = auth.Migrate(context.Background(), pool); err != nil {
 		t.Fatal(err)
 	}
-	broker := &revokingBroker{fakeBroker: fakeBroker{user: "OWNER1"}, fail: true}
+	// Saved investment data belongs to the installation, not its login session.
+	if _, err := pool.Exec(context.Background(), "CREATE TABLE saved_investment_fixture (id text PRIMARY KEY, holdings jsonb NOT NULL); INSERT INTO saved_investment_fixture VALUES ('portfolio', '{\"units\":7}')"); err != nil {
+		t.Fatal(err)
+	}
+	broker := &revokingBroker{fakeBroker: fakeBroker{user: "OWNER1"}, fail: true, revokeRelease: make(chan struct{})}
+	revokeRelease := broker.revokeRelease
+
 	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
 	cfg := auth.Config{AppOrigin: "http://localhost:5173", CallbackURL: "http://localhost:5173/api/auth/callback", EncryptionKey: make([]byte, 32)}
 	srv, err := auth.NewServer(cfg, pool, broker, func() time.Time { return now })
@@ -84,7 +94,7 @@ func testLogout(t *testing.T, pendingPath string) {
 		t.Fatal(err)
 	}
 	ts := httptest.NewServer(srv.Handler())
-	defer ts.Close()
+	defer func() { close(revokeRelease); ts.Close() }()
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar, CheckRedirect: func(r *http.Request, v []*http.Request) error { return http.ErrUseLastResponse }}
 	req, _ := http.NewRequest("POST", ts.URL+"/api/auth/login", nil)
@@ -164,7 +174,12 @@ func testLogout(t *testing.T, pendingPath string) {
 		t.Fatal("unprotected logout")
 	}
 	req.Header.Set("Origin", cfg.AppOrigin)
-	res, _ = client.Do(req)
+	client.Timeout = time.Second
+	res, err = client.Do(req)
+	if err != nil {
+		close(broker.release)
+		t.Fatalf("logout waited for blocked broker: %v", err)
+	}
 	res.Body.Close()
 	if res.StatusCode != 204 {
 		t.Fatalf("logout status %d", res.StatusCode)
@@ -179,8 +194,15 @@ func testLogout(t *testing.T, pendingPath string) {
 		t.Fatal("concurrent callback restored logged-out session")
 	}
 	broker.entered = nil
-	if broker.revocations != 1 {
-		t.Fatal("revocation not attempted")
+	if broker.revocations != 0 {
+		t.Fatal("HTTP logout called broker")
+	}
+	broker.revokeRelease = nil
+	if err := srv.RetryRevocations(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if broker.revocations != 2 {
+		t.Fatal("durable worker lost tokens")
 	}
 	res, _ = client.Do(req)
 	res.Body.Close()
@@ -211,6 +233,10 @@ func testLogout(t *testing.T, pendingPath string) {
 		t.Fatal("completed revocation repeated")
 	}
 
+	var retained string
+	if err := pool.QueryRow(context.Background(), "SELECT holdings->>'units' FROM saved_investment_fixture WHERE id='portfolio'").Scan(&retained); err != nil || retained != "7" {
+		t.Fatal("logout changed saved investment data")
+	}
 	// Retaining the installation identity prevents another account taking over.
 	broker.user = "OTHER"
 	req, _ = http.NewRequest("POST", ts.URL+"/api/auth/login", nil)

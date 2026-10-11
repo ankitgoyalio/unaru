@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/ankitgoyalio/unaru/backend/auth"
 	"github.com/jackc/pgx/v5/pgxpool"
+	kiteconnect "github.com/zerodha/gokiteconnect/v4"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -109,9 +110,15 @@ func TestReconnectPreservesDashboardSession(t *testing.T) {
 			sessionID = c.Value
 		}
 	}
-	broker.checkErr = errors.New("network failure")
-	if got := status(); got.Kind != "signed_in" || got.Connection != "active" {
-		t.Fatalf("outage changed session %+v", got)
+	for _, outage := range []error{errors.New("network failure"), kiteconnect.Error{ErrorType: "GeneralException", Message: "provider outage"}} {
+		broker.checkErr = outage
+		if got := status(); got.Kind != "signed_in" || got.Connection != "temporarily_unavailable" || got.UserID != original.UserID || !got.ExpiresAt.Equal(original.ExpiresAt) {
+			t.Fatalf("outage state %+v", got)
+		}
+		broker.checkErr = nil
+		if got := status(); got.Connection != "active" {
+			t.Fatalf("outage discarded authorization %+v", got)
+		}
 	}
 	broker.checkErr = auth.ErrBrokerTokenExpired
 	if got := status(); got.Kind != "signed_in" || got.Connection != "reconnect_required" {

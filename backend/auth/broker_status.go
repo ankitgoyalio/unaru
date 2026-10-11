@@ -5,6 +5,7 @@ import (
 	"errors"
 	kiteconnect "github.com/zerodha/gokiteconnect/v4"
 	"net/http"
+	"time"
 )
 
 var ErrBrokerTokenExpired = errors.New("broker authorization expired")
@@ -15,9 +16,14 @@ type AccessChecker interface {
 
 // CheckAccess confirms token invalidation by exception type, never by HTTP status alone.
 func (b KiteBroker) CheckAccess(ctx context.Context, token string) error {
-	c := b.client()
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	c := b.client(ctx)
 	c.SetAccessToken(token)
 	_, err := c.GetUserProfile()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	var brokerError kiteconnect.Error
 	if errors.As(err, &brokerError) && brokerError.ErrorType == kiteconnect.TokenError {
 		return ErrBrokerTokenExpired
@@ -51,7 +57,14 @@ func (s *Server) checkBrokerStatus(r *http.Request, status SessionStatus) (Sessi
 	if err != nil {
 		return SessionStatus{}, err
 	}
-	if errors.Is(checker.CheckAccess(r.Context(), token), ErrBrokerTokenExpired) {
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+	checkErr := checker.CheckAccess(ctx, token)
+	if checkErr != nil && !errors.Is(checkErr, ErrBrokerTokenExpired) {
+		status.Connection = "temporarily_unavailable"
+		return status, nil
+	}
+	if errors.Is(checkErr, ErrBrokerTokenExpired) {
 		result, err := s.Pool.Exec(r.Context(), "UPDATE broker_authorizations SET status='reconnect_required',updated_at=$3 WHERE user_id=$1 AND encrypted_token=$2 AND status='active'", status.UserID, encrypted, s.Now())
 		if err != nil {
 			return SessionStatus{}, err

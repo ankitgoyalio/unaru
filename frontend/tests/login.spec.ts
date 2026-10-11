@@ -1,4 +1,16 @@
 import { test, expect } from "@playwright/test";
+import { readdir, readFile } from "node:fs/promises";
+const secretMarkers = [
+  "browser-kite-secret-marker",
+  "browser-database-password-marker",
+  "browser-encryption-key-marker000",
+  "browser-access-token-marker",
+  "browser-request-token-marker",
+];
+function expectNoSecrets(value: string) {
+  for (const marker of secretMarkers) expect(value).not.toContain(marker);
+}
+
 test("sign-in supports keyboard, exact referral and narrow screens", async ({
   page,
 }) => {
@@ -39,12 +51,46 @@ test("complete first login crosses the real Go API and Postgres", async ({
   const session = cookies.find((cookie) => cookie.name === "unaru_session");
   expect(session?.httpOnly).toBe(true);
   expect(session?.sameSite).toBe("Lax");
-  expect(session?.value).not.toContain("secret");
-  expect(
+  expectNoSecrets(JSON.stringify(cookies));
+  expectNoSecrets(
     await page.evaluate(
       () => JSON.stringify(localStorage) + JSON.stringify(sessionStorage),
     ),
-  ).not.toContain("secret");
+  );
   await page.reload();
   await expect(page.getByText("Signed in as TESTOWNER")).toBeVisible();
+});
+
+test("credentials stay out of API responses, browser state and the production bundle including exchange failure", async ({ page, context }) => {
+  const responses: string[] = [];
+  const observed: Promise<void>[] = [];
+  page.on("response", (response) => {
+    if (/^\/api\/(auth|session)/.test(new URL(response.url()).pathname)) {
+      observed.push((async () => {
+        // Redirect bodies can be unavailable after navigation; headers still
+        // cover the callback redirect and its cookies.
+        const body = await response.body().catch(() => Buffer.from(""));
+        responses.push(body.toString() + JSON.stringify(await response.allHeaders()));
+      })());
+    }
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Sign in with Zerodha" }).click();
+  await expect(page.getByText("Signed in as TESTOWNER")).toBeVisible();
+  await page.getByRole("button", { name: "Log out", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Sign in with Zerodha" })).toBeVisible();
+  await page.route("**/api/test/kite?*", (route) => {
+    const target = new URL(route.request().url());
+    target.searchParams.set("outcome", "fail");
+    return route.continue({ url: target.href });
+  });
+  await page.getByRole("button", { name: "Sign in with Zerodha" }).click();
+  await expect(page.getByRole("alert")).toContainText("could not be completed");
+  await Promise.all(observed);
+  expectNoSecrets(responses.join("\n"));
+  expectNoSecrets(JSON.stringify(await context.storageState()));
+  expectNoSecrets(await page.evaluate(() => JSON.stringify(localStorage) + JSON.stringify(sessionStorage)));
+  expectNoSecrets(await page.content());
+  const assets = await readdir("dist/assets");
+  for (const asset of assets) expectNoSecrets(await readFile(`dist/assets/${asset}`, "utf8"));
 });

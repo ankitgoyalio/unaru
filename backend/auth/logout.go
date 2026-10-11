@@ -54,7 +54,6 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	for _, name := range []string{"unaru_session", "unaru_login"} {
 		http.SetCookie(w, &http.Cookie{Name: name, Path: "/", HttpOnly: true, Secure: s.Config.SecureCookies, SameSite: http.SameSiteLaxMode, MaxAge: -1})
 	}
-	// The durable queue is committed before calling Kite. Failures cannot undo logout.
-	s.RetryRevocations(r.Context())
+	// Broker disposal is handled by the durable worker, independently of this response.
 	w.WriteHeader(http.StatusNoContent)
 }
