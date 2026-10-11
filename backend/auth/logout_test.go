@@ -41,6 +41,12 @@ func (b *revokingBroker) RevokeAccess(context.Context, string) error {
 	return nil
 }
 func TestLogout(t *testing.T) {
+	for _, path := range []string{"/api/auth/login", "/api/auth/reconnect"} {
+		t.Run(path, func(t *testing.T) { testLogout(t, path) })
+	}
+}
+
+func testLogout(t *testing.T, pendingPath string) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
 		t.Skip("set TEST_DATABASE_URL to isolated Postgres")
@@ -130,7 +136,7 @@ func TestLogout(t *testing.T) {
 
 	oldCookies := jar.Cookies(mustURL(ts.URL))
 	// Pause a new callback inside the external token exchange while logout wins.
-	req, _ = http.NewRequest("POST", ts.URL+"/api/auth/login", nil)
+	req, _ = http.NewRequest("POST", ts.URL+pendingPath, nil)
 	req.Header.Set("Origin", cfg.AppOrigin)
 	res, _ = client.Do(req)
 	json.NewDecoder(res.Body).Decode(&start)
