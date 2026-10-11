@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"net/http"
 	"time"
@@ -203,24 +202,6 @@ func brokerExpiry(now time.Time) time.Time {
 	india := time.FixedZone("Asia/Kolkata", 19800)
 	local := now.In(india)
 	return time.Date(local.Year(), local.Month(), local.Day()+1, 6, 0, 0, 0, india)
-}
-func (s *Server) readSession(r *http.Request) (SessionStatus, error) {
-	cookie, err := r.Cookie("unaru_session")
-	if err != nil {
-		return SessionStatus{Kind: "signed_out"}, nil
-	}
-	var status SessionStatus
-	var brokerStatus string
-	err = s.Pool.QueryRow(r.Context(), "SELECT s.user_id,s.expires_at,COALESCE(b.status,'reconnect_required') FROM dashboard_sessions s LEFT JOIN broker_authorizations b ON b.user_id=s.user_id WHERE s.hash=$1 AND s.revoked_at IS NULL AND s.expires_at>$2", hash(cookie.Value), s.Now()).Scan(&status.UserID, &status.ExpiresAt, &brokerStatus)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return SessionStatus{Kind: "signed_out"}, nil
-	}
-	if err != nil {
-		return SessionStatus{}, err
-	}
-	status.Kind = "signed_in"
-	status.Connection = brokerStatus
-	return status, nil
 }
 func (s *Server) session(w http.ResponseWriter, r *http.Request) {
 	status, err := s.readSession(r)
