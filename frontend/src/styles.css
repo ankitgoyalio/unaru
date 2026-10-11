@@ -1,224 +1,48 @@
-:root {
-  font-family: Inter, Arial, sans-serif;
-  color: oklch(21% 0.015 160);
-  background: oklch(100% 0 none);
-  font-synthesis: none;
-  color-scheme: light;
-  --green: oklch(36% 0.075 165);
-  --muted: oklch(45% 0.015 160);
-  --zerodha-blue: oklch(from #387ed1 l c h);
-  --space: clamp(1.5rem, 0.5rem + 4vw, 5rem);
-  overflow-wrap: break-word;
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Inter, Arial, sans-serif;
+  --font-editorial: Georgia, serif;
+  --color-ink: oklch(21% 0.015 160);
+  --color-paper: oklch(100% 0 none);
+  --color-green: oklch(36% 0.075 165);
+  --color-muted: oklch(45% 0.015 160);
+  --color-mint: oklch(94% 0.035 158);
+  --color-zerodha: oklch(from #387ed1 l c h);
+  --color-zerodha-hover: color-mix(in oklch, var(--color-zerodha) 8%, var(--color-paper));
+  --color-button-hover: color-mix(in oklch, var(--color-green), oklch(0% 0 none) 12%);
+  --color-error: oklch(40% 0.12 30);
+  --color-error-border: oklch(46% 0.15 30);
+  --spacing-page: clamp(1.5rem, 0.5rem + 4vw, 5rem);
+  --text-heading: clamp(1.75rem, 1.35rem + 1.2vw, 2.6rem);
+  --text-editorial: clamp(2rem, 1.4rem + 1.6vw, 3rem);
 }
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  min-inline-size: 0;
-}
-body {
-  margin: 0;
-  min-block-size: 100svh;
-}
-h1,
-h2 {
-  text-wrap: balance;
-}
-p {
-  line-height: 1.6;
-}
-a {
-  color: var(--green);
-}
-button,
-a {
-  touch-action: manipulation;
-}
-button {
-  font: inherit;
-  cursor: pointer;
-  min-block-size: 3rem;
-  padding-block: 0.85rem;
-  padding-inline: 1.2rem;
-  border: 1px solid currentColor;
-  border-radius: 0.25rem;
-}
-:focus-visible {
-  outline: 3px solid var(--green);
-  outline-offset: 4px;
-}
-button:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-button:active,
-a:active {
-  opacity: 0.75;
-}
-.login-layout {
-  display: flex;
-  flex-wrap: wrap;
-  min-block-size: 100svh;
-}
-.signin,
-.artwork {
-  flex: 1 1 28rem;
-  padding: var(--space);
-}
-.signin {
-  display: flex;
-  flex-direction: column;
-  min-block-size: 100svh;
-}
-.wordmark {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.3rem;
-  align-self: start;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.08em;
-  text-decoration: none;
-  color: inherit;
-}
-.wordmark span {
-  font-size: 1.4rem;
-  color: var(--green);
-}
-.signin-content {
-  inline-size: min(100%, 26rem);
-  margin-block: auto;
-  padding-block: 3rem;
-}
-h1 {
-  font-size: clamp(1.75rem, 1.35rem + 1.2vw, 2.6rem);
-  font-weight: 500;
-  letter-spacing: -0.045em;
-  margin-block: 0.8rem 1rem;
-}
-.eyebrow {
-  font-size: 0.69rem;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  color: var(--green);
-}
-.intro {
-  color: var(--muted);
-  font-size: 1rem;
-  margin-block-end: 2.25rem;
-}
-.primary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  inline-size: 100%;
-  color: oklch(100% 0 none);
-  background: oklch(20% 0.01 165);
-  border-color: oklch(20% 0.01 165);
-  font-size: 0.92rem;
-  font-weight: 600;
-}
-.provider-note {
-  font-size: 0.78rem;
-  color: var(--muted);
-  text-align: center;
-  margin-block: 1rem 2.6rem;
-}
-.zerodha-action {
-  background: oklch(100% 0 none);
-  color: oklch(21% 0.015 160);
-  border-color: var(--zerodha-blue);
-}
-.zerodha-action:focus-visible {
-  outline-color: var(--zerodha-blue);
-}
-.zerodha-action-label {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-.zerodha-action-label img {
-  flex: none;
-  inline-size: 6.25rem;
-  max-inline-size: 100%;
-  block-size: auto;
-}
-.signup {
-  font-size: 0.84rem;
-}
-.signup a {
-  font-weight: 600;
-  display: inline-block;
-  padding-block: 0.5rem;
-}
-.signin-footer {
-  color: var(--muted);
-  font-size: 0.72rem;
-}
-.artwork {
-  background: oklch(94% 0.035 158);
-  color: var(--green);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  overflow: clip;
-  min-block-size: 36rem;
-}
-.art-caption {
-  padding-block-start: 2rem;
-}
-.art-caption h2 {
-  font-family: Georgia, serif;
-  font-weight: 400;
-  font-size: clamp(2rem, 1.4rem + 1.6vw, 3rem);
-  letter-spacing: -0.04em;
-  margin-block: 1rem;
-}
-.art-caption p {
-  font-size: 0.9rem;
-}
-.investment-art {
-  inline-size: 100%;
-  block-size: auto;
-  margin-block: 1.5rem;
-}
-.art-footer {
-  font-size: 0.75rem;
-}
-.error {
-  font-size: 0.85rem;
-  border-inline-start: 3px solid oklch(46% 0.15 30);
-  padding-inline-start: 1rem;
-  color: oklch(40% 0.12 30);
-}
-.status-page,
-.dashboard {
-  padding: var(--space);
-}
-.dashboard section {
-  max-inline-size: 38rem;
-  margin-block: 5rem;
-}
-.connection {
-  display: inline-block;
-  max-inline-size: 100%;
-  background: oklch(94% 0.035 158);
-  padding-block: 0.6rem;
-  padding-inline: 1rem;
-  border-radius: 0.3rem;
-}
-@media (hover: hover) and (pointer: fine) {
-  button:hover {
-    background: color-mix(in oklch, var(--green), black 12%);
-    color: white;
+
+@custom-variant fine-hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover { @slot; }
   }
-  a:hover {
-    text-decoration: underline;
+}
+
+@layer base {
+  :root {
+    @apply font-sans text-ink bg-paper wrap-break-word;
+    font-synthesis: none;
+    color-scheme: light;
+    line-height: normal;
   }
-  .zerodha-action:hover {
-    background: color-mix(in oklch, var(--zerodha-blue) 8%, white);
-    color: oklch(21% 0.015 160);
+  *, *::before, *::after { min-inline-size: 0; }
+  body { @apply min-block-svh; }
+  h1, h2 { @apply text-balance; }
+  h1 {
+    @apply text-heading font-medium tracking-[-0.045em] mbs-[0.8rem] mbe-4;
   }
+  p { @apply leading-[1.6] my-[1em]; }
+  a { @apply text-green underline fine-hover:underline; }
+  button, a { @apply touch-manipulation active:opacity-75; }
+  button {
+    font: inherit;
+    @apply cursor-pointer min-block-12 py-[0.85rem] px-[1.2rem] border border-current rounded-sm bg-[ButtonFace] disabled:cursor-wait disabled:opacity-65 fine-hover:bg-button-hover fine-hover:text-paper;
+  }
+  :focus-visible { @apply outline-3 outline-solid outline-green outline-offset-4; }
 }

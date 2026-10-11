@@ -2,6 +2,14 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { getSession, startLogin } from "./session";
 import { Logout } from "./Logout";
 import { Reconnect } from "./Reconnect";
+import {
+  wordmarkClasses,
+  eyebrowClasses,
+  errorClasses,
+  brokerButtonClasses,
+  brokerLabelClasses,
+  brokerLogoClasses,
+} from "./ui";
 
 const errors: Record<string, string> = {
   invalid_attempt:
@@ -17,68 +25,68 @@ function Login() {
   const login = useMutation({ mutationFn: startLogin });
   const errorCode = new URLSearchParams(window.location.search).get("error");
   return (
-    <main className="login-layout">
-      <section className="signin">
-        <span className="wordmark">
-          unaru<span aria-hidden="true">↗</span>
+    <main className="flex flex-wrap min-block-svh">
+      <section className="flex flex-col flex-[1_1_28rem] p-page min-block-svh">
+        <span className={wordmarkClasses}>
+          unaru<span className="text-[1.4rem] text-green" aria-hidden="true">↗</span>
         </span>
-        <div className="signin-content">
-          <p className="eyebrow">YOUR INVESTMENTS, IN VIEW</p>
+        <div className="inline-full max-inline-[26rem] my-auto py-12">
+          <p className={eyebrowClasses}>YOUR INVESTMENTS, IN VIEW</p>
           <h1>Welcome to Unaru</h1>
-          <p className="intro">
+          <p className="text-muted text-[1rem] mbe-9">
             A clearer view of your investments.
             <br />
             Start with your Zerodha account.
           </p>
           {errorCode && (
-            <p role="alert" className="error">
+            <p role="alert" className={errorClasses}>
               {errors[errorCode] ??
                 "Sign-in could not be completed. Please try again."}
             </p>
           )}
           {login.isError && (
-            <p role="alert" className="error">
+            <p role="alert" className={errorClasses}>
               Sign-in could not start. Check that Unaru is running, then try again.
             </p>
           )}
           <button
-            className="primary zerodha-action"
+            className={brokerButtonClasses}
             aria-label={
               login.isPending ? "Opening Zerodha…" : "Sign in with Zerodha"
             }
             onClick={() => login.mutate()}
             disabled={login.isPending}
           >
-            <span className="zerodha-action-label" aria-hidden="true">
+            <span className={brokerLabelClasses} aria-hidden="true">
               {login.isPending ? "Opening" : "Sign in with"}
-              <img src="/brands/zerodha.svg" alt="Zerodha" width="609" height="80" />
+              <img className={brokerLogoClasses} src="/brands/zerodha.svg" alt="Zerodha" width="609" height="80" />
             </span>
             <span aria-hidden="true">↗</span>
           </button>
-          <p className="provider-note" role="status">
+          <p className="text-[0.78rem] text-muted text-center mbs-4 mbe-[2.6rem]" role="status">
             {login.isPending
               ? "Opening Zerodha sign-in…"
               : "You'll complete sign-in on Zerodha."}
           </p>
-          <p className="signup">
+          <p className="text-[0.84rem]">
             Don't have a Zerodha account yet?{" "}
-            <a href="https://zerodha.com/open-account?c=SH1331">Sign up</a>
+            <a className="inline-block py-2 font-semibold" href="https://zerodha.com/open-account?c=SH1331">Sign up</a>
           </p>
         </div>
-        <p className="signin-footer">Your dashboard. Your account.</p>
+        <p className="text-muted text-[0.72rem]">Your dashboard. Your account.</p>
       </section>
-      <aside className="artwork" aria-label="Investment illustration">
-        <div className="art-caption">
-          <span className="eyebrow">A LITTLE PERSPECTIVE</span>
-          <h2>See the bigger picture.</h2>
-          <p>
+      <aside className="flex flex-col justify-between flex-[1_1_28rem] p-page min-block-[36rem] bg-mint text-green overflow-clip" aria-label="Investment illustration">
+        <div className="pbs-8">
+          <span className={eyebrowClasses}>A LITTLE PERSPECTIVE</span>
+          <h2 className="font-editorial font-normal text-editorial tracking-[-0.04em] my-4">See the bigger picture.</h2>
+          <p className="text-[0.9rem]">
             One place to begin understanding
             <br />
             your investment journey.
           </p>
         </div>
         <svg
-          className="investment-art"
+          className="inline inline-full block-auto my-6"
           viewBox="0 0 600 500"
           aria-hidden="true"
         >
@@ -141,7 +149,7 @@ function Login() {
             opacity=".35"
           />
         </svg>
-        <p className="art-footer">Built for a long-term view.</p>
+        <p className="text-[0.75rem]">Built for a long-term view.</p>
       </aside>
     </main>
   );
@@ -164,13 +172,13 @@ export function App() {
   });
   if (session.isPending || session.isFetching)
     return (
-      <main className="status-page" role="status">
+      <main className="p-page" role="status">
         Opening your dashboard…
       </main>
     );
   if (session.isError)
     return (
-      <main className="status-page">
+      <main className="p-page">
         <h1>Dashboard unavailable</h1>
         <p>Your session could not load. Check that Unaru is running, then try again.</p>
         <button onClick={() => session.refetch()}>Try again</button>
@@ -178,15 +186,15 @@ export function App() {
     );
   if (session.data.kind === "signed_out") return <Login />;
   return (
-    <main className="dashboard">
-      <a className="wordmark" href="/dashboard">
-        unaru<span aria-hidden="true">↗</span>
+    <main className="p-page">
+      <a className={wordmarkClasses} href="/dashboard">
+        unaru<span className="text-[1.4rem] text-green" aria-hidden="true">↗</span>
       </a>
-      <section>
-        <p className="eyebrow">YOUR DASHBOARD</p>
+      <section className="max-inline-[38rem] my-20">
+        <p className={eyebrowClasses}>YOUR DASHBOARD</p>
         <h1>Welcome back</h1>
         <p>Signed in as {session.data.userId}</p>
-        <p className="connection" role="status">
+        <p className="inline-block max-inline-full bg-mint py-[0.6rem] px-4 rounded-[0.3rem]" role="status">
           {session.data.connection === "active"
             ? "Connected to Zerodha"
             : session.data.connection === "temporarily_unavailable"

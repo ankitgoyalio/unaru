@@ -1,5 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
+import {
+  errorClasses,
+  brokerButtonClasses,
+  brokerLabelClasses,
+  brokerLogoClasses,
+} from "./ui";
 
 async function startReconnect(): Promise<void> {
   const response = await fetch("/api/auth/reconnect", {
@@ -27,12 +33,12 @@ export function Reconnect({ required }: { required: boolean }) {
   return (
     <div>
       <p>You are still signed in to Unaru. Reconnect to restore your Zerodha connection.</p>
-      {message && <p role="alert" className="error">{message}</p>}
-      {reconnect.isError && <p role="alert" className="error">Reconnection could not start. Check that Unaru is running, then try again.</p>}
-      <button className="primary zerodha-action" aria-label={reconnect.isPending ? "Opening Zerodha…" : "Reconnect with Zerodha"} disabled={reconnect.isPending} onClick={() => reconnect.mutate()}>
-        <span className="zerodha-action-label" aria-hidden="true">
+      {message && <p role="alert" className={errorClasses}>{message}</p>}
+      {reconnect.isError && <p role="alert" className={errorClasses}>Reconnection could not start. Check that Unaru is running, then try again.</p>}
+      <button className={brokerButtonClasses} aria-label={reconnect.isPending ? "Opening Zerodha…" : "Reconnect with Zerodha"} disabled={reconnect.isPending} onClick={() => reconnect.mutate()}>
+        <span className={brokerLabelClasses} aria-hidden="true">
           {reconnect.isPending ? "Opening" : "Reconnect with"}
-          <img src="/brands/zerodha.svg" alt="Zerodha" width="609" height="80" />
+          <img className={brokerLogoClasses} src="/brands/zerodha.svg" alt="Zerodha" width="609" height="80" />
         </span>
       </button>
       {reconnect.isPending && <p role="status">Opening Zerodha to reconnect…</p>}
