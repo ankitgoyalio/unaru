@@ -70,6 +70,7 @@ func NewServer(config Config, pool *pgxpool.Pool, broker Broker, now func() time
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/auth/login", s.startLogin)
+	mux.HandleFunc("POST /api/auth/reconnect", s.startReconnect)
 	mux.HandleFunc("GET /api/auth/callback", s.callback)
 	mux.HandleFunc("GET /api/session", s.session)
 	mux.HandleFunc("POST /api/auth/logout", s.logout)
@@ -131,7 +132,8 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var expected string
-	err = s.Pool.QueryRow(r.Context(), "SELECT a.binding_hash FROM login_attempts a CROSS JOIN installation i WHERE a.hash=$1 AND a.consumed_at IS NULL AND a.expires_at>$2 AND a.auth_generation=i.auth_generation", hash(attempt), s.Now()).Scan(&expected)
+	var reconnectSession *string
+	err = s.Pool.QueryRow(r.Context(), "SELECT a.binding_hash,a.session_hash FROM login_attempts a CROSS JOIN installation i WHERE a.hash=$1 AND a.consumed_at IS NULL AND a.expires_at>$2 AND a.auth_generation=i.auth_generation", hash(attempt), s.Now()).Scan(&expected, &reconnectSession)
 	if err != nil || subtle.ConstantTimeCompare([]byte(expected), []byte(hash(binding.Value))) != 1 {
 		s.fail(w, r, "invalid_attempt")
 		return
@@ -142,6 +144,10 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: "unaru_login", Path: "/", HttpOnly: true, Secure: s.Config.SecureCookies, SameSite: http.SameSiteLaxMode, MaxAge: -1})
+	if reconnectSession != nil && !s.validReconnectSession(r, *reconnectSession) {
+		s.fail(w, r, "invalid_attempt")
+		return
+	}
 	token := r.URL.Query().Get("request_token")
 	if token == "" || r.URL.Query().Get("status") != "success" {
 		s.fail(w, r, "cancelled")
@@ -150,6 +156,23 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 	authorization, err := s.Broker.Exchange(r.Context(), token)
 	if err != nil || authorization.UserID == "" || authorization.AccessToken == "" {
 		s.fail(w, r, "exchange_failed")
+		return
+	}
+	if reconnectSession != nil {
+		err = s.completeReconnect(r.Context(), authorization, *reconnectSession, hash(attempt), s.Now())
+		if errors.Is(err, errIdentity) {
+			s.fail(w, r, "account_mismatch")
+			return
+		}
+		if errors.Is(err, errReconnectSession) || errors.Is(err, errStaleAttempt) {
+			s.fail(w, r, "invalid_attempt")
+			return
+		}
+		if err != nil {
+			s.fail(w, r, "service_unavailable")
+			return
+		}
+		http.Redirect(w, r, s.Config.AppOrigin+"/dashboard", http.StatusSeeOther)
 		return
 	}
 	sessionID := randomID()
@@ -241,7 +264,7 @@ func (s *Server) readSession(r *http.Request) (SessionStatus, error) {
 	}
 	status.Kind = "signed_in"
 	status.Connection = brokerStatus
-	return status, nil
+	return s.checkBrokerStatus(r, status)
 }
 func (s *Server) session(w http.ResponseWriter, r *http.Request) {
 	status, err := s.readSession(r)
