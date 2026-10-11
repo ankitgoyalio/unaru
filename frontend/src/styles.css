@@ -135,12 +135,14 @@ h1 {
 }
 .zerodha-action-label {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
 }
 .zerodha-action-label img {
   flex: none;
   inline-size: 6.25rem;
+  max-inline-size: 100%;
   block-size: auto;
 }
 .signup {
@@ -201,6 +203,7 @@ h1 {
 }
 .connection {
   display: inline-block;
+  max-inline-size: 100%;
   background: oklch(94% 0.035 158);
   padding-block: 0.6rem;
   padding-inline: 1rem;

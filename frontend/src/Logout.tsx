@@ -24,8 +24,9 @@ export function Logout() {
       <button onClick={() => logout.mutate()} disabled={logout.isPending}>
         {logout.isPending ? "Logging out…" : "Log out"}
       </button>
+      {logout.isPending && <p role="status">Logging out of Unaru…</p>}
       {logout.isError && (
-        <p role="alert">Logout could not finish. Check your connection and try again.</p>
+        <p role="alert">Could not log out. Check your connection and try again.</p>
       )}
     </>
   );
