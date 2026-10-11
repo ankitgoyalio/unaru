@@ -15,6 +15,7 @@ import {
 } from "@tanstack/react-router";
 import { getSession, startLogin } from "./session";
 import "./styles.css";
+import { Logout } from "./Logout";
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 0 } },
 });
@@ -184,6 +185,7 @@ export function App() {
             : "Zerodha reconnection required"}
         </p>
         <p>Your investment dashboard is ready.</p>
+        <Logout />
       </section>
     </main>
   );

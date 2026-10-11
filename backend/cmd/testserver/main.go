@@ -31,6 +31,7 @@ func (broker) Exchange(ctx context.Context, request string) (auth.Authorization,
 	}
 	return auth.Authorization{UserID: user, AccessToken: "browser-test-secret"}, nil
 }
+func (broker) RevokeAccess(context.Context, string) error { return nil }
 func main() {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
