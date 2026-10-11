@@ -1,6 +1,8 @@
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
+  // Browser scenarios share one single-account installation and fake broker.
+  workers: 1,
   use: { baseURL: "http://127.0.0.1:5173", headless: true },
   webServer: [
     {
