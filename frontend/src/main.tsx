@@ -60,11 +60,15 @@ function Login() {
             </p>
           )}
           <button
-            className="primary"
+            className="primary zerodha-action"
+            aria-label={login.isPending ? "Opening Zerodha…" : "Sign in with Zerodha"}
             onClick={() => login.mutate()}
             disabled={login.isPending}
           >
-            {login.isPending ? "Opening Zerodha…" : "Sign in with Zerodha"}
+            <span className="zerodha-action-label" aria-hidden="true">
+              {login.isPending ? "Opening" : "Sign in with"}
+              <img src="/brands/zerodha.svg" alt="" width="609" height="80" />
+            </span>
             <span aria-hidden="true">↗</span>
           </button>
           <p className="provider-note">You'll complete sign-in on Zerodha.</p>

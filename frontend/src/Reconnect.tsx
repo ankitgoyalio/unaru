@@ -29,8 +29,11 @@ export function Reconnect({ required }: { required: boolean }) {
       <p>You are still signed in to your dashboard. Reconnect to restore access to fresh Zerodha data.</p>
       {message && <p role="alert" className="error">{message}</p>}
       {reconnect.isError && <p role="alert" className="error">Reconnection could not start. Check the backend connection, then try again.</p>}
-      <button className="primary" disabled={reconnect.isPending} onClick={() => reconnect.mutate()}>
-        {reconnect.isPending ? "Opening Zerodha…" : "Reconnect with Zerodha"}
+      <button className="primary zerodha-action" aria-label={reconnect.isPending ? "Opening Zerodha…" : "Reconnect with Zerodha"} disabled={reconnect.isPending} onClick={() => reconnect.mutate()}>
+        <span className="zerodha-action-label" aria-hidden="true">
+          {reconnect.isPending ? "Opening" : "Reconnect with"}
+          <img src="/brands/zerodha.svg" alt="" width="609" height="80" />
+        </span>
       </button>
     </div>
   );

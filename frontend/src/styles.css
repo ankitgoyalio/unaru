@@ -6,6 +6,7 @@
   color-scheme: light;
   --green: oklch(36% 0.075 165);
   --muted: oklch(45% 0.015 160);
+  --zerodha-blue: oklch(from #387ed1 l c h);
   --space: clamp(1.5rem, 0.5rem + 4vw, 5rem);
   overflow-wrap: break-word;
 }
@@ -124,6 +125,24 @@ h1 {
   text-align: center;
   margin-block: 1rem 2.6rem;
 }
+.zerodha-action {
+  background: oklch(100% 0 none);
+  color: oklch(21% 0.015 160);
+  border-color: var(--zerodha-blue);
+}
+.zerodha-action:focus-visible {
+  outline-color: var(--zerodha-blue);
+}
+.zerodha-action-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.zerodha-action-label img {
+  flex: none;
+  inline-size: 6.25rem;
+  block-size: auto;
+}
 .signup {
   font-size: 0.84rem;
 }
@@ -194,5 +213,9 @@ h1 {
   }
   a:hover {
     text-decoration: underline;
+  }
+  .zerodha-action:hover {
+    background: color-mix(in oklch, var(--zerodha-blue) 8%, white);
+    color: oklch(21% 0.015 160);
   }
 }
