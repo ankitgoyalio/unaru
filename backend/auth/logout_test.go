@@ -204,4 +204,19 @@ func TestLogout(t *testing.T) {
 	if broker.revocations != 4 {
 		t.Fatal("completed revocation repeated")
 	}
+
+	// Retaining the installation identity prevents another account taking over.
+	broker.user = "OTHER"
+	req, _ = http.NewRequest("POST", ts.URL+"/api/auth/login", nil)
+	req.Header.Set("Origin", cfg.AppOrigin)
+	res, _ = client.Do(req)
+	json.NewDecoder(res.Body).Decode(&start)
+	res.Body.Close()
+	u, _ = url.Parse(start.URL)
+	q, _ = url.ParseQuery(u.Query().Get("redirect_params"))
+	res, _ = client.Get(ts.URL + "/api/auth/callback?attempt=" + q.Get("attempt") + "&request_token=ok&status=success")
+	res.Body.Close()
+	if !strings.Contains(res.Header.Get("Location"), "error=account_mismatch") {
+		t.Fatal("logout erased installation identity")
+	}
 }
