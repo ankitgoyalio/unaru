@@ -25,14 +25,16 @@ The standards review raised three findings. The spec review raised three finding
 
 ## Live acceptance
 
-Live verification is pending. The installation owner agreed to prepare their Kite and Neon settings locally. No real Kite login or live Neon scenario has been observed, and the feature is not fully verified.
+Live acceptance passed on 2026-10-11. The backend and frontend ran on Linux with the owner's locally configured Kite app and Neon database. The owner authenticated personally from their Mac through an SSH tunnel. Broker credentials and authentication challenges stayed on Zerodha's hosted page.
 
-The following scenarios remain pending:
+1. The owner confirmed successful first login, return to the connected dashboard, and the expected account. This exercised the registered callback and backend token exchange.
+2. The backend restarted with the same configuration and database. The owner confirmed the dashboard session restored after quitting and reopening the same browser profile without another login.
+3. `go run ./cmd/verify-live reconnect` reported `capture: PASS` and `verification: PASS`. The command invalidated real Kite access, then verified restored access after user-driven reconnection with unchanged dashboard session identifiers and absolute expiry.
+4. The owner confirmed logout returned to sign-in. `go run ./cmd/verify-live logout` reported `verification: PASS`, confirming revocation of the captured dashboard session and Kite's documented token-invalid response for the previous access token.
+5. The owner confirmed a fresh login succeeded after logout.
+6. An isolated Chromium browser opened the exact referral destination through keyboard activation. Tab and Shift+Tab reached the sign-in and sign-up controls with visible three-pixel focus outlines. Enter on sign-in opened Kite's hosted login; no broker authentication was automated.
+7. The finished sign-in screen was inspected at desktop width and at 320 CSS pixels. At 320 pixels, the document width matched the viewport, all controls fit, text remained readable, and the page had no horizontal overflow. The desktop composition retained the inspected AirOps reference's white and pale green split.
 
-1. Real hosted login, registered callback, token exchange, expected-account match, and connected landing screen.
-2. Dashboard access after browser and backend restarts.
-3. Supported Kite token invalidation followed by same-account reconnection, preserving dashboard session identifiers and absolute expiry.
-4. Logout ending dashboard access and invalidating the previous real broker token.
-5. A fresh login after logout.
+No failures remained in these acceptance scenarios. The manual UI check used Chromium on Linux; it does not establish compatibility with every Mac browser or full accessibility conformance. Automated expiry, replay, outage, and identity-mismatch tests supplement the live checks.
 
-Follow [the live acceptance guide](live-acceptance.md). Record each observed outcome and failure without credentials, token values, or account identifiers. Keep issue #8 and parent spec #3 open until the required live scenarios pass.
+The [live acceptance guide](live-acceptance.md) describes how to repeat these checks. No credentials, token values, or account identifiers are recorded here.
