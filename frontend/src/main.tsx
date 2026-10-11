@@ -197,9 +197,22 @@ export function App() {
         <p className="connection" role="status">
           {session.data.connection === "active"
             ? "Connected to Zerodha"
-            : "Zerodha reconnection required"}
+            : session.data.connection === "temporarily_unavailable"
+              ? "Zerodha is temporarily unavailable"
+              : "Zerodha reconnection required"}
         </p>
-        <Reconnect required={session.data.connection !== "active"} />
+        {session.data.connection === "temporarily_unavailable" && (
+          <>
+            <p>Your dashboard is still signed in. Try checking the connection again.</p>
+            <button onClick={() => session.refetch()}>Check connection</button>
+          </>
+        )}
+        <Reconnect
+          required={
+            session.data.connection !== "active" &&
+            session.data.connection !== "temporarily_unavailable"
+          }
+        />
         <p>Your investment dashboard is ready.</p>
         <Logout />
       </section>

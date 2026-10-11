@@ -213,20 +213,8 @@ func (s *Server) completeLogin(ctx context.Context, a Authorization, sessionHash
 	if err = tx.QueryRow(ctx, "SELECT user_id FROM installation WHERE id=true FOR UPDATE").Scan(&linked); err != nil {
 		return err
 	}
-	var current bool
-	if err = tx.QueryRow(ctx, "SELECT a.auth_generation=i.auth_generation FROM login_attempts a CROSS JOIN installation i WHERE a.hash=$1", attemptHash).Scan(&current); err != nil {
+	if err = s.fenceAuthorization(ctx, tx, a, attemptHash, now); err != nil {
 		return err
-	}
-	if !current {
-		// A callback may finish its provider exchange after logout has won.
-		// Keep that token only in the encrypted disposal queue.
-		if _, err = tx.Exec(ctx, "INSERT INTO pending_revocations(id,user_id,encrypted_token,retry_at) VALUES($1,$2,$3,$4)", randomID(), a.UserID, s.encrypt(a.AccessToken, a.UserID), now); err != nil {
-			return err
-		}
-		if err = tx.Commit(ctx); err != nil {
-			return err
-		}
-		return errStaleAttempt
 	}
 	if linked != nil && *linked != a.UserID {
 		return errIdentity
@@ -237,7 +225,7 @@ func (s *Server) completeLogin(ctx context.Context, a Authorization, sessionHash
 	if _, err = tx.Exec(ctx, "INSERT INTO dashboard_sessions(hash,user_id,created_at,expires_at) VALUES($1,$2,$3,$4)", sessionHash, a.UserID, now, now.Add(30*24*time.Hour)); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(ctx, "INSERT INTO broker_authorizations(user_id,encrypted_token,status,updated_at,expires_at) VALUES($1,$2,'active',$3,$4) ON CONFLICT(user_id) DO UPDATE SET encrypted_token=EXCLUDED.encrypted_token,status='active',updated_at=EXCLUDED.updated_at,expires_at=EXCLUDED.expires_at", a.UserID, s.encrypt(a.AccessToken, a.UserID), now, brokerExpiry(now)); err != nil {
+	if err = s.replaceAuthorization(ctx, tx, a, now); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

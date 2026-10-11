@@ -57,18 +57,8 @@ func (s *Server) completeReconnect(ctx context.Context, a Authorization, session
 	if err = tx.QueryRow(ctx, "SELECT user_id FROM installation WHERE id=true FOR UPDATE").Scan(&linked); err != nil {
 		return err
 	}
-	var current bool
-	if err = tx.QueryRow(ctx, "SELECT a.auth_generation=i.auth_generation FROM login_attempts a CROSS JOIN installation i WHERE a.hash=$1", attemptHash).Scan(&current); err != nil {
+	if err = s.fenceAuthorization(ctx, tx, a, attemptHash, now); err != nil {
 		return err
-	}
-	if !current {
-		if _, err = tx.Exec(ctx, "INSERT INTO pending_revocations(id,user_id,encrypted_token,retry_at) VALUES($1,$2,$3,$4)", randomID(), a.UserID, s.encrypt(a.AccessToken, a.UserID), now); err != nil {
-			return err
-		}
-		if err = tx.Commit(ctx); err != nil {
-			return err
-		}
-		return errStaleAttempt
 	}
 	var user string
 	err = tx.QueryRow(ctx, "SELECT user_id FROM dashboard_sessions WHERE hash=$1 AND revoked_at IS NULL AND expires_at>$2 FOR UPDATE", sessionHash, now).Scan(&user)
@@ -78,7 +68,7 @@ func (s *Server) completeReconnect(ctx context.Context, a Authorization, session
 	if linked == nil || *linked != a.UserID || user != a.UserID {
 		return errIdentity
 	}
-	_, err = tx.Exec(ctx, "INSERT INTO broker_authorizations(user_id,encrypted_token,status,updated_at,expires_at) VALUES($1,$2,'active',$3,$4) ON CONFLICT(user_id) DO UPDATE SET encrypted_token=EXCLUDED.encrypted_token,status='active',updated_at=EXCLUDED.updated_at,expires_at=EXCLUDED.expires_at", a.UserID, s.encrypt(a.AccessToken, a.UserID), now, brokerExpiry(now))
+	err = s.replaceAuthorization(ctx, tx, a, now)
 	if err != nil {
 		return err
 	}

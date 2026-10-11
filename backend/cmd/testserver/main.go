@@ -17,22 +17,35 @@ import (
 	"time"
 )
 
-type broker struct{ invalid atomic.Bool }
+type broker struct {
+	invalid atomic.Bool
+	blocked atomic.Bool
+}
 
 func (*broker) LoginURL(attempt string) string {
 	return "http://127.0.0.1:5173/api/test/kite?redirect_params=" + url.QueryEscape("attempt="+attempt)
 }
 func (*broker) Exchange(ctx context.Context, request string) (auth.Authorization, error) {
 	if request == "fail" {
-		return auth.Authorization{}, fmt.Errorf("fake provider failure")
+		return auth.Authorization{}, fmt.Errorf("browser-kite-secret-marker browser-database-password-marker browser-encryption-key-marker000 browser-access-token-marker browser-request-token-marker")
 	}
 	user := "TESTOWNER"
 	if request == "other" {
 		user = "OTHER"
 	}
-	return auth.Authorization{UserID: user, AccessToken: "browser-test-secret"}, nil
+	return auth.Authorization{UserID: user, AccessToken: "browser-access-token-marker"}, nil
 }
-func (b *broker) RevokeAccess(context.Context, string) error { b.invalid.Store(true); return nil }
+func (b *broker) RevokeAccess(ctx context.Context, _ string) error {
+	if b.blocked.Load() {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(30 * time.Second):
+		}
+	}
+	b.invalid.Store(true)
+	return nil
+}
 func (b *broker) CheckAccess(context.Context, string) error {
 	if b.invalid.Load() {
 		return auth.ErrBrokerTokenExpired
@@ -69,12 +82,14 @@ func main() {
 		log.Fatal(err)
 	}
 	fake := &broker{}
-	server, err := auth.NewServer(auth.Config{AppOrigin: "http://127.0.0.1:5173", CallbackURL: "http://127.0.0.1:5173/api/auth/callback", EncryptionKey: make([]byte, 32)}, pool, fake, nil)
+	server, err := auth.NewServer(auth.Config{APISecret: "browser-kite-secret-marker", DatabaseURL: "postgres://user:browser-database-password-marker@invalid/test", AppOrigin: "http://127.0.0.1:5173", CallbackURL: "http://127.0.0.1:5173/api/auth/callback", EncryptionKey: []byte("browser-encryption-key-marker000")}, pool, fake, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/", server.Handler())
+	mux.HandleFunc("POST /api/test/block-revocation", func(w http.ResponseWriter, r *http.Request) { fake.blocked.Store(true); w.WriteHeader(204) })
+	mux.HandleFunc("POST /api/test/unblock-revocation", func(w http.ResponseWriter, r *http.Request) { fake.blocked.Store(false); w.WriteHeader(204) })
 	mux.HandleFunc("POST /api/test/invalidate", func(w http.ResponseWriter, r *http.Request) {
 		fake.invalid.Store(true)
 		w.WriteHeader(204)
@@ -86,7 +101,7 @@ func main() {
 			fake.invalid.Store(false)
 		}
 		if outcome == "" {
-			outcome = "success"
+			outcome = "browser-request-token-marker"
 		}
 		q.Set("request_token", outcome)
 		q.Set("status", "success")

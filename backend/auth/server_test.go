@@ -1,10 +1,13 @@
 package auth_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -29,7 +32,7 @@ func (b *fakeBroker) LoginURL(attempt string) string {
 func (b *fakeBroker) Exchange(ctx context.Context, token string) (auth.Authorization, error) {
 	b.exchanges++
 	if token == "fail" {
-		return auth.Authorization{}, errors.New("provider-token secret-access-token provider error")
+		return auth.Authorization{}, errors.New("provider-token secret-access-token marker-kite-secret marker-database-password marker-encryption-key-32-bytes00 provider error")
 	}
 	return auth.Authorization{UserID: b.user, AccessToken: "secret-access-token"}, nil
 }
@@ -65,12 +68,37 @@ func TestFirstLogin(t *testing.T) {
 	}
 	broker := &fakeBroker{user: "OWNER1"}
 	now := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
-	cfg := auth.Config{AppOrigin: "http://localhost:5173", CallbackURL: "http://localhost:5173/api/auth/callback", EncryptionKey: make([]byte, 32)}
+	cfg := auth.Config{APISecret: "marker-kite-secret", DatabaseURL: "postgres://user:marker-database-password@invalid/test", AppOrigin: "http://localhost:5173", CallbackURL: "http://localhost:5173/api/auth/callback", EncryptionKey: []byte("marker-encryption-key-32-bytes00")}
 	srv, err := auth.NewServer(cfg, pool, broker, func() time.Time { return now })
 	if err != nil {
 		t.Fatal(err)
 	}
-	ts := httptest.NewServer(srv.Handler())
+	var logs bytes.Buffer
+	oldLog := log.Writer()
+	log.SetOutput(&logs)
+	defer log.SetOutput(oldLog)
+	secrets := []string{"marker-kite-secret", "marker-database-password", "marker-encryption-key-32-bytes00", "provider-token", "secret-access-token"}
+	assertNoSecrets := func(value string) {
+		t.Helper()
+		for _, marker := range secrets {
+			if strings.Contains(value, marker) {
+				t.Errorf("secret marker leaked at observable boundary")
+			}
+		}
+	}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		result := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(result, r)
+		assertNoSecrets(result.Body.String() + fmt.Sprint(result.Header()))
+		for name, values := range result.Header() {
+			for _, value := range values {
+				w.Header().Add(name, value)
+			}
+		}
+		w.WriteHeader(result.Code)
+		io.Copy(w, result.Body)
+	}))
+	defer func() { assertNoSecrets(logs.String()) }()
 	defer ts.Close()
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar, CheckRedirect: func(r *http.Request, v []*http.Request) error { return http.ErrUseLastResponse }}
@@ -116,9 +144,7 @@ func TestFirstLogin(t *testing.T) {
 		t.Fatalf("status %+v", status)
 	}
 	for _, c := range jar.Cookies(mustURL(ts.URL)) {
-		if strings.Contains(c.Value, "secret") {
-			t.Fatal("secret cookie")
-		}
+		assertNoSecrets(c.Value)
 	}
 	res, _ = client.Get(callback)
 	res.Body.Close()

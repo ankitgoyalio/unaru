@@ -31,7 +31,7 @@ func (s *Server) InvalidateBrokerForAcceptance(ctx context.Context) error {
 	if err != nil {
 		return errors.New("cannot read broker authorization")
 	}
-	if err = revoker.RevokeAccess(ctx, token); err != nil && !errors.Is(err, ErrBrokerTokenExpired) {
+	if err = revoker.RevokeAccess(ctx, token); err != nil && !errors.Is(err, ErrBrokerTokenExpired) && !tokenAlreadyInvalid(err) {
 		return errors.New("broker invalidation failed; retry when Kite is available")
 	}
 	return tx.Commit(ctx)
