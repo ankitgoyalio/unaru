@@ -69,8 +69,10 @@ func NewServer(config Config, pool *pgxpool.Pool, broker Broker, now func() time
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/auth/login", s.startLogin)
+	mux.HandleFunc("POST /api/auth/reconnect", s.startReconnect)
 	mux.HandleFunc("GET /api/auth/callback", s.callback)
 	mux.HandleFunc("GET /api/session", s.session)
+	mux.HandleFunc("POST /api/auth/logout", s.logout)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Referrer-Policy", "no-referrer")
@@ -110,7 +112,7 @@ func (s *Server) startLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	attempt, binding := randomID(), randomID()
 	expiry := s.Now().Add(5 * time.Minute)
-	_, err := s.Pool.Exec(r.Context(), "INSERT INTO login_attempts(hash,binding_hash,expires_at) VALUES($1,$2,$3)", hash(attempt), hash(binding), expiry)
+	_, err := s.Pool.Exec(r.Context(), "INSERT INTO login_attempts(hash,binding_hash,expires_at,auth_generation) SELECT $1,$2,$3,auth_generation FROM installation WHERE id=true", hash(attempt), hash(binding), expiry)
 	if err != nil {
 		unavailable(w)
 		return
@@ -129,7 +131,8 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var expected string
-	err = s.Pool.QueryRow(r.Context(), "SELECT binding_hash FROM login_attempts WHERE hash=$1 AND consumed_at IS NULL AND expires_at>$2", hash(attempt), s.Now()).Scan(&expected)
+	var reconnectSession *string
+	err = s.Pool.QueryRow(r.Context(), "SELECT a.binding_hash,a.session_hash FROM login_attempts a CROSS JOIN installation i WHERE a.hash=$1 AND a.consumed_at IS NULL AND a.expires_at>$2 AND a.auth_generation=i.auth_generation", hash(attempt), s.Now()).Scan(&expected, &reconnectSession)
 	if err != nil || subtle.ConstantTimeCompare([]byte(expected), []byte(hash(binding.Value))) != 1 {
 		s.fail(w, r, "invalid_attempt")
 		return
@@ -140,6 +143,10 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: "unaru_login", Path: "/", HttpOnly: true, Secure: s.Config.SecureCookies, SameSite: http.SameSiteLaxMode, MaxAge: -1})
+	if reconnectSession != nil && !s.validReconnectSession(r, *reconnectSession) {
+		s.fail(w, r, "invalid_attempt")
+		return
+	}
 	token := r.URL.Query().Get("request_token")
 	if token == "" || r.URL.Query().Get("status") != "success" {
 		s.fail(w, r, "cancelled")
@@ -150,9 +157,30 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, "exchange_failed")
 		return
 	}
+	if reconnectSession != nil {
+		err = s.completeReconnect(r.Context(), authorization, *reconnectSession, hash(attempt), s.Now())
+		if errors.Is(err, errIdentity) {
+			s.fail(w, r, "account_mismatch")
+			return
+		}
+		if errors.Is(err, errReconnectSession) || errors.Is(err, errStaleAttempt) {
+			s.fail(w, r, "invalid_attempt")
+			return
+		}
+		if err != nil {
+			s.fail(w, r, "service_unavailable")
+			return
+		}
+		http.Redirect(w, r, s.Config.AppOrigin+"/dashboard", http.StatusSeeOther)
+		return
+	}
 	sessionID := randomID()
 	now := s.Now()
-	err = s.completeLogin(r.Context(), authorization, hash(sessionID), now)
+	err = s.completeLogin(r.Context(), authorization, hash(sessionID), hash(attempt), now)
+	if errors.Is(err, errStaleAttempt) {
+		s.fail(w, r, "invalid_attempt")
+		return
+	}
 	if errors.Is(err, errIdentity) {
 		s.fail(w, r, "account_mismatch")
 		return
@@ -165,6 +193,7 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, s.Config.AppOrigin+"/dashboard", http.StatusSeeOther)
 }
 
+var errStaleAttempt = errors.New("attempt superseded by logout")
 var errIdentity = errors.New("different linked account")
 
 func (s *Server) encrypt(token, userID string) []byte {
@@ -174,7 +203,7 @@ func (s *Server) encrypt(token, userID string) []byte {
 	}
 	return s.cipher.Seal(nonce, nonce, []byte(token), []byte(userID))
 }
-func (s *Server) completeLogin(ctx context.Context, a Authorization, sessionHash string, now time.Time) error {
+func (s *Server) completeLogin(ctx context.Context, a Authorization, sessionHash, attemptHash string, now time.Time) error {
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -183,6 +212,21 @@ func (s *Server) completeLogin(ctx context.Context, a Authorization, sessionHash
 	var linked *string
 	if err = tx.QueryRow(ctx, "SELECT user_id FROM installation WHERE id=true FOR UPDATE").Scan(&linked); err != nil {
 		return err
+	}
+	var current bool
+	if err = tx.QueryRow(ctx, "SELECT a.auth_generation=i.auth_generation FROM login_attempts a CROSS JOIN installation i WHERE a.hash=$1", attemptHash).Scan(&current); err != nil {
+		return err
+	}
+	if !current {
+		// A callback may finish its provider exchange after logout has won.
+		// Keep that token only in the encrypted disposal queue.
+		if _, err = tx.Exec(ctx, "INSERT INTO pending_revocations(id,user_id,encrypted_token,retry_at) VALUES($1,$2,$3,$4)", randomID(), a.UserID, s.encrypt(a.AccessToken, a.UserID), now); err != nil {
+			return err
+		}
+		if err = tx.Commit(ctx); err != nil {
+			return err
+		}
+		return errStaleAttempt
 	}
 	if linked != nil && *linked != a.UserID {
 		return errIdentity
@@ -203,6 +247,7 @@ func brokerExpiry(now time.Time) time.Time {
 	local := now.In(india)
 	return time.Date(local.Year(), local.Month(), local.Day()+1, 6, 0, 0, 0, india)
 }
+
 func (s *Server) session(w http.ResponseWriter, r *http.Request) {
 	status, err := s.readSession(r)
 	if err != nil {

@@ -12,16 +12,17 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
 
-type broker struct{}
+type broker struct{ invalid atomic.Bool }
 
-func (broker) LoginURL(attempt string) string {
+func (*broker) LoginURL(attempt string) string {
 	return "http://127.0.0.1:5173/api/test/kite?redirect_params=" + url.QueryEscape("attempt="+attempt)
 }
-func (broker) Exchange(ctx context.Context, request string) (auth.Authorization, error) {
+func (*broker) Exchange(ctx context.Context, request string) (auth.Authorization, error) {
 	if request == "fail" {
 		return auth.Authorization{}, fmt.Errorf("fake provider failure")
 	}
@@ -30,6 +31,13 @@ func (broker) Exchange(ctx context.Context, request string) (auth.Authorization,
 		user = "OTHER"
 	}
 	return auth.Authorization{UserID: user, AccessToken: "browser-test-secret"}, nil
+}
+func (b *broker) RevokeAccess(context.Context, string) error { b.invalid.Store(true); return nil }
+func (b *broker) CheckAccess(context.Context, string) error {
+	if b.invalid.Load() {
+		return auth.ErrBrokerTokenExpired
+	}
+	return nil
 }
 func main() {
 	dsn := os.Getenv("TEST_DATABASE_URL")
@@ -60,16 +68,32 @@ func main() {
 	if err = auth.Migrate(ctx, pool); err != nil {
 		log.Fatal(err)
 	}
-	server, err := auth.NewServer(auth.Config{AppOrigin: "http://127.0.0.1:5173", CallbackURL: "http://127.0.0.1:5173/api/auth/callback", EncryptionKey: make([]byte, 32)}, pool, broker{}, nil)
+	fake := &broker{}
+	server, err := auth.NewServer(auth.Config{AppOrigin: "http://127.0.0.1:5173", CallbackURL: "http://127.0.0.1:5173/api/auth/callback", EncryptionKey: make([]byte, 32)}, pool, fake, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/", server.Handler())
+	mux.HandleFunc("POST /api/test/invalidate", func(w http.ResponseWriter, r *http.Request) {
+		fake.invalid.Store(true)
+		w.WriteHeader(204)
+	})
 	mux.HandleFunc("GET /api/test/kite", func(w http.ResponseWriter, r *http.Request) {
 		q, _ := url.ParseQuery(r.URL.Query().Get("redirect_params"))
-		q.Set("request_token", "success")
+		outcome := r.URL.Query().Get("outcome")
+		if outcome == "" {
+			fake.invalid.Store(false)
+		}
+		if outcome == "" {
+			outcome = "success"
+		}
+		q.Set("request_token", outcome)
 		q.Set("status", "success")
+		if outcome == "cancel" {
+			q.Del("request_token")
+			q.Set("status", "cancelled")
+		}
 		http.Redirect(w, r, "/api/auth/callback?"+q.Encode(), 303)
 	})
 	log.Print("fake Kite browser test backend ready")

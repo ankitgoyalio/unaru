@@ -37,5 +37,5 @@ func (s *Server) readSession(r *http.Request) (SessionStatus, error) {
 	}
 	status.Kind = "signed_in"
 	status.Connection = brokerStatus
-	return status, nil
+	return s.checkBrokerStatus(r, status)
 }
