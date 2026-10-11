@@ -40,4 +40,4 @@ See the [Kite login contract](https://kite.trade/docs/connect/v3/user/), [offici
 
 The sign-in composition follows the white and pale green split of the [AirOps Mobbin reference](https://mobbin.com/screens/34e45a12-f486-4d5a-b6dd-1bed5394496c), retrieved through its resetting-password flow. The investment illustration is original SVG. The reference image is not bundled in the application.
 
-Real Kite acceptance remains user-assisted and pending until the installation owner completes the live scenarios with their locally stored configuration.
+Real Kite acceptance passed with the installation owner on 2026-10-11. See the [verification record](docs/verification-zerodha-login.md) for results and the [live acceptance guide](docs/live-acceptance.md) to repeat the scenarios with your own local configuration.
