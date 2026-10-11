@@ -1,0 +1,10 @@
+{
+  "name": "unaru",
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "scripts": {
+    "dev": "pnpm --filter @unaru/frontend dev",
+    "build": "pnpm --filter @unaru/frontend build",
+    "test:browser": "pnpm --filter @unaru/frontend test:browser"
+  }
+}
