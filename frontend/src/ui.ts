@@ -1,11 +1,15 @@
-// Complete utility strings keep Tailwind's source detection static and share broker branding.
+// Static utility strings share layout and broker branding across account screens.
 export const wordmarkClasses =
-  "inline-flex items-baseline gap-[0.3rem] self-start text-[1.75rem] font-bold tracking-[-0.08em] no-underline text-inherit fine-hover:underline";
-export const eyebrowClasses =
-  "text-[0.69rem] font-semibold tracking-[0.15em] text-green";
+  "inline-flex items-baseline text-[2rem] font-semibold tracking-[-0.04em] no-underline text-ink";
+export const shellClasses =
+  "grid grid-rows-[auto_1fr_auto] min-block-svh p-page gap-8";
+export const accountPanelClasses =
+  "inline-full max-inline-[28rem] mx-auto my-auto py-12";
 export const errorClasses =
-  "text-[0.85rem] border-s-3 border-error-border ps-4 text-error";
+  "text-[0.875rem] leading-relaxed border border-error-border rounded-md p-4 text-error bg-error-surface text-start";
 export const brokerButtonClasses =
-  "flex items-center justify-between gap-4 inline-full text-[0.92rem] font-semibold bg-paper text-ink border-zerodha focus-visible:outline-zerodha fine-hover:bg-zerodha-hover fine-hover:text-ink";
-export const brokerLabelClasses = "inline-flex flex-wrap items-center gap-2";
-export const brokerLogoClasses = "flex-none inline-25 max-inline-full block-auto";
+  "flex items-center justify-center gap-2 inline-full text-[0.95rem] font-semibold bg-paper text-ink border-line focus-visible:outline-ink fine-hover:bg-soft fine-hover:text-ink";
+export const brokerLabelClasses =
+  "inline-flex flex-wrap justify-center items-center gap-2 flex-[1_1_0]";
+export const brokerLogoClasses =
+  "flex-none inline-24 max-inline-full block-4 object-contain";

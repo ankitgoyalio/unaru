@@ -1,48 +1,79 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(/fonts/inter-latin.woff2) format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
 @theme {
-  --font-sans: Inter, Arial, sans-serif;
-  --font-editorial: Georgia, serif;
-  --color-ink: oklch(21% 0.015 160);
+  --font-sans: Inter, system-ui, sans-serif;
+  --radius-md: 0.5rem;
+  --color-ink: oklch(22% 0.004 250);
   --color-paper: oklch(100% 0 none);
-  --color-green: oklch(36% 0.075 165);
-  --color-muted: oklch(45% 0.015 160);
-  --color-mint: oklch(94% 0.035 158);
-  --color-zerodha: oklch(from #387ed1 l c h);
-  --color-zerodha-hover: color-mix(in oklch, var(--color-zerodha) 8%, var(--color-paper));
-  --color-button-hover: color-mix(in oklch, var(--color-green), oklch(0% 0 none) 12%);
+  --color-muted: oklch(46% 0.005 250);
+  --color-line: oklch(86% 0.004 250);
+  --color-soft: oklch(97% 0.003 250);
+  --color-success: oklch(40% 0.09 160);
   --color-error: oklch(40% 0.12 30);
-  --color-error-border: oklch(46% 0.15 30);
-  --spacing-page: clamp(1.5rem, 0.5rem + 4vw, 5rem);
-  --text-heading: clamp(1.75rem, 1.35rem + 1.2vw, 2.6rem);
-  --text-editorial: clamp(2rem, 1.4rem + 1.6vw, 3rem);
+  --color-error-border: oklch(82% 0.035 30);
+  --color-error-surface: oklch(98% 0.005 30);
+  --spacing-page: 1.5rem;
+  --text-heading: clamp(1.8rem, 1.4rem + 1vw, 2.5rem);
 }
 
 @custom-variant fine-hover {
   @media (hover: hover) and (pointer: fine) {
-    &:hover { @slot; }
+    &:hover {
+      @slot;
+    }
   }
 }
 
 @layer base {
   :root {
-    @apply font-sans text-ink bg-paper wrap-break-word;
+    @apply font-sans text-ink bg-paper;
+    overflow-wrap: anywhere;
     font-synthesis: none;
     color-scheme: light;
-    line-height: normal;
+    line-height: 1.5;
   }
-  *, *::before, *::after { min-inline-size: 0; }
-  body { @apply min-block-svh; }
-  h1, h2 { @apply text-balance; }
+  *,
+  *::before,
+  *::after {
+    min-inline-size: 0;
+  }
+  body {
+    @apply min-block-svh;
+  }
+  h1,
+  h2 {
+    @apply text-balance;
+  }
   h1 {
-    @apply text-heading font-medium tracking-[-0.045em] mbs-[0.8rem] mbe-4;
+    @apply text-heading font-semibold tracking-[-0.035em] leading-tight;
   }
-  p { @apply leading-[1.6] my-[1em]; }
-  a { @apply text-green underline fine-hover:underline; }
-  button, a { @apply touch-manipulation active:opacity-75; }
+  p {
+    @apply leading-[1.6];
+  }
+  a {
+    @apply text-ink underline underline-offset-4 fine-hover:decoration-2;
+  }
+  button,
+  a {
+    @apply touch-manipulation active:opacity-75;
+  }
   button {
     font: inherit;
-    @apply cursor-pointer min-block-12 py-[0.85rem] px-[1.2rem] border border-current rounded-sm bg-[ButtonFace] disabled:cursor-wait disabled:opacity-65 fine-hover:bg-button-hover fine-hover:text-paper;
+    @apply cursor-pointer min-block-12 py-2 px-4 border border-ink rounded-md bg-ink text-paper font-medium disabled:cursor-wait disabled:opacity-65 fine-hover:bg-muted;
   }
-  :focus-visible { @apply outline-3 outline-solid outline-green outline-offset-4; }
+  :focus-visible {
+    @apply outline-3 outline-solid outline-ink outline-offset-4;
+  }
 }

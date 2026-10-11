@@ -38,3 +38,9 @@ Live acceptance passed on 2026-10-11. The backend and frontend ran on Linux with
 No failures remained in these acceptance scenarios. The manual UI check used Chromium on Linux; it does not establish compatibility with every Mac browser or full accessibility conformance. Automated expiry, replay, outage, and identity-mismatch tests supplement the live checks.
 
 The [live acceptance guide](live-acceptance.md) describes how to repeat these checks. No credentials, token values, or account identifiers are recorded here.
+
+## Final interface revision
+
+The owner subsequently replaced the AirOps direction with a supplied Folk sign-in reference. The final interface uses a white canvas, a top-left wordmark, and centered account panels across sign-in, dashboard, and recovery states. It uses Tailwind CSS v4, self-hosted Inter, and the existing Zerodha asset. Fixed layout spacing follows an 8-pixel scale, with 8-pixel corner radii, 8-pixel heading-to-subtitle spacing, and a 16-pixel margin before the signup row.
+
+The final production build and 11 targeted Chromium checks passed. These checks cover keyboard sign-in, the referral destination, session recovery and expiry, broker outages, enlarged and spaced text at 320 CSS pixels, forced colors, and pending authentication actions with retry. Dashboard and recovery screens were also inspected with mock account data. This revision changes presentation and copy; the live authentication results above were recorded before this visual revision.
