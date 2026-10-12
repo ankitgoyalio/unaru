@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import type { Session } from "./session";
 import { Logout } from "./Logout";
@@ -56,13 +56,19 @@ export function NavigationIcon({ path }: { path: string }) {
 export function InvestmentNavigation({
   identity,
   currentPath,
+  onNavigate,
 }: {
   identity: string;
   currentPath: string;
+  onNavigate?: () => void;
 }) {
   return (
     <aside className="investment-sidebar">
-      <Link className={`${wordmarkClasses} sidebar-brand`} to="/dashboard">
+      <Link
+        className={`${wordmarkClasses} sidebar-brand`}
+        to="/dashboard"
+        onClick={onNavigate}
+      >
         unaru.
       </Link>
       <nav aria-label="Investment navigation" className="investment-navigation">
@@ -71,6 +77,7 @@ export function InvestmentNavigation({
           <Link
             key={item.to}
             to={item.to}
+            onClick={onNavigate}
             className="navigation-link"
             aria-current={currentPath === item.to ? "page" : undefined}
           >
@@ -83,6 +90,7 @@ export function InvestmentNavigation({
           <Link
             key={item.to}
             to={item.to}
+            onClick={onNavigate}
             className="navigation-link"
             aria-current={currentPath === item.to ? "page" : undefined}
           >
@@ -93,6 +101,7 @@ export function InvestmentNavigation({
       </nav>
       <Link
         to="/profile"
+        onClick={onNavigate}
         className="account-link"
         aria-current={currentPath === "/profile" ? "page" : undefined}
       >
@@ -106,6 +115,88 @@ export function InvestmentNavigation({
         <span aria-hidden="true">›</span>
       </Link>
     </aside>
+  );
+}
+
+function MobileNavigation({
+  identity,
+  currentPath,
+}: {
+  identity: string;
+  currentPath: string;
+}) {
+  const drawer = useRef<HTMLDialogElement>(null);
+  const opener = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const dismiss = () => drawer.current?.close();
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 48rem)");
+    const onResize = () => {
+      if (desktop.matches) drawer.current?.close();
+    };
+    desktop.addEventListener("change", onResize);
+    return () => desktop.removeEventListener("change", onResize);
+  }, []);
+  return (
+    <>
+      <header className="mobile-header">
+        <span className={wordmarkClasses}>unaru.</span>
+        <button
+          ref={opener}
+          type="button"
+          aria-controls="mobile-navigation"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          onClick={() => {
+            drawer.current?.showModal();
+            setOpen(true);
+          }}
+        >
+          Menu
+        </button>
+      </header>
+      <dialog
+        ref={drawer}
+        id="mobile-navigation"
+        className="navigation-drawer"
+        aria-label="Navigation"
+        onKeyDown={(event) => {
+          if (event.key !== "Tab") return;
+          const controls = Array.from(
+            event.currentTarget.querySelectorAll<
+              HTMLAnchorElement | HTMLButtonElement
+            >("a[href], button:not([disabled])"),
+          );
+          const first = controls.at(0);
+          const last = controls.at(-1);
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last?.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+          }
+        }}
+        onClose={() => {
+          setOpen(false);
+          opener.current?.focus();
+        }}
+      >
+        <button
+          type="button"
+          className="drawer-close"
+          autoFocus
+          onClick={dismiss}
+        >
+          Close menu
+        </button>
+        <InvestmentNavigation
+          identity={identity}
+          currentPath={currentPath}
+          onNavigate={dismiss}
+        />
+      </dialog>
+    </>
   );
 }
 
@@ -151,7 +242,16 @@ export function AuthenticatedLayout({
       <a href="#page-content" className="skip-link">
         Skip to content
       </a>
-      <InvestmentNavigation identity={session.displayName ?? session.userId} currentPath={path} />
+      <MobileNavigation
+        identity={session.displayName ?? session.userId}
+        currentPath={path}
+      />
+      <div className="desktop-navigation">
+        <InvestmentNavigation
+          identity={session.displayName ?? session.userId}
+          currentPath={path}
+        />
+      </div>
       <main id="page-content" className="investment-content">
         <p className="page-eyebrow">Your workspace</p>
         <h1 ref={heading} tabIndex={-1}>
