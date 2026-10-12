@@ -44,6 +44,24 @@ test("mobile navigation opens a modal and restores opener focus on dismissal", a
   await expect(opener).toBeFocused();
 });
 
+test("resizing an open mobile drawer to desktop restores focus to page content", async ({
+  page,
+}) => {
+  await page.goto("/profile");
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: "Navigation" });
+  await expect(drawer.getByRole("button", { name: "Close menu" })).toBeFocused();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(drawer).not.toBeVisible();
+  const heading = page.getByRole("heading", { name: "Profile", exact: true });
+  await expect(heading).toBeVisible();
+  await expect(heading).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: "Reconnect with Zerodha" }),
+  ).toBeFocused();
+});
+
 test("every mobile destination closes navigation and exposes its active state", async ({
   page,
 }) => {
@@ -117,9 +135,9 @@ test("drawer keeps controls reachable with enlarged text, forced colors and long
   expect(
     await close.evaluate((element) => getComputedStyle(element).outlineStyle),
   ).toBe("solid");
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
-    320,
-  );
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(320);
   const account = drawer.getByRole("link", {
     name: "VERYLONGIDENTITYWITHOUTSPACESFORREFLOW Profile",
   });

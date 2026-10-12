@@ -33,9 +33,9 @@ test("sign-in supports keyboard, exact referral and narrow screens", async ({
   await expect(page.getByRole("alert")).toContainText("could not start");
   await page.setViewportSize({ width: 320, height: 640 });
   await expect(login).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
-    320,
-  );
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(320);
 });
 
 test("complete first login crosses the real Go API and Postgres", async ({

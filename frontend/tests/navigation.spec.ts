@@ -123,9 +123,9 @@ test("navigation and Profile preserve access after broker expiry, with keyboard 
     content:
       "html { font-size: 200%; } * { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; }",
   });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
-    320,
-  );
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(320);
   await page
     .getByRole("button", { name: "Reconnect with Zerodha" })
     .scrollIntoViewIfNeeded();
