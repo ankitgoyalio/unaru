@@ -23,7 +23,7 @@ for (const screen of ["sign-in", "reconnect"]) {
       * { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; }
       p { margin-block-end: 2em !important; }
     ` });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
     const buttonBounds = await button.boundingBox();
     const logoBounds = await button.locator("img").boundingBox();
     expect(buttonBounds).not.toBeNull();

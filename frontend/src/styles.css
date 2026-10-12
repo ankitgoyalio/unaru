@@ -329,6 +329,9 @@
 .account-link {
   flex: none;
 }
+html {
+  scrollbar-gutter: stable;
+}
 html:has(.navigation-drawer[open]) {
   overflow: hidden;
 }

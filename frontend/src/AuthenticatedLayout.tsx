@@ -62,6 +62,18 @@ export function InvestmentNavigation({
   currentPath: string;
   onNavigate?: () => void;
 }) {
+  const renderDestination = (item: (typeof destinations)[number]) => (
+    <Link
+      key={item.to}
+      to={item.to}
+      onClick={onNavigate}
+      className="navigation-link"
+      aria-current={currentPath === item.to ? "page" : undefined}
+    >
+      <NavigationIcon path={item.icon} />
+      {item.label}
+    </Link>
+  );
   return (
     <aside className="investment-sidebar">
       <Link
@@ -73,31 +85,9 @@ export function InvestmentNavigation({
       </Link>
       <nav aria-label="Investment navigation" className="investment-navigation">
         <p className="navigation-group">Workspace</p>
-        {destinations.slice(0, 1).map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className="navigation-link"
-            aria-current={currentPath === item.to ? "page" : undefined}
-          >
-            <NavigationIcon path={item.icon} />
-            {item.label}
-          </Link>
-        ))}
+        {destinations.slice(0, 1).map(renderDestination)}
         <p className="navigation-group">Investments</p>
-        {destinations.slice(1).map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className="navigation-link"
-            aria-current={currentPath === item.to ? "page" : undefined}
-          >
-            <NavigationIcon path={item.icon} />
-            {item.label}
-          </Link>
-        ))}
+        {destinations.slice(1).map(renderDestination)}
       </nav>
       <Link
         to="/profile"
@@ -121,9 +111,11 @@ export function InvestmentNavigation({
 function MobileNavigation({
   identity,
   currentPath,
+  onDesktopDismiss,
 }: {
   identity: string;
   currentPath: string;
+  onDesktopDismiss: () => void;
 }) {
   const drawer = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
@@ -179,7 +171,11 @@ function MobileNavigation({
         }}
         onClose={() => {
           setOpen(false);
-          opener.current?.focus();
+          if (window.matchMedia("(min-width: 48rem)").matches) {
+            onDesktopDismiss();
+          } else {
+            opener.current?.focus();
+          }
         }}
       >
         <button
@@ -245,6 +241,7 @@ export function AuthenticatedLayout({
       <MobileNavigation
         identity={session.displayName ?? session.userId}
         currentPath={path}
+        onDesktopDismiss={() => heading.current?.focus()}
       />
       <div className="desktop-navigation">
         <InvestmentNavigation
