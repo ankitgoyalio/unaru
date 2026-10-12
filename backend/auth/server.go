@@ -43,10 +43,11 @@ type Server struct {
 	cipher cipher.AEAD
 }
 type SessionStatus struct {
-	Kind       string    `json:"kind"`
-	UserID     string    `json:"userId,omitempty"`
-	Connection string    `json:"connection,omitempty"`
-	ExpiresAt  time.Time `json:"expiresAt,omitempty"`
+	Kind        string    `json:"kind"`
+	UserID      string    `json:"userId,omitempty"`
+	DisplayName string    `json:"displayName,omitempty"`
+	Connection  string    `json:"connection,omitempty"`
+	ExpiresAt   time.Time `json:"expiresAt,omitempty"`
 }
 
 func NewServer(config Config, pool *pgxpool.Pool, broker Broker, now func() time.Time) (*Server, error) {

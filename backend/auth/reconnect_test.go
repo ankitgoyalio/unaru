@@ -51,7 +51,7 @@ func TestReconnectPreservesDashboardSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Now().UTC()
-	broker := &checkingBroker{fakeBroker: fakeBroker{user: "OWNER"}}
+	broker := &checkingBroker{fakeBroker: fakeBroker{user: "OWNER", name: "Original Name"}}
 	cfg := auth.Config{AppOrigin: "http://localhost:5173", CallbackURL: "http://localhost:5173/api/auth/callback", EncryptionKey: make([]byte, 32)}
 	s, err := auth.NewServer(cfg, pool, broker, func() time.Time { return now })
 	if err != nil {
@@ -104,6 +104,9 @@ func TestReconnectPreservesDashboardSession(t *testing.T) {
 	}
 	callback(start("/api/auth/login"), "success")
 	original := status()
+	if original.DisplayName != "Original Name" {
+		t.Fatalf("login name: %+v", original)
+	}
 	var sessionID string
 	for _, c := range jar.Cookies(mustURL(ts.URL)) {
 		if c.Name == "unaru_session" {
@@ -121,20 +124,22 @@ func TestReconnectPreservesDashboardSession(t *testing.T) {
 		}
 	}
 	broker.checkErr = auth.ErrBrokerTokenExpired
-	if got := status(); got.Kind != "signed_in" || got.Connection != "reconnect_required" {
+	if got := status(); got.Kind != "signed_in" || got.Connection != "reconnect_required" || got.DisplayName != "Original Name" {
 		t.Fatalf("invalidation %+v", got)
 	}
 	for _, tc := range []struct{ token, user, want string }{{"", "OWNER", "cancelled"}, {"fail", "OWNER", "exchange_failed"}, {"other", "OTHER", "account_mismatch"}} {
 		broker.user = tc.user
+		broker.name = "Wrong Account Name"
 		res := callback(start("/api/auth/reconnect"), tc.token)
 		if !strings.Contains(res.Header.Get("Location"), "error="+tc.want) {
 			t.Fatalf("reconnect failure %s", res.Header.Get("Location"))
 		}
-		if got := status(); got.UserID != "OWNER" || got.Connection != "reconnect_required" {
+		if got := status(); got.UserID != "OWNER" || got.Connection != "reconnect_required" || got.DisplayName != "Original Name" {
 			t.Fatalf("failed reconnect changed access %+v", got)
 		}
 	}
 	broker.user = "OWNER"
+	broker.name = "Updated Name"
 	broker.checkErr = nil
 	attempt := start("/api/auth/reconnect")
 	res := callback(attempt, "success")
@@ -147,12 +152,19 @@ func TestReconnectPreservesDashboardSession(t *testing.T) {
 		}
 	}
 	restored := status()
-	if restored.Connection != "active" || !restored.ExpiresAt.Equal(original.ExpiresAt) {
+	if restored.DisplayName != "Updated Name" || restored.Connection != "active" || !restored.ExpiresAt.Equal(original.ExpiresAt) {
 		t.Fatalf("reconnect extended session %+v", restored)
 	}
 	for _, c := range jar.Cookies(mustURL(ts.URL)) {
 		if c.Name == "unaru_session" && c.Value != sessionID {
 			t.Fatal("session changed")
+		}
+	}
+	for _, missing := range []string{"", "  \t\n "} {
+		broker.name = missing
+		callback(start("/api/auth/reconnect"), "success")
+		if got := status(); got.DisplayName != "Updated Name" || got.Kind != "signed_in" || !got.ExpiresAt.Equal(original.ExpiresAt) {
+			t.Fatalf("missing name erased identity or session: %+v", got)
 		}
 	}
 	exchanges := broker.exchanges

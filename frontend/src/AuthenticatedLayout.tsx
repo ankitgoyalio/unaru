@@ -54,11 +54,11 @@ export function NavigationIcon({ path }: { path: string }) {
 }
 
 export function InvestmentNavigation({
-  userId,
+  identity,
   currentPath,
   onNavigate,
 }: {
-  userId: string;
+  identity: string;
   currentPath: string;
   onNavigate?: () => void;
 }) {
@@ -109,7 +109,7 @@ export function InvestmentNavigation({
           <NavigationIcon path="M20 21v-2a7 7 0 0 0-14 0v2 M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0" />
         </span>
         <span className="account-identity">
-          <span>{userId}</span>
+          <span>{identity}</span>
           <span className="account-caption">Profile</span>
         </span>
         <span aria-hidden="true">›</span>
@@ -119,10 +119,10 @@ export function InvestmentNavigation({
 }
 
 function MobileNavigation({
-  userId,
+  identity,
   currentPath,
 }: {
-  userId: string;
+  identity: string;
   currentPath: string;
 }) {
   const drawer = useRef<HTMLDialogElement>(null);
@@ -191,7 +191,7 @@ function MobileNavigation({
           Close menu
         </button>
         <InvestmentNavigation
-          userId={userId}
+          identity={identity}
           currentPath={currentPath}
           onNavigate={dismiss}
         />
@@ -242,9 +242,15 @@ export function AuthenticatedLayout({
       <a href="#page-content" className="skip-link">
         Skip to content
       </a>
-      <MobileNavigation userId={session.userId} currentPath={path} />
+      <MobileNavigation
+        identity={session.displayName ?? session.userId}
+        currentPath={path}
+      />
       <div className="desktop-navigation">
-        <InvestmentNavigation userId={session.userId} currentPath={path} />
+        <InvestmentNavigation
+          identity={session.displayName ?? session.userId}
+          currentPath={path}
+        />
       </div>
       <main id="page-content" className="investment-content">
         <p className="page-eyebrow">Your workspace</p>
@@ -270,6 +276,8 @@ export function AuthenticatedLayout({
             <section aria-labelledby="account-title" className="profile-panel">
               <h2 id="account-title">Account details</h2>
               <dl>
+                <dt>Name</dt>
+                <dd>{session.displayName ?? session.userId}</dd>
                 <dt>Zerodha user ID</dt>
                 <dd>{session.userId}</dd>
               </dl>

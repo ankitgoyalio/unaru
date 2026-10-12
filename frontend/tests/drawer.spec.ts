@@ -95,7 +95,8 @@ test("drawer keeps controls reachable with enlarged text, forced colors and long
     route.fulfill({
       json: {
         kind: "signed_in",
-        userId: "VERYLONGIDENTITYWITHOUTSPACESFORREFLOW",
+        userId: "DRAWEROWNER",
+        displayName: "VERYLONGIDENTITYWITHOUTSPACESFORREFLOW",
         connection: "reconnect_required",
         expiresAt: new Date(Date.now() + 86400000).toISOString(),
       },
