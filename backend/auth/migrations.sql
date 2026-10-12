@@ -7,3 +7,4 @@ ALTER TABLE installation ADD COLUMN IF NOT EXISTS auth_generation bigint NOT NUL
 ALTER TABLE login_attempts ADD COLUMN IF NOT EXISTS auth_generation bigint NOT NULL DEFAULT 0;
 CREATE TABLE IF NOT EXISTS pending_revocations (id text PRIMARY KEY, user_id text NOT NULL, encrypted_token bytea NOT NULL, failures integer NOT NULL DEFAULT 0, retry_at timestamptz NOT NULL);
 ALTER TABLE login_attempts ADD COLUMN IF NOT EXISTS session_hash text REFERENCES dashboard_sessions(hash);
+ALTER TABLE installation ADD COLUMN IF NOT EXISTS display_name text;

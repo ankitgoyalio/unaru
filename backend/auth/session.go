@@ -21,7 +21,7 @@ func (s *Server) readSession(r *http.Request) (SessionStatus, error) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 	read := func() error {
-		return s.Pool.QueryRow(ctx, "SELECT s.user_id,s.expires_at,COALESCE(b.status,'reconnect_required') FROM dashboard_sessions s LEFT JOIN broker_authorizations b ON b.user_id=s.user_id WHERE s.hash=$1 AND s.revoked_at IS NULL AND s.expires_at>$2", hash(cookie.Value), s.Now()).Scan(&status.UserID, &status.ExpiresAt, &brokerStatus)
+		return s.Pool.QueryRow(ctx, "SELECT s.user_id,s.expires_at,COALESCE(i.display_name,''),COALESCE(b.status,'reconnect_required') FROM dashboard_sessions s LEFT JOIN broker_authorizations b ON b.user_id=s.user_id LEFT JOIN installation i ON i.user_id=s.user_id WHERE s.hash=$1 AND s.revoked_at IS NULL AND s.expires_at>$2", hash(cookie.Value), s.Now()).Scan(&status.UserID, &status.ExpiresAt, &status.DisplayName, &brokerStatus)
 	}
 	err = read()
 	var databaseError *pgconn.PgError

@@ -38,6 +38,6 @@ Login uses Kite's documented `redirect_params` to return the attempt identifier,
 
 See the [Kite login contract](https://kite.trade/docs/connect/v3/user/), [official Go SDK](https://github.com/zerodha/gokiteconnect), and [Neon Go guide](https://neon.com/docs/guides/go).
 
-The interface follows the supplied Folk sign-in reference: a white canvas, a top-left wordmark, and a compact centered account panel. Sign-in, the dashboard, and recovery states share this layout. Inter is self-hosted under the SIL Open Font License. Zerodha remains the authentication provider.
+Sign-in and recovery states follow the supplied Folk reference, with a white canvas, a top-left wordmark, and a compact centered account panel. Signed-in pages use a desktop sidebar or a mobile navigation drawer. Profile contains account details, the broker connection, and logout. Inter is self-hosted under the SIL Open Font License. Zerodha remains the authentication provider.
 
 Real Kite acceptance passed with the installation owner on 2026-10-11. See the [verification record](docs/verification-zerodha-login.md) for results and the [live acceptance guide](docs/live-acceptance.md) to repeat the scenarios with your own local configuration.

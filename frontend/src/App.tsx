@@ -1,7 +1,7 @@
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getSession, startLogin } from "./session";
-import { Logout } from "./Logout";
-import { Reconnect } from "./Reconnect";
+import { AuthenticatedLayout } from "./AuthenticatedLayout";
 import {
   wordmarkClasses,
   shellClasses,
@@ -18,11 +18,12 @@ const errors: Record<string, string> = {
   cancelled: "Sign-in was cancelled. You can try again when you are ready.",
   exchange_failed: "Zerodha sign-in could not be completed. Try again.",
   account_mismatch:
-    "Sign in with the Zerodha account linked to this installation.",
+    "Use the Zerodha account previously connected to Unaru.",
   service_unavailable:
-    "Sign-in is unavailable. Check that Unaru is running, then try again.",
+    "Unaru could not complete sign-in. Try signing in again.",
 };
 function Login() {
+  const [logoAvailable, setLogoAvailable] = useState(true);
   const login = useMutation({ mutationFn: startLogin });
   const errorCode = new URLSearchParams(window.location.search).get("error");
   return (
@@ -46,8 +47,7 @@ function Login() {
           )}
           {login.isError && (
             <p role="alert" className={errorClasses}>
-              Sign-in could not start. Check that Unaru is running, then try
-              again.
+              Sign-in could not start. Try again.
             </p>
           )}
           <button
@@ -60,13 +60,18 @@ function Login() {
           >
             <span className={brokerLabelClasses} aria-hidden="true">
               {login.isPending ? "Opening" : "Sign in with"}
-              <img
-                className={brokerLogoClasses}
-                src="/brands/zerodha.svg"
-                alt=""
-                width="609"
-                height="80"
-              />
+              {logoAvailable ? (
+                <img
+                  className={brokerLogoClasses}
+                  src="/brands/zerodha.svg"
+                  onError={() => setLogoAvailable(false)}
+                  alt=""
+                  width="609"
+                  height="80"
+                />
+              ) : (
+                <span> Zerodha</span>
+              )}
             </span>
           </button>
           {login.isPending && (
@@ -78,7 +83,7 @@ function Login() {
         <p className="text-[0.875rem] text-muted text-center mbs-4">
           Don't have a Zerodha account?{" "}
           <a
-            className="inline-block py-2 font-medium"
+            className="inline-block [padding-block:0.5rem] font-medium"
             href="https://zerodha.com/open-account?c=SH1331"
           >
             Sign up
@@ -107,6 +112,20 @@ export function App() {
         : false;
     },
   });
+  useEffect(() => {
+    if (session.isFetching) document.title = "Checking session · Unaru";
+    else if (session.isError) document.title = "Session unavailable · Unaru";
+    else if (session.data?.kind === "signed_out")
+      document.title = "Sign in · Unaru";
+  }, [session.isFetching, session.isError, session.data]);
+  if (!session.isError && session.data?.kind === "signed_in") {
+    return (
+      <AuthenticatedLayout
+        session={session.isFetching ? undefined : session.data}
+        refresh={() => session.refetch()}
+      />
+    );
+  }
   if (session.isPending || session.isFetching)
     return (
       <div className={shellClasses}>
@@ -114,7 +133,7 @@ export function App() {
           <span className={wordmarkClasses}>unaru.</span>
         </header>
         <main className={`${accountPanelClasses} text-center`} role="status">
-          Opening your dashboard…
+          Checking your session…
         </main>
       </div>
     );
@@ -125,90 +144,14 @@ export function App() {
           <span className={wordmarkClasses}>unaru.</span>
         </header>
         <main className={`${accountPanelClasses} text-center`}>
-          <h1>Dashboard unavailable</h1>
+          <h1>Session unavailable</h1>
           <p className="text-muted mbs-4 mbe-8">
-            Your session could not load. Check that Unaru is running, then try
-            again.
+            Unaru could not load your session. Try again.
           </p>
           <button onClick={() => session.refetch()}>Try again</button>
         </main>
       </div>
     );
   if (session.data.kind === "signed_out") return <Login />;
-  return (
-    <div className={shellClasses}>
-      <header>
-        <a className={wordmarkClasses} href="/dashboard">
-          unaru.
-        </a>
-      </header>
-      <main className={accountPanelClasses}>
-        <div className="text-center mbe-10">
-          <h1>Welcome back</h1>
-          <p className="text-muted mbs-2">
-            Signed in as{" "}
-            <span className="text-ink font-medium">{session.data.userId}</span>
-          </p>
-        </div>
-        <section
-          aria-labelledby="connection-title"
-          className="border border-line rounded-lg p-6"
-        >
-          <h2 id="connection-title" className="text-[1rem] font-semibold">
-            Broker connection
-          </h2>
-          <p
-            className="flex items-baseline gap-2 mbs-4 text-[0.875rem]"
-            role="status"
-          >
-            <span
-              aria-hidden="true"
-              className={`inline-2 block-2 rounded-full flex-none ${session.data.connection === "active" ? "bg-success" : "bg-muted"}`}
-            />
-            {session.data.connection === "active"
-              ? "Connected to Zerodha"
-              : session.data.connection === "temporarily_unavailable"
-                ? "Zerodha is temporarily unavailable"
-                : "Zerodha reconnection required"}
-          </p>
-          {session.data.connection === "active" && (
-            <p className="text-muted text-[0.875rem] mbs-2">
-              Your broker connection is active.
-            </p>
-          )}
-          {session.data.connection === "temporarily_unavailable" && (
-            <div className="flex flex-col items-start gap-4 mbs-4">
-              <p className="text-muted text-[0.875rem]">
-                You're still signed in to Unaru. Check the connection to try
-                again.
-              </p>
-              <button onClick={() => session.refetch()}>
-                Check connection
-              </button>
-            </div>
-          )}
-          <Reconnect
-            required={
-              session.data.connection !== "active" &&
-              session.data.connection !== "temporarily_unavailable"
-            }
-          />
-        </section>
-        <section className="py-8 text-center" aria-labelledby="dashboard-title">
-          <h2 id="dashboard-title" className="text-[0.95rem] font-medium">
-            Your account dashboard
-          </h2>
-          <p className="text-[0.875rem] text-muted mbs-2">
-            Your account and broker connection appear here.
-          </p>
-        </section>
-        <div className="border-bs border-line pbs-6">
-          <Logout />
-        </div>
-      </main>
-      <footer className="text-center text-muted text-[0.75rem]">
-        Your account dashboard, connected to Zerodha.
-      </footer>
-    </div>
-  );
+  return null;
 }

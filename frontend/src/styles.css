@@ -20,6 +20,9 @@
   --color-muted: oklch(46% 0.005 250);
   --color-line: oklch(86% 0.004 250);
   --color-soft: oklch(97% 0.003 250);
+  --color-selected-surface: oklch(94% 0.028 285);
+  --color-selected-ink: oklch(36% 0.13 285);
+  --color-selected-line: oklch(83% 0.055 285);
   --color-success: oklch(40% 0.09 160);
   --color-error: oklch(40% 0.12 30);
   --color-error-border: oklch(82% 0.035 30);
@@ -71,9 +74,319 @@
   }
   button {
     font: inherit;
-    @apply cursor-pointer min-block-12 py-2 px-4 border border-ink rounded-md bg-ink text-paper font-medium disabled:cursor-wait disabled:opacity-65 fine-hover:bg-muted;
+    @apply cursor-pointer min-block-12 [padding-block:--spacing(2)] [padding-inline:--spacing(4)] border border-ink rounded-md bg-ink text-paper font-medium disabled:cursor-wait disabled:opacity-65 fine-hover:bg-muted;
   }
   :focus-visible {
     @apply outline-3 outline-solid outline-ink outline-offset-4;
+  }
+}
+
+.authenticated-shell {
+  display: flex;
+  flex-wrap: wrap;
+  min-block-size: 100svh;
+  background: var(--color-soft);
+}
+.investment-sidebar {
+  flex: 1 0 16rem;
+  max-inline-size: 100%;
+  display: flex;
+  flex-direction: column;
+  block-size: 100svh;
+  position: sticky;
+  inset-block-start: 0;
+  align-self: start;
+  background: var(--color-paper);
+  border-inline-end: 1px solid var(--color-line);
+  padding: 1.25rem;
+  gap: 1.5rem;
+}
+.sidebar-brand {
+  padding: 0.5rem 0.75rem;
+  text-decoration: none;
+}
+.investment-navigation {
+  flex: 1;
+  overflow: auto;
+  padding: 0.25rem;
+}
+.navigation-group {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-block: 1.25rem 0.5rem;
+  padding-inline: 0.75rem;
+}
+.navigation-group:first-child {
+  margin-block-start: 0;
+}
+.navigation-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-block-size: 3rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-block-end: 0.25rem;
+}
+.navigation-link svg,
+.account-avatar svg {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  flex-shrink: 0;
+}
+.navigation-link[aria-current="page"],
+.account-link[aria-current="page"] {
+  background: var(--color-selected-surface);
+  color: var(--color-selected-ink);
+  border-color: var(--color-selected-line);
+  font-weight: 600;
+}
+.account-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 0.5rem;
+  border-block-start: 1px solid var(--color-line);
+  text-decoration: none;
+  border-radius: 0.5rem;
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border-radius: 50%;
+  background: var(--color-soft);
+  flex-shrink: 0;
+}
+.account-identity {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.account-caption {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.investment-content {
+  flex-basis: 0;
+  flex-grow: 999;
+  min-inline-size: 60%;
+  padding: clamp(1.25rem, 4vw, 3rem);
+}
+.page-eyebrow {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  margin-block-end: 0.5rem;
+}
+.placeholder-panel {
+  max-inline-size: 42rem;
+  margin-block-start: 1.5rem;
+  padding-block: 1.25rem;
+  padding-inline: 1.5rem;
+  border-inline-start: 3px solid var(--color-line);
+  background: var(--color-paper);
+}
+.placeholder-panel p {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+.profile-panel h2 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.profile-content {
+  display: grid;
+  gap: 1.25rem;
+  max-inline-size: 42rem;
+  margin-block-start: 2rem;
+}
+.profile-panel {
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: var(--color-paper);
+  padding: clamp(1rem, 3vw, 1.75rem);
+}
+.profile-panel h2 {
+  margin-block-end: 1rem;
+}
+.profile-panel dd + dt {
+  margin-block-start: 1.25rem;
+}
+.profile-panel button {
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  align-self: start;
+}
+.profile-panel dt {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+.profile-panel dd {
+  font-weight: 500;
+  margin-block-start: 0.25rem;
+}
+.connection-status {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-block-end: 0.5rem;
+  font-size: 0.875rem;
+}
+.connection-dot {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-muted);
+  flex-shrink: 0;
+}
+.connection-active {
+  background: var(--color-success);
+}
+.skip-link {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-start: 0.5rem;
+  padding: 0.75rem;
+  background: var(--color-paper);
+  z-index: 2;
+  clip-path: inset(50%);
+}
+.skip-link:focus {
+  clip-path: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .navigation-link:hover,
+  .account-link:hover {
+    background: color-mix(in oklch, var(--color-soft), var(--color-line) 20%);
+  }
+}
+@media (forced-colors: active) {
+  .navigation-link[aria-current="page"],
+  .account-link[aria-current="page"] {
+    border-color: Highlight;
+    color: LinkText;
+  }
+  .connection-dot {
+    border: 1px solid CanvasText;
+  }
+}
+
+.desktop-navigation {
+  flex: 1 0 16rem;
+  max-inline-size: 40%;
+}
+.mobile-header {
+  display: none;
+}
+.navigation-drawer {
+  margin: 0;
+  padding: 1rem;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: min(22rem, 100%);
+  max-inline-size: 100%;
+  block-size: 100dvh;
+  max-block-size: 100dvh;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  overflow: auto;
+}
+.navigation-drawer[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.navigation-drawer::backdrop {
+  background: color-mix(in oklch, var(--color-ink), transparent 45%);
+}
+.drawer-close {
+  align-self: end;
+  flex: none;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  border-color: var(--color-line);
+  font-size: 0.875rem;
+}
+@media (hover: hover) and (pointer: fine) {
+  .drawer-close:hover {
+    background: var(--color-soft);
+  }
+}
+.navigation-drawer .investment-sidebar {
+  flex: 1 0 auto;
+  align-self: stretch;
+  min-block-size: min-content;
+  block-size: auto;
+  position: static;
+  padding: 0;
+  border: 0;
+}
+.navigation-drawer .navigation-link {
+  gap: 0.375rem;
+  padding-inline: 0.375rem;
+}
+.navigation-drawer .account-avatar {
+  display: none;
+}
+.navigation-drawer .investment-navigation {
+  flex: none;
+  overflow: visible;
+}
+.navigation-drawer {
+  scroll-padding-block: 1rem;
+  overscroll-behavior: contain;
+}
+.investment-navigation {
+  min-block-size: 0;
+  overscroll-behavior: contain;
+}
+.sidebar-brand,
+.account-link {
+  flex: none;
+}
+html {
+  scrollbar-gutter: stable;
+}
+html:has(.navigation-drawer[open]) {
+  overflow: hidden;
+}
+@media (width < 48rem) {
+  .desktop-navigation {
+    display: none;
+  }
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    inline-size: 100%;
+    padding: 1rem;
+    background: var(--color-paper);
+    border-block-end: 1px solid var(--color-line);
+  }
+  .authenticated-shell {
+    display: block;
+  }
+  .investment-content {
+    min-inline-size: 0;
+  }
+}
+@media (forced-colors: active) {
+  .navigation-drawer {
+    border-color: CanvasText;
+  }
+  .navigation-drawer::backdrop {
+    background: Canvas;
+    opacity: 0.7;
   }
 }

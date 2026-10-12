@@ -23,7 +23,7 @@ export function Logout() {
     },
   });
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-start gap-4">
       <button
         className="bg-paper text-ink border-line fine-hover:bg-soft fine-hover:text-ink"
         onClick={() => logout.mutate()}

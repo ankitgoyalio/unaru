@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"github.com/jackc/pgx/v5"
+	"strings"
 	"time"
 )
 
@@ -26,6 +27,11 @@ func (s *Server) fenceAuthorization(ctx context.Context, tx pgx.Tx, a Authorizat
 }
 
 func (s *Server) replaceAuthorization(ctx context.Context, tx pgx.Tx, a Authorization, now time.Time) error {
+	if name := strings.TrimSpace(a.DisplayName); name != "" {
+		if _, err := tx.Exec(ctx, "UPDATE installation SET display_name=$1 WHERE id=true AND user_id=$2", name, a.UserID); err != nil {
+			return err
+		}
+	}
 	_, err := tx.Exec(ctx, "INSERT INTO broker_authorizations(user_id,encrypted_token,status,updated_at,expires_at) VALUES($1,$2,'active',$3,$4) ON CONFLICT(user_id) DO UPDATE SET encrypted_token=EXCLUDED.encrypted_token,status='active',updated_at=EXCLUDED.updated_at,expires_at=EXCLUDED.expires_at", a.UserID, s.encrypt(a.AccessToken, a.UserID), now, brokerExpiry(now))
 	return err
 }

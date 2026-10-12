@@ -13,7 +13,7 @@ for (const screen of ["sign-in", "reconnect"]) {
       json: screen === "sign-in" ? { kind: "signed_out" } : signedIn,
     }));
     await page.setViewportSize({ width: 320, height: 800 });
-    await page.goto("/");
+    await page.goto(screen === "sign-in" ? "/" : "/profile");
     const button = page.getByRole("button", {
       name: screen === "sign-in" ? "Sign in with Zerodha" : "Reconnect with Zerodha",
     });
@@ -23,7 +23,7 @@ for (const screen of ["sign-in", "reconnect"]) {
       * { line-height: 1.5 !important; letter-spacing: 0.12em !important; word-spacing: 0.16em !important; }
       p { margin-block-end: 2em !important; }
     ` });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
     const buttonBounds = await button.boundingBox();
     const logoBounds = await button.locator("img").boundingBox();
     expect(buttonBounds).not.toBeNull();
@@ -53,7 +53,7 @@ for (const action of [
       await new Promise<void>((resolve) => { release = resolve; });
       await route.fulfill({ status: 503, json: { error: "service_unavailable" } });
     });
-    await page.goto("/");
+    await page.goto(action.endpoint === "login" ? "/" : "/profile");
     await page.getByRole("button", { name: action.name, exact: true }).focus();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("button", { name: action.pending, exact: true })).toBeDisabled();
