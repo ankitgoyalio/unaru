@@ -45,8 +45,9 @@ test("complete first login crosses the real Go API and Postgres", async ({
   await page.goto("/");
   await page.getByRole("button", { name: "Sign in with Zerodha" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
+  await page.getByRole("link", { name: "TESTOWNER Profile" }).click();
   await expect(page.getByRole("status")).toContainText("Connected to Zerodha");
-  await expect(page.getByText("Signed in as TESTOWNER")).toBeVisible();
+  await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toBeVisible();
   const cookies = await context.cookies();
   const session = cookies.find((cookie) => cookie.name === "unaru_session");
   expect(session?.httpOnly).toBe(true);
@@ -58,7 +59,7 @@ test("complete first login crosses the real Go API and Postgres", async ({
     ),
   );
   await page.reload();
-  await expect(page.getByText("Signed in as TESTOWNER")).toBeVisible();
+  await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toBeVisible();
 });
 
 test("credentials stay out of API responses, browser state and the production bundle including exchange failure", async ({ page, context }) => {
@@ -76,7 +77,8 @@ test("credentials stay out of API responses, browser state and the production bu
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Sign in with Zerodha" }).click();
-  await expect(page.getByText("Signed in as TESTOWNER")).toBeVisible();
+  await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toBeVisible();
+  await page.getByRole("link", { name: "TESTOWNER Profile" }).click();
   await page.getByRole("button", { name: "Log out", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sign in with Zerodha" })).toBeVisible();
   await page.route("**/api/test/kite?*", (route) => {

@@ -5,6 +5,7 @@ test("keyboard logout clears dashboard access and stale cookies", async ({ page,
   await page.getByRole("button", { name: "Sign in with Zerodha" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
   const oldCookies = await context.cookies();
+  await page.getByRole("link", { name: "TESTOWNER Profile" }).click();
   const logout = page.getByRole("button", { name: "Log out", exact: true });
   await page.request.post("/api/test/block-revocation");
   await logout.focus();
