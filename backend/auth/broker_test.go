@@ -114,3 +114,19 @@ func TestKiteRevocationPreservesProviderTokenException(t *testing.T) {
 		t.Fatalf("provider token classification lost: %v", err)
 	}
 }
+
+func TestKiteExchangeCapturesDisplayName(t *testing.T) {
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"status":"success","data":{"user_id":"OWNER","user_name":"Ankit Goyal","access_token":"access"}}`)
+	}))
+	defer provider.Close()
+	target, _ := url.Parse(provider.URL)
+	original := http.DefaultTransport
+	http.DefaultTransport = providerTransport{target: target, transport: original}
+	defer func() { http.DefaultTransport = original }()
+	got, err := (auth.KiteBroker{APIKey: "key", APISecret: "secret"}).Exchange(context.Background(), "request")
+	if err != nil || got.DisplayName != "Ankit Goyal" || got.UserID != "OWNER" {
+		t.Fatalf("exchange identity: %+v, %v", got, err)
+	}
+}

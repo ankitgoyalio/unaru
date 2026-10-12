@@ -4,6 +4,7 @@ export const sessionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("signed_in"),
     userId: z.string(),
+    displayName: z.string().optional().transform((name) => name?.trim() || undefined),
     connection: z.enum([
       "active",
       "temporarily_unavailable",

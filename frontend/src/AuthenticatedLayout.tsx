@@ -54,10 +54,10 @@ export function NavigationIcon({ path }: { path: string }) {
 }
 
 export function InvestmentNavigation({
-  userId,
+  identity,
   currentPath,
 }: {
-  userId: string;
+  identity: string;
   currentPath: string;
 }) {
   return (
@@ -100,7 +100,7 @@ export function InvestmentNavigation({
           <NavigationIcon path="M20 21v-2a7 7 0 0 0-14 0v2 M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0" />
         </span>
         <span className="account-identity">
-          <span>{userId}</span>
+          <span>{identity}</span>
           <span className="account-caption">Profile</span>
         </span>
         <span aria-hidden="true">›</span>
@@ -151,7 +151,7 @@ export function AuthenticatedLayout({
       <a href="#page-content" className="skip-link">
         Skip to content
       </a>
-      <InvestmentNavigation userId={session.userId} currentPath={path} />
+      <InvestmentNavigation identity={session.displayName ?? session.userId} currentPath={path} />
       <main id="page-content" className="investment-content">
         <p className="page-eyebrow">Your workspace</p>
         <h1 ref={heading} tabIndex={-1}>
@@ -176,6 +176,8 @@ export function AuthenticatedLayout({
             <section aria-labelledby="account-title" className="profile-panel">
               <h2 id="account-title">Account details</h2>
               <dl>
+                <dt>Name</dt>
+                <dd>{session.displayName ?? session.userId}</dd>
                 <dt>Zerodha user ID</dt>
                 <dd>{session.userId}</dd>
               </dl>
