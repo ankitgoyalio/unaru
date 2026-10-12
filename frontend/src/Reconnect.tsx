@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
 import {
@@ -25,22 +26,37 @@ const reconnectErrors: Record<string, string> = {
   cancelled:
     "Reconnection was cancelled. You can try again when you are ready.",
   exchange_failed: "Zerodha reconnection could not be completed. Try again.",
-  account_mismatch:
-    "Reconnect with the Zerodha account linked to this installation.",
   service_unavailable:
-    "Reconnection is unavailable. Try again when the service is restored.",
+    "Reconnection could not be completed. Try again.",
 };
 
-export function Reconnect({ required }: { required: boolean }) {
+export function Reconnect({
+  required,
+  active,
+  userId,
+}: {
+  required: boolean;
+  active: boolean;
+  userId: string;
+}) {
+  const [logoAvailable, setLogoAvailable] = useState(true);
   const reconnect = useMutation({ mutationFn: startReconnect });
   const code = new URLSearchParams(window.location.search).get("error");
-  const message = code ? reconnectErrors[code] : undefined;
+  const message =
+    code === "account_mismatch"
+      ? `Use Zerodha account ${userId} to reconnect.`
+      : code
+        ? reconnectErrors[code]
+        : undefined;
   if (!required && !message) return null;
   return (
-    <div className="flex flex-col gap-4 mbs-4">
+    <div className="profile-actions flex flex-col items-start gap-4 mbs-4">
       <p className="text-muted text-[0.875rem]">
-        You're still signed in to Unaru. Sign in to Zerodha again to restore the
-        connection.
+        {active
+          ? "The reconnection attempt failed. Your existing Zerodha connection is still active."
+          : required
+            ? "You're still signed in to Unaru. Sign in to Zerodha again to restore the connection."
+            : "The reconnection attempt failed. Check the connection before trying again."}
       </p>
       {message && (
         <p role="alert" className={errorClasses}>
@@ -49,8 +65,7 @@ export function Reconnect({ required }: { required: boolean }) {
       )}
       {reconnect.isError && (
         <p role="alert" className={errorClasses}>
-          Reconnection could not start. Check that Unaru is running, then try
-          again.
+          Reconnection could not start. Try again.
         </p>
       )}
       <button
@@ -63,13 +78,18 @@ export function Reconnect({ required }: { required: boolean }) {
       >
         <span className={brokerLabelClasses} aria-hidden="true">
           {reconnect.isPending ? "Opening" : "Reconnect with"}
-          <img
-            className={brokerLogoClasses}
-            src="/brands/zerodha.svg"
-            alt=""
-            width="609"
-            height="80"
-          />
+          {logoAvailable ? (
+            <img
+              className={brokerLogoClasses}
+              src="/brands/zerodha.svg"
+              onError={() => setLogoAvailable(false)}
+              alt=""
+              width="609"
+              height="80"
+            />
+          ) : (
+            <span> Zerodha</span>
+          )}
         </span>
       </button>
       {reconnect.isPending && (

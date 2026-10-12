@@ -23,7 +23,7 @@ for (const identity of [
       await account.click();
       await expect(page.getByRole("heading", { name: "Profile", exact: true })).toBeVisible();
       const details = page.getByRole("region", { name: "Account details" });
-      await expect(details.getByText(identity.label, { exact: true }).first()).toBeVisible();
+      await expect(details.getByText(identity.displayName?.trim() || "Name not available", { exact: true }).first()).toBeVisible();
       await expect(details.getByText("NAMEOWNER", { exact: true }).last()).toBeVisible();
       await expect(details.getByText("Name", { exact: true })).toBeVisible();
       if (connection === "reconnect_required") {

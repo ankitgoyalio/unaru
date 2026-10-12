@@ -58,7 +58,7 @@ export function InvestmentNavigation({
   currentPath,
   onNavigate,
 }: {
-  identity: string;
+  identity: string | undefined;
   currentPath: string;
   onNavigate?: () => void;
 }) {
@@ -84,7 +84,6 @@ export function InvestmentNavigation({
         unaru.
       </Link>
       <nav aria-label="Investment navigation" className="investment-navigation">
-        <p className="navigation-group">Workspace</p>
         {destinations.slice(0, 1).map(renderDestination)}
         <p className="navigation-group">Investments</p>
         {destinations.slice(1).map(renderDestination)}
@@ -99,7 +98,7 @@ export function InvestmentNavigation({
           <NavigationIcon path="M20 21v-2a7 7 0 0 0-14 0v2 M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0" />
         </span>
         <span className="account-identity">
-          <span>{identity}</span>
+          {identity && <span>{identity}</span>}
           <span className="account-caption">Profile</span>
         </span>
         <span aria-hidden="true">›</span>
@@ -112,14 +111,17 @@ function MobileNavigation({
   identity,
   currentPath,
   onDesktopDismiss,
+  onDestinationSelect,
 }: {
-  identity: string;
+  identity: string | undefined;
   currentPath: string;
   onDesktopDismiss: () => void;
+  onDestinationSelect: () => void;
 }) {
   const drawer = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const navigating = useRef(false);
   const dismiss = () => drawer.current?.close();
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 48rem)");
@@ -171,7 +173,10 @@ function MobileNavigation({
         }}
         onClose={() => {
           setOpen(false);
-          if (window.matchMedia("(min-width: 48rem)").matches) {
+          if (navigating.current) {
+            navigating.current = false;
+            requestAnimationFrame(onDestinationSelect);
+          } else if (window.matchMedia("(min-width: 48rem)").matches) {
             onDesktopDismiss();
           } else {
             opener.current?.focus();
@@ -189,7 +194,10 @@ function MobileNavigation({
         <InvestmentNavigation
           identity={identity}
           currentPath={currentPath}
-          onNavigate={dismiss}
+          onNavigate={() => {
+            navigating.current = true;
+            dismiss();
+          }}
         />
       </dialog>
     </>
@@ -202,7 +210,7 @@ export function AuthenticatedLayout({
   session,
   refresh,
 }: {
-  session: SignedInSession;
+  session: SignedInSession | undefined;
   refresh: () => unknown;
 }) {
   const location = useLocation();
@@ -214,11 +222,20 @@ export function AuthenticatedLayout({
       : (destinations.find((item) => item.to === path)?.label ?? "Dashboard");
   const heading = useRef<HTMLHeadingElement>(null);
   const previousPath = useRef(path);
+  const restoreHeading = useRef(false);
   useEffect(() => {
+    if (!session) {
+      restoreHeading.current =
+        document.activeElement === document.body &&
+        !document.querySelector("dialog:modal");
+      return;
+    }
     document.title = `${title} · Unaru`;
-    if (previousPath.current !== path) heading.current?.focus();
+    if (restoreHeading.current || previousPath.current !== path)
+      heading.current?.focus();
+    restoreHeading.current = false;
     previousPath.current = path;
-  }, [path, title]);
+  }, [path, title, session]);
   useEffect(() => {
     if (
       path === "/dashboard" &&
@@ -239,89 +256,86 @@ export function AuthenticatedLayout({
         Skip to content
       </a>
       <MobileNavigation
-        identity={session.displayName ?? session.userId}
+        identity={session ? session.displayName ?? session.userId : undefined}
         currentPath={path}
         onDesktopDismiss={() => heading.current?.focus()}
+        onDestinationSelect={() => heading.current?.focus()}
       />
       <div className="desktop-navigation">
         <InvestmentNavigation
-          identity={session.displayName ?? session.userId}
+          identity={session ? session.displayName ?? session.userId : undefined}
           currentPath={path}
         />
       </div>
       <main id="page-content" className="investment-content">
-        <p className="page-eyebrow">Your workspace</p>
-        <h1 ref={heading} tabIndex={-1}>
-          {title}
-        </h1>
-        {path !== "/profile" ? (
-          <section
-            className="placeholder-panel"
-            aria-label={`${title} availability`}
-          >
-            <NavigationIcon
-              path={
-                destinations.find((item) => item.to === path)?.icon ??
-                "M3 3h18v18H3z"
-              }
-            />
-            <h2>{title} is coming soon</h2>
-            <p>Investment content is not available yet.</p>
-          </section>
+        {!session ? (
+          <p role="status">Checking your connection…</p>
         ) : (
-          <div className="profile-content">
-            <section aria-labelledby="account-title" className="profile-panel">
-              <h2 id="account-title">Account details</h2>
-              <dl>
-                <dt>Name</dt>
-                <dd>{session.displayName ?? session.userId}</dd>
-                <dt>Zerodha user ID</dt>
-                <dd>{session.userId}</dd>
-              </dl>
-            </section>
-            <section
-              aria-labelledby="connection-title"
-              className="profile-panel"
-            >
-              <h2 id="connection-title">Broker connection</h2>
-              <p role="status" className="connection-status">
-                <span
-                  aria-hidden="true"
-                  className={`connection-dot ${session.connection === "active" ? "connection-active" : ""}`}
-                />
-                {session.connection === "active"
-                  ? "Connected to Zerodha"
-                  : session.connection === "temporarily_unavailable"
-                    ? "Zerodha is temporarily unavailable"
-                    : "Zerodha reconnection required"}
-              </p>
-              {session.connection === "active" && (
-                <p className="text-muted">Your broker connection is active.</p>
-              )}
-              {session.connection === "temporarily_unavailable" && (
-                <div className="flex flex-col items-start gap-4 mbs-4">
-                  <p className="text-muted">
-                    You're still signed in to Unaru. Check the connection to try
-                    again.
+          <>
+            <h1 ref={heading} tabIndex={-1}>
+              {title}
+            </h1>
+            {path !== "/profile" ? (
+              <section
+                className="placeholder-panel"
+                aria-label={`${title} availability`}
+              >
+                <p>Investment content is not available yet.</p>
+              </section>
+            ) : (
+              <div className="profile-content">
+                <section aria-labelledby="account-title" className="profile-panel">
+                  <h2 id="account-title">Account details</h2>
+                  <dl>
+                    <dt>Name</dt>
+                    <dd>{session.displayName ?? "Name not available"}</dd>
+                    <dt>Zerodha user ID</dt>
+                    <dd>{session.userId}</dd>
+                  </dl>
+                </section>
+                <section
+                  aria-labelledby="connection-title"
+                  className="profile-panel"
+                >
+                  <h2 id="connection-title">Broker connection</h2>
+                  <p role="status" className="connection-status">
+                    <span
+                      aria-hidden="true"
+                      className={`connection-dot ${session.connection === "active" ? "connection-active" : ""}`}
+                    />
+                    {session.connection === "active"
+                      ? "Connected to Zerodha"
+                      : session.connection === "temporarily_unavailable"
+                        ? "Could not check the Zerodha connection"
+                        : "Zerodha reconnection required"}
                   </p>
-                  <button onClick={refresh}>Check connection</button>
-                </div>
-              )}
-              <Reconnect
-                required={
-                  session.connection !== "active" &&
-                  session.connection !== "temporarily_unavailable"
-                }
-              />
-            </section>
-            <section className="profile-panel" aria-labelledby="session-title">
-              <h2 id="session-title">Dashboard session</h2>
-              <p className="text-muted mbe-6">
-                Log out to end your Unaru session.
-              </p>
-              <Logout />
-            </section>
-          </div>
+                  {session.connection === "temporarily_unavailable" && (
+                    <div className="flex flex-col items-start gap-4 mbs-4">
+                      <p className="text-muted">
+                        You're still signed in to Unaru. Try checking again.
+                      </p>
+                      <button onClick={refresh}>Check connection</button>
+                    </div>
+                  )}
+                  <Reconnect
+                    userId={session.userId}
+                    active={session.connection === "active"}
+                    required={
+                      session.connection !== "active" &&
+                      session.connection !== "temporarily_unavailable"
+                    }
+                  />
+                </section>
+                <section className="profile-panel" aria-labelledby="session-title">
+                  <h2 id="session-title">Unaru session</h2>
+                  <p className="text-muted mbe-6">
+                    Log out to end your Unaru session.
+                  </p>
+                  <Logout />
+                </section>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

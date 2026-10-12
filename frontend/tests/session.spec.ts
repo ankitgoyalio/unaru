@@ -33,7 +33,7 @@ test("status refresh hides stale dashboard identity and restores sign-in", async
   await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toBeVisible();
   kind = "signed_out";
   await page.evaluate(() => window.dispatchEvent(new Event("visibilitychange")));
-  await expect(page.getByRole("status")).toContainText("Opening your dashboard");
+  await expect(page.getByRole("status")).toContainText("Checking your connection");
   await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toHaveCount(0);
   release?.();
   await expect(page.getByRole("button", { name: "Sign in with Zerodha" })).toBeVisible();
@@ -46,7 +46,7 @@ test("database outage shows recovery and keeps authenticated content hidden", as
     ? { status: 503, json: { error: "service_unavailable" } }
     : { json: { kind: "signed_out" } }));
   await page.goto("/dashboard");
-  await expect(page.getByRole("heading", { name: "Dashboard unavailable" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Session unavailable" })).toBeVisible();
   await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toHaveCount(0);
   unavailable = false;
   await page.getByRole("button", { name: "Try again" }).click();
@@ -69,11 +69,11 @@ test("invalid API expiry shows recovery instead of an authenticated dashboard", 
     kind: "signed_in", userId: "TESTOWNER", connection: "active", expiresAt: "invalid-date",
   } }));
   await page.goto("/dashboard");
-  await expect(page.getByRole("heading", { name: "Dashboard unavailable" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Session unavailable" })).toBeVisible();
   await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toHaveCount(0);
 });
 
-test("temporary broker outage preserves identity and recovers without reconnection", async ({ page }) => {
+test("failed broker connection check preserves identity and recovers without reconnection", async ({ page }) => {
   let connection = "temporarily_unavailable";
   await page.route("**/api/session", (route) => route.fulfill({ json: {
     kind: "signed_in", userId: "TESTOWNER", connection,
@@ -82,7 +82,7 @@ test("temporary broker outage preserves identity and recovers without reconnecti
   await page.goto("/dashboard");
   await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toBeVisible();
   await page.getByRole("link", { name: "TESTOWNER Profile" }).click();
-  await expect(page.getByRole("status")).toContainText("Zerodha is temporarily unavailable");
+  await expect(page.getByRole("status")).toContainText("Could not check the Zerodha connection");
   await expect(page.getByRole("button", { name: "Reconnect Zerodha", exact: true })).toHaveCount(0);
   connection = "active";
   await page.getByRole("button", { name: "Check connection" }).click();
