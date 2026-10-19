@@ -23,6 +23,7 @@ import (
 
 type fakeBroker struct {
 	user      string
+	name      string
 	exchanges int
 }
 
@@ -34,7 +35,7 @@ func (b *fakeBroker) Exchange(ctx context.Context, token string) (auth.Authoriza
 	if token == "fail" {
 		return auth.Authorization{}, errors.New("provider-token secret-access-token marker-kite-secret marker-database-password marker-encryption-key-32-bytes00 provider error")
 	}
-	return auth.Authorization{UserID: b.user, AccessToken: "secret-access-token"}, nil
+	return auth.Authorization{UserID: b.user, DisplayName: b.name, AccessToken: "secret-access-token"}, nil
 }
 func TestFirstLogin(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")

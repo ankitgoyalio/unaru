@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type Authorization struct{ UserID, AccessToken string }
+type Authorization struct{ UserID, AccessToken, DisplayName string }
 type Broker interface {
 	LoginURL(attempt string) string
 	Exchange(context.Context, string) (Authorization, error)
@@ -34,7 +34,7 @@ func (b KiteBroker) Exchange(ctx context.Context, token string) (Authorization, 
 	if ctx.Err() != nil {
 		return Authorization{}, ctx.Err()
 	}
-	return Authorization{UserID: data.UserID, AccessToken: data.AccessToken}, err
+	return Authorization{UserID: data.UserID, AccessToken: data.AccessToken, DisplayName: data.UserName}, err
 }
 
 // The SDK does not expose context arguments. Attach the operation context at

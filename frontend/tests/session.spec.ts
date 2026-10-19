@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("persisted cookie restores identity in a new browser process", async ({ page, context, browser }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Sign in with Zerodha" }).click();
-  await expect(page.getByText("Signed in as TESTOWNER")).toBeVisible();
+  await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toBeVisible();
   const state = await context.storageState();
   const cookie = state.cookies.find((item) => item.name === "unaru_session");
   expect(cookie?.expires).toBeGreaterThan(Date.now() / 1000 + 29 * 86400);
@@ -12,8 +12,8 @@ test("persisted cookie restores identity in a new browser process", async ({ pag
   try {
     const returning = await restarted.newContext({ storageState: state });
     const restored = await returning.newPage();
-    await restored.goto("http://127.0.0.1:5173/dashboard");
-    await expect(restored.getByText("Signed in as TESTOWNER")).toBeVisible();
+    await restored.goto("http://127.0.0.1:5173/profile");
+    await expect(restored.getByRole("link", { name: "TESTOWNER Profile" })).toBeVisible();
     await expect(restored.getByRole("status")).toContainText("Connected to Zerodha");
   } finally {
     await restarted.close();
@@ -30,14 +30,14 @@ test("status refresh hides stale dashboard identity and restores sign-in", async
     } : { kind } });
   });
   await page.goto("/dashboard");
-  await expect(page.getByText("Signed in as TESTOWNER")).toBeVisible();
+  await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toBeVisible();
   kind = "signed_out";
   await page.evaluate(() => window.dispatchEvent(new Event("visibilitychange")));
-  await expect(page.getByRole("status")).toContainText("Opening your dashboard");
-  await expect(page.getByText("Signed in as TESTOWNER")).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("Checking your connection");
+  await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toHaveCount(0);
   release?.();
   await expect(page.getByRole("button", { name: "Sign in with Zerodha" })).toBeVisible();
-  await expect(page.getByText("Signed in as TESTOWNER")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toHaveCount(0);
 });
 
 test("database outage shows recovery and keeps authenticated content hidden", async ({ page }) => {
@@ -46,8 +46,8 @@ test("database outage shows recovery and keeps authenticated content hidden", as
     ? { status: 503, json: { error: "service_unavailable" } }
     : { json: { kind: "signed_out" } }));
   await page.goto("/dashboard");
-  await expect(page.getByRole("heading", { name: "Dashboard unavailable" })).toBeVisible();
-  await expect(page.getByText("Signed in as TESTOWNER")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Session unavailable" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toHaveCount(0);
   unavailable = false;
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("button", { name: "Sign in with Zerodha" })).toBeVisible();
@@ -60,7 +60,7 @@ test("absolute session expiry returns an open dashboard to sign-in", async ({ pa
     ? { kind: "signed_in", userId: "TESTOWNER", connection: "active", expiresAt: new Date(expires).toISOString() }
     : { kind: "signed_out" } }));
   await page.goto("/dashboard");
-  await expect(page.getByText("Signed in as TESTOWNER")).toBeVisible();
+  await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in with Zerodha" })).toBeVisible();
 });
 
@@ -69,19 +69,20 @@ test("invalid API expiry shows recovery instead of an authenticated dashboard", 
     kind: "signed_in", userId: "TESTOWNER", connection: "active", expiresAt: "invalid-date",
   } }));
   await page.goto("/dashboard");
-  await expect(page.getByRole("heading", { name: "Dashboard unavailable" })).toBeVisible();
-  await expect(page.getByText("Signed in as TESTOWNER")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Session unavailable" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toHaveCount(0);
 });
 
-test("temporary broker outage preserves identity and recovers without reconnection", async ({ page }) => {
+test("failed broker connection check preserves identity and recovers without reconnection", async ({ page }) => {
   let connection = "temporarily_unavailable";
   await page.route("**/api/session", (route) => route.fulfill({ json: {
     kind: "signed_in", userId: "TESTOWNER", connection,
     expiresAt: new Date(Date.now() + 86400000).toISOString(),
   } }));
   await page.goto("/dashboard");
-  await expect(page.getByText("Signed in as TESTOWNER")).toBeVisible();
-  await expect(page.getByRole("status")).toContainText("Zerodha is temporarily unavailable");
+  await expect(page.getByRole("link", { name: "TESTOWNER Profile" })).toBeVisible();
+  await page.getByRole("link", { name: "TESTOWNER Profile" }).click();
+  await expect(page.getByRole("status")).toContainText("Could not check the Zerodha connection");
   await expect(page.getByRole("button", { name: "Reconnect Zerodha", exact: true })).toHaveCount(0);
   connection = "active";
   await page.getByRole("button", { name: "Check connection" }).click();

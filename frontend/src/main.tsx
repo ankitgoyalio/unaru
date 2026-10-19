@@ -25,8 +25,41 @@ const dashboard = createRoute({
   path: "/dashboard",
   component: App,
 });
+const portfolio = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/portfolio",
+  component: App,
+});
+const holdings = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/holdings",
+  component: App,
+});
+const transactions = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/transactions",
+  component: App,
+});
+const reports = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reports",
+  component: App,
+});
+const profile = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/profile",
+  component: App,
+});
 const router = createRouter({
-  routeTree: rootRoute.addChildren([index, dashboard]),
+  routeTree: rootRoute.addChildren([
+    index,
+    dashboard,
+    portfolio,
+    holdings,
+    transactions,
+    reports,
+    profile,
+  ]),
 });
 declare module "@tanstack/react-router" {
   interface Register {

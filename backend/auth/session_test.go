@@ -58,13 +58,26 @@ func TestSessionSurvivesBackendRestartAndExpiresAbsolutely(t *testing.T) {
 	initial := now
 	cfg := auth.Config{AppOrigin: "http://localhost:5173", CallbackURL: "http://localhost:5173/api/auth/callback", EncryptionKey: make([]byte, 32)}
 	newHTTP := func(pool *pgxpool.Pool) *httptest.Server {
-		s, err := auth.NewServer(cfg, pool, &fakeBroker{user: "OWNER1"}, func() time.Time { return now })
+		s, err := auth.NewServer(cfg, pool, &fakeBroker{user: "OWNER1", name: "  Ankit Goyal  "}, func() time.Time { return now })
 		if err != nil {
 			t.Fatal(err)
 		}
 		return httptest.NewServer(s.Handler())
 	}
 	server := newHTTP(pool)
+	// Recreate the pre-name schema with an existing session, then migrate twice.
+	if _, err = pool.Exec(ctx, "ALTER TABLE installation DROP COLUMN display_name; UPDATE installation SET user_id='OWNER1'"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = pool.Exec(ctx, "INSERT INTO dashboard_sessions(hash,user_id,created_at,expires_at) VALUES($1,'OWNER1',$2,$3)", "78199fe311b59294a0fbc8e14331c3aed8a8bbea7fbe787332c0f54d0ff6a61c", now, now.Add(30*24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if err = auth.Migrate(ctx, pool); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	login := func() *http.Cookie {
 		req, _ := http.NewRequest("POST", server.URL+"/api/auth/login", nil)
@@ -93,6 +106,18 @@ func TestSessionSurvivesBackendRestartAndExpiresAbsolutely(t *testing.T) {
 		t.Fatal("login did not issue session cookie")
 		return nil
 	}
+	reqLegacy, _ := http.NewRequest("GET", server.URL+"/api/session", nil)
+	reqLegacy.AddCookie(&http.Cookie{Name: "unaru_session", Value: "legacy-cookie"})
+	resLegacy, err := client.Do(reqLegacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var legacy auth.SessionStatus
+	json.NewDecoder(resLegacy.Body).Decode(&legacy)
+	resLegacy.Body.Close()
+	if resLegacy.StatusCode != 200 || legacy.Kind != "signed_in" || legacy.UserID != "OWNER1" || legacy.DisplayName != "" {
+		t.Fatalf("migration invalidated legacy identity: %+v", legacy)
+	}
 	cookie := login()
 	if !cookie.Expires.Equal(initial.Add(30*24*time.Hour)) || cookie.MaxAge != 2592000 {
 		t.Fatal("cookie did not persist to absolute expiry")
@@ -110,6 +135,9 @@ func TestSessionSurvivesBackendRestartAndExpiresAbsolutely(t *testing.T) {
 		var got auth.SessionStatus
 		if err = json.NewDecoder(res.Body).Decode(&got); err != nil {
 			t.Fatal(err)
+		}
+		if want == "signed_in" && got.DisplayName != "Ankit Goyal" {
+			t.Fatalf("stored display name missing: %+v", got)
 		}
 		if res.StatusCode != 200 || got.Kind != want {
 			t.Fatalf("status %d: %+v", res.StatusCode, got)

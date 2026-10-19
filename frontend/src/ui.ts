@@ -4,7 +4,7 @@ export const wordmarkClasses =
 export const shellClasses =
   "grid grid-rows-[auto_1fr_auto] min-block-svh p-page gap-8";
 export const accountPanelClasses =
-  "inline-full max-inline-[28rem] mx-auto my-auto py-12";
+  "inline-full max-inline-[28rem] [margin-inline:auto] [margin-block:auto] [padding-block:--spacing(12)]";
 export const errorClasses =
   "text-[0.875rem] leading-relaxed border border-error-border rounded-md p-4 text-error bg-error-surface text-start";
 export const brokerButtonClasses =
