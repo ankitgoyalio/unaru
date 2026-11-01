@@ -103,12 +103,13 @@
             XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
             app.buttons["Configure Connection"].click()
             backend.respond(path: "/profile", status: 200)
-            save(app, address: backend.address, token: "ui-test-token")
+            backend.respond(status: 200)
+            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
             XCTAssertEqual(backend.browserHandoffs, 1)
         }
 
-        func testChangingTokenClearsAuthenticatedPresentation() throws {
+        func testReconnectingClearsAuthenticatedPresentation() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
             let app = launch()
@@ -117,10 +118,12 @@
             backend.completeLogin()
             XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
             app.typeKey(",", modifierFlags: .command)
-            save(app, address: backend.address, token: "incorrect-test-token")
+            backend.respond(status: 401)
+            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Check Connection Settings"].waitForExistence(timeout: 10))
             XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
-            save(app, address: backend.address, token: "ui-test-token")
+            backend.respond(status: 200)
+            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
             XCTAssertEqual(backend.browserHandoffs, 1)
         }
@@ -140,7 +143,7 @@
             app.launch()
             waitForPending(previous)
             app.typeKey(",", modifierFlags: .command)
-            save(app, address: current.address, token: "ui-test-token")
+            connect(app, address: current.address)
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
             previous.releaseResponses()
             let obsolete = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in

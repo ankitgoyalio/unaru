@@ -5,30 +5,21 @@ The Vapor backend for Unaru.
 ## Overview
 
 The backend exposes health and greeting routes plus an authorized `GET /session`
-operation. The connection token comes from `UNARU_CONNECTION_TOKEN` in the server
-process environment. ``ConnectionAuthorization`` protects app operations with
-`Authorization: Bearer <connection-token>`. No credential belongs in a URL.
+operation. ``PairingStore`` approves app-generated credentials and persists their hashes in an owner-only data directory. ``ConnectionAuthorization`` protects app operations with `Authorization: Bearer <credential>`. Existing `UNARU_CONNECTION_TOKEN` values remain accepted during migration. No credential belongs in a URL.
 
-`GET /session` returns HTTP 200 with `{"state":"signedOut"}` when app authorization
-succeeds and no Kite session exists. The response has `Cache-Control: no-store`.
-Missing or incorrect authorization returns HTTP 401 without session information.
-A missing or invalid server token returns HTTP 503 with
-`{"code":"backendNotConfigured"}` to a request carrying bearer authorization.
-This configuration failure is separate from Kite authentication and temporary
-server failures. Empty tokens and tokens containing spaces or non-ASCII
-characters are invalid. Health and greeting routes remain public and disclose
-no session information.
+`POST /pairing` accepts a `PairingRequest` and returns a `PairingStatus` containing an attempt ID, comparison code, expiry, and approval state. A same-user Mac Keychain bootstrap proof can approve immediately. Otherwise the owner runs `Backend pair <code>` on the server; the command writes a private approval marker for the running backend to consume. A network caller cannot approve a code. The app polls `GET /pairing/:id` with its candidate credential and can cancel with `DELETE /pairing/:id`.
 
-New protected routes must use ``ConnectionAuthorization``. Shared payloads contain
-no broker credentials. Browser login uses the backend-held Kite credentials. See the [connection setup guide](../../../README.md).
+Attempts expire after five minutes. Polling and cancellation require the candidate credential, not the public ID or comparison code. Pairing responses use `Cache-Control: no-store`. Approved credential hashes survive restart; Kite sessions remain in memory. Protected endpoints reject unapproved credentials with HTTP 401. A missing legacy-only configuration can still return HTTP 503 with `backendNotConfigured`.
+
+New protected routes must use ``ConnectionAuthorization``. Request bodies and credential headers must be excluded from proxy logs. The app-facing identity payloads contain no Kite access token or API secret.
 
 Keep Kite's API secret and token exchange on the backend. The backend owns
 broker credential storage, login correlation, and app authorization.
 KiteConnect supplies the broker protocol implementation.
 
-## Browser login contract
+### Browser login contract
 
-All app routes require the connection bearer token. Payloads never contain the
+Account and login routes require an approved connection credential. Payloads never contain the
 Kite API secret or access token. ``KiteLogin`` uses the pinned SDK and replaces
 only its external HTTP transport during tests.
 
@@ -76,4 +67,4 @@ _ = client
 
 - ``Entrypoint``
 - ``configure(_:)``
-- ``routes(_:connectionToken:login:)``
+- ``routes(_:connectionToken:login:pairing:)``

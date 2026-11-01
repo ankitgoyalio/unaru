@@ -7,68 +7,67 @@
 #if os(macOS)
     import SwiftUI
 
-    /// Edits the backend connection in the standard Settings window.
+    /// Connects this Mac to a backend without exposing its generated credential.
     struct ConnectionSettings: View {
         /// The connection shared with all main windows.
         @EnvironmentObject private var connection: BackendConnection
-        /// The address being edited, saved only by the explicit action.
+        /// The backend address, applied only when Connect is chosen.
         @State private var address = ""
-        /// The token being edited in a secure field, never in defaults.
-        @State private var token = ""
-        /// A Keychain read error that must not silently replace an existing token.
-        @State private var storageError = false
 
-        /// Labeled fields, transport guidance, and connection feedback.
+        /// Native address entry and the current approval or verification result.
         var body: some View {
             Form {
                 Section {
-                    TextField("Backend address", text: $address, prompt: Text("http://localhost:8080"))
+                    TextField("Backend address", text: $address, prompt: Text("http://127.0.0.1:8080"))
                         .accessibilityIdentifier("Backend address")
-                    SecureField("Connection token", text: $token)
-                        .accessibilityIdentifier("Connection token")
-                    Text("Use HTTPS for a remote server. HTTP is supported for a backend on this Mac using a loopback address.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                    Text("The connection token is configured on your backend. It is separate from Kite authentication and is saved in Keychain.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                    Text("Use HTTPS for a remote server. A backend on this Mac can use HTTP with a loopback address.")
+                        .font(.callout).foregroundStyle(.secondary)
+                    Text("Unaru saves this Mac’s connection credential in Keychain. A local backend can connect through Keychain; a remote backend requires approval on the server.")
+                        .font(.callout).foregroundStyle(.secondary)
                 }
-                if storageError {
-                    Text("The saved connection could not be read. Unlock Keychain and reopen Settings, or enter the connection token again.")
-                }
-                Button("Save Connection") {
-                    if connection.save(address: address, token: token) {
-                        address = connection.address
-                        storageError = false
-                    }
-                }
-                .keyboardShortcut(.defaultAction)
+                Button("Connect") { connection.connect(address: address) }
+                    .keyboardShortcut(.defaultAction)
                 switch connection.phase {
+                case let .pairing(code):
+                    PairingInstructions(code: code)
+                    Button("Cancel Connection") { connection.cancelLogin() }
                 case .checking:
-                    ProgressView("Verifying connection…")
+                    ProgressView("Connecting…")
+                    Button("Cancel Connection") { connection.cancelLogin() }
                 case .signedOut:
-                    Text("Connection verified. Your backend requires Kite sign-in.")
+                    Text("Connected. Return to the main window to sign in with Kite.")
                 case let .configurationError(message):
                     Text(message)
-                case .backendError:
-                    Text("Set UNARU_CONNECTION_TOKEN on the backend, then retry in the main window.")
-                case .unavailable:
-                    Text("The backend could not be reached or returned an unexpected response. Retry in the main window.")
-                case .setup, .loggingIn, .loginUnavailable, .loginFailed, .signedIn:
+                case .backendError, .unavailable:
+                    Text("The backend is unavailable. Check its configuration and connection, then try again.")
+                case .signedIn:
+                    Text("Connected.")
+                case .setup, .loggingIn, .loginUnavailable, .loginFailed:
                     EmptyView()
                 }
             }
             .formStyle(.grouped)
             .padding()
             .frame(width: 520, height: 440)
-            .onAppear {
-                address = connection.address
-                do {
-                    token = try connection.savedToken()
-                    storageError = false
-                } catch {
-                    storageError = true
-                }
+            .onAppear { address = connection.address }
+        }
+    }
+
+    /// Human comparison and approval steps, separate from the app's secret credential.
+    struct PairingInstructions: View {
+        /// Nonsecret code displayed only while the initiating app waits for approval.
+        let code: String
+
+        /// Makes the matching code and server action available visually and to VoiceOver.
+        var body: some View {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Approve This Connection").font(.headline)
+                Text(code).font(.title.monospacedDigit()).textSelection(.enabled)
+                    .accessibilityLabel("Pairing code: \(code.map(String.init).joined(separator: " "))")
+                Text("On your server, approve this code within five minutes:")
+                Text("Backend pair \(code)").font(.body.monospaced()).textSelection(.enabled)
+                Text("For a Swift source checkout, run swift run --package-path backend Backend pair followed by this code. Only approve the code shown on your Mac.")
+                    .font(.callout).foregroundStyle(.secondary)
             }
         }
     }

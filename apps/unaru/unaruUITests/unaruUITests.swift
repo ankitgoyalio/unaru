@@ -16,7 +16,7 @@ final class unaruUITests: XCTestCase {
             XCTAssertTrue(app.buttons["Configure Connection"].waitForExistence(timeout: 5))
             app.buttons["Configure Connection"].click()
             XCTAssertTrue(app.textFields["Backend address"].waitForExistence(timeout: 5))
-            XCTAssertTrue(app.secureTextFields["Connection token"].exists)
+            XCTAssertFalse(app.secureTextFields["Connection token"].exists)
             app.typeKey("w", modifierFlags: .command)
             app.typeKey(",", modifierFlags: .command)
             XCTAssertTrue(app.textFields["Backend address"].waitForExistence(timeout: 5))
@@ -33,7 +33,7 @@ final class unaruUITests: XCTestCase {
             let app = launch()
             defer { cleanUp(app) }
             app.buttons["Configure Connection"].click()
-            save(app, address: backend.address, token: "ui-test-token")
+            connect(app, address: backend.address)
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
             app.typeKey("w", modifierFlags: .command)
             app.buttons["Sign in with Kite"].click()
@@ -61,7 +61,8 @@ final class unaruUITests: XCTestCase {
             let app = launch()
             defer { cleanUp(app) }
             app.buttons["Configure Connection"].click()
-            save(app, address: backend.address, token: "ui-test-token")
+            backend.respond(status: 200)
+            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Kite Sign-In Required"].waitForExistence(timeout: 10))
             XCTAssertTrue(app.buttons["Sign in with Kite"].exists)
             app.terminate()
@@ -73,18 +74,20 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        func testRejectedTokenReturnsToSettings() throws {
+        func testRevokedConnectionCanReconnectFromSettings() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
             let app = launch()
             defer { cleanUp(app) }
             app.buttons["Configure Connection"].click()
-            save(app, address: backend.address, token: "incorrect-test-token")
+            backend.respond(status: 401)
+            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Check Connection Settings"].waitForExistence(timeout: 10))
             XCTAssertFalse(app.staticTexts["Kite Sign-In Required"].exists)
             app.typeKey("w", modifierFlags: .command)
             app.buttons["Configure Connection"].click()
-            save(app, address: backend.address, token: "ui-test-token")
+            backend.respond(status: 200)
+            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Kite Sign-In Required"].waitForExistence(timeout: 10))
         }
 
@@ -96,7 +99,7 @@ final class unaruUITests: XCTestCase {
             let app = launch()
             defer { cleanUp(app) }
             app.buttons["Configure Connection"].click()
-            save(app, address: backend.address, token: "ui-test-token")
+            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Connection Unavailable"].waitForExistence(timeout: 20))
             XCTAssertFalse(app.staticTexts["Kite Sign-In Required"].exists)
             app.typeKey("w", modifierFlags: .command)
@@ -113,7 +116,7 @@ final class unaruUITests: XCTestCase {
             let app = launch()
             defer { cleanUp(app) }
             app.buttons["Configure Connection"].click()
-            save(app, address: backend.address, token: "ui-test-token")
+            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Connection Unavailable"].waitForExistence(timeout: 10))
             app.typeKey("w", modifierFlags: .command)
             backend.respond(status: 200)
@@ -129,7 +132,7 @@ final class unaruUITests: XCTestCase {
             let app = launch()
             defer { cleanUp(app) }
             app.buttons["Configure Connection"].click()
-            save(app, address: backend.address, token: "ui-test-token")
+            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Configure Your Backend"].waitForExistence(timeout: 10))
             XCTAssertFalse(app.staticTexts["Kite Sign-In Required"].exists)
             app.typeKey("w", modifierFlags: .command)
@@ -147,10 +150,11 @@ final class unaruUITests: XCTestCase {
             let app = launch()
             defer { cleanUp(app) }
             app.buttons["Configure Connection"].click()
-            save(app, address: previous.address, token: "ui-test-token")
+            connect(app, address: previous.address)
             let started = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in previous.pendingResponses > 0 }, object: nil)
             XCTAssertEqual(XCTWaiter.wait(for: [started], timeout: 5), .completed)
-            save(app, address: current.address, token: "incorrect-test-token")
+            current.respond(status: 401)
+            connect(app, address: current.address)
             XCTAssertTrue(app.staticTexts["Check Connection Settings"].waitForExistence(timeout: 10))
             previous.releaseResponses()
             let completed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in previous.completedResponses > 0 }, object: nil)
@@ -168,7 +172,7 @@ final class unaruUITests: XCTestCase {
             let app = launch()
             defer { cleanUp(app) }
             app.buttons["Configure Connection"].click()
-            save(app, address: backend.address, token: "ui-test-token")
+            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Connection Unavailable"].waitForExistence(timeout: 10))
             XCTAssertEqual(destination.requests, 0)
         }
@@ -178,7 +182,7 @@ final class unaruUITests: XCTestCase {
             let app = launch()
             defer { cleanUp(app) }
             app.buttons["Configure Connection"].click()
-            save(app, address: "http://example.invalid", token: "ui-test-token")
+            connect(app, address: "http://example.invalid")
             XCTAssertTrue(app.staticTexts["Check Connection Settings"].waitForExistence(timeout: 5))
             XCTAssertTrue(app.staticTexts["Use HTTPS for a remote backend, or HTTP with a loopback address on this Mac."].firstMatch.exists)
         }
@@ -200,7 +204,7 @@ final class unaruUITests: XCTestCase {
                 XCTAssertTrue(app.buttons["Configure Connection"].isHittable)
                 app.typeKey(",", modifierFlags: .command)
                 XCTAssertTrue(app.textFields["Backend address"].waitForExistence(timeout: 5))
-                XCTAssertTrue(app.secureTextFields["Connection token"].isHittable)
+                XCTAssertTrue(app.buttons["Connect"].isHittable)
                 app.typeKey("w", modifierFlags: .command)
                 toggle.click()
                 XCTAssertTrue(app.buttons["Configure Connection"].isHittable)
@@ -278,7 +282,7 @@ final class unaruUITests: XCTestCase {
             previous.respond(status: 200, hold: true, body: "{\"state\":\"signedIn\",\"profile\":{\"name\":\"Obsolete Person\",\"userID\":\"OLD123\"}}")
             waitForPending(previous)
             app.typeKey(",", modifierFlags: .command)
-            save(app, address: current.address, token: "ui-test-token")
+            connect(app, address: current.address)
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
             previous.releaseResponses()
             XCTAssertFalse(app.staticTexts["Obsolete Person"].exists)
@@ -294,7 +298,7 @@ final class unaruUITests: XCTestCase {
                 let app = launch(appearance: appearance)
                 defer { cleanUp(app) }
                 app.buttons["Configure Connection"].click()
-                save(app, address: backend.address, token: "ui-test-token")
+                connect(app, address: backend.address)
                 XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
                 app.typeKey("w", modifierFlags: .command)
                 let toggle = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
@@ -320,7 +324,7 @@ final class unaruUITests: XCTestCase {
         @MainActor
         func beginLogin(_ app: XCUIApplication, backend: ControlledBackend) {
             app.buttons["Configure Connection"].click()
-            save(app, address: backend.address, token: "ui-test-token")
+            connect(app, address: backend.address)
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
             app.typeKey("w", modifierFlags: .command)
             app.buttons["Sign in with Kite"].click()
@@ -360,8 +364,8 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        func save(_ app: XCUIApplication, address: String, token: String) {
-            pasteConnection(app, address: address, token: token)
+        func connect(_ app: XCUIApplication, address: String) {
+            pasteConnection(app, address: address)
         }
     #endif
 }

@@ -11,7 +11,7 @@
     @MainActor
     extension unaruUITests {
         /// Uses normal paste commands because XCTest text synthesis can stall on Mac keyboard layouts.
-        func pasteConnection(_ app: XCUIApplication, address: String, token: String) {
+        func pasteConnection(_ app: XCUIApplication, address: String) {
             let pasteboard = NSPasteboard.general
             let original = (pasteboard.pasteboardItems ?? []).map { item in
                 let copy = NSPasteboardItem()
@@ -26,9 +26,7 @@
                 pasteboard.clearContents()
                 pasteboard.writeObjects(original)
             }
-            for (field, value) in [(app.textFields["Backend address"], address),
-                                   (app.secureTextFields["Connection token"], token)]
-            {
+            for (field, value) in [(app.textFields["Backend address"], address)] {
                 XCTAssertTrue(field.waitForExistence(timeout: 5))
                 field.click()
                 field.typeKey("a", modifierFlags: .command)
@@ -36,7 +34,7 @@
                 pasteboard.setString(value, forType: .string)
                 field.typeKey("v", modifierFlags: .command)
             }
-            app.buttons["Save Connection"].click()
+            app.buttons["Connect"].click()
         }
     }
 #endif

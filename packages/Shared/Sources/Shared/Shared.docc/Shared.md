@@ -6,7 +6,8 @@ Types and behavior shared by the Unaru app and backend.
 
 This package defines the credential-free ``SessionStatus`` and
 ``ConnectionProblem`` payloads shared by the app and backend. Session status is
-returned only after the backend authorizes the app's separate connection token.
+returned only after the backend authorizes the app’s connection credential.
+``PairingRequest`` offers an app-generated credential for approval; ``PairingStatus`` reports its short-lived comparison code and approval state. The request is credential-bearing and must not be logged. On macOS, ``LocalPairingKeychain`` supplies same-user bootstrap access under Keychain controls.
 ``LoginAttempt``, ``LoginStatus``, and ``AccountProfile`` describe the browser
 handoff and its resulting public identity. Dates use Foundation Codable's default
 seconds since 2001. These payloads contain no broker tokens or API secret.
@@ -37,3 +38,9 @@ hello()
 - ``LoginAttempt``
 - ``LoginStatus``
 - ``AccountProfile``
+
+### Connection pairing
+
+- ``PairingRequest``
+- ``PairingStatus``
+- ``LocalPairingKeychain``

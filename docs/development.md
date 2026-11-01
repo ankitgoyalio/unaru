@@ -45,10 +45,10 @@ builds the macOS app for DocC, and validates the static documentation. Workflow 
 Logs and result artifacts belong in ignored `.test-results/`.
 
 Mac UI tests run a controlled loopback HTTP server inside the XCTest runner.
-They use only test tokens and a unique defaults suite and Keychain service per
+They use only generated test credentials and a unique defaults suite and Keychain service per
 case. The macOS UI-test runner has the incoming-network entitlement needed to
 bind its loopback server; the shipping app has only outgoing-network access.
-The controlled server rejects failed listener startup rather than using port 0.
+The controlled server rejects failed listener startup rather than using port 0. Pairing cases exercise approval, cancellation, and credential restoration without a user-entered token.
 Restoration cases hold profile responses to verify validation progress, simulate
 provider rejection and backend session loss, and retry socket and HTTP failures
 without another browser handoff. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to select that storage;
@@ -61,7 +61,7 @@ Run UI tests in an unlocked Mac login session with Xcode's UI automation authori
 initialization or system-authentication failure means the UI tests did not run.
 
 For manual accessibility verification, use VoiceOver and keyboard navigation to
-open Settings, edit both fields, save, start and cancel login, retry a failed
+open Settings, edit the backend address, connect, approve or cancel pairing, start and cancel login, retry a failed
 connection or login, and hide and restore the sidebar. After login, resize the
 sidebar and check that the informational account name and ID wrap and remain
 readable. Verify avatar initials when an image cannot load. Check the minimum

@@ -20,6 +20,10 @@
                     Text("Connect to Your Backend").font(.title2)
                     Text("Configure your self-hosted backend to get started.")
                     settingsLink
+                case let .pairing(code):
+                    PairingInstructions(code: code)
+                    Button("Cancel Connection") { connection.cancelLogin() }
+                    settingsLink
                 case .checking:
                     ProgressView("Verifying Connection…")
                     settingsLink

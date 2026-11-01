@@ -17,7 +17,8 @@ x-shared_environment: &shared_environment
   LOG_LEVEL: ${LOG_LEVEL:-info}
   KITE_API_KEY: ${KITE_API_KEY:?Set the backend Kite API key}
   KITE_API_SECRET: ${KITE_API_SECRET:?Set the backend Kite API secret}
-  UNARU_CONNECTION_TOKEN: ${UNARU_CONNECTION_TOKEN:?Set a separate backend connection token}
+  UNARU_DATA_DIRECTORY: /app/.unaru
+  UNARU_CONNECTION_TOKEN: ${UNARU_CONNECTION_TOKEN:-}
   
 services:
   app:
@@ -27,7 +28,12 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       <<: *shared_environment
+    volumes:
+      - pairing-data:/app/.unaru
     ports:
       - '8080:8080'
     # user: '0' # uncomment to run as root for testing purposes even though Dockerfile defines 'vapor' user.
     command: ["serve", "--env", "production", "--hostname", "0.0.0.0", "--port", "8080"]
+
+volumes:
+  pairing-data:

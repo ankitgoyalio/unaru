@@ -12,8 +12,12 @@ func routes(
     _ app: Application,
     connectionToken: String? = Environment.get("UNARU_CONNECTION_TOKEN"),
     login: KiteLogin = KiteLogin(),
+    pairing: PairingStore? = nil,
 ) throws {
-    let protected = app.grouped(ConnectionAuthorization(token: connectionToken))
+    if let pairing {
+        pairingRoutes(app, store: pairing)
+    }
+    let protected = app.grouped(ConnectionAuthorization(token: connectionToken, pairing: pairing))
     protected.get("session") { _ async throws -> Response in
         let response = Response(status: .ok)
         try await response.content.encode(login.session(), as: .json)

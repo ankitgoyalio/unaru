@@ -86,7 +86,7 @@
             XCTAssertTrue(app.staticTexts["Asha Rao"].exists)
             assertNoRequests(previous, after: previous.requests)
             app.typeKey(",", modifierFlags: .command)
-            save(app, address: current.address, token: "ui-test-token")
+            connect(app, address: current.address)
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
             previous.releaseResponses()
             let obsolete = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
