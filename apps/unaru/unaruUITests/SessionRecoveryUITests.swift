@@ -22,7 +22,7 @@
             backend.respond(path: "/profile", status: 200, hold: true)
             app.launch()
             waitForPending(backend)
-            XCTAssertTrue(app.staticTexts["Verifying Connection…"].exists)
+            XCTAssertTrue(app.descendants(matching: .any)["Verifying Connection…"].firstMatch.exists)
             XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
             XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
             backend.releaseResponses()

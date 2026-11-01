@@ -38,13 +38,18 @@
         }
 
         /// The state presented by every main window.
-        @Published private(set) var phase: Phase = .setup
+        @Published private(set) var phase: Phase = .setup {
+            didSet { scheduleRevalidation() }
+        }
+
         /// The nonsecret address loaded for Settings.
         @Published private(set) var address = ""
         /// Storage for the address and Keychain credential.
         private let storage = ConnectionStorage()
         /// The current request, cancelled whenever configuration changes.
         private var task: Task<Void, Never>?
+        /// One cancellable delay between successful validations; never a second request loop.
+        private var revalidationTask: Task<Void, Never>?
         /// A monotonically changing identifier that rejects obsolete results.
         private var revision = 0
         /// The current validated connection information.
@@ -66,6 +71,35 @@
                 phase = .configurationError("The saved connection could not be read. Unlock Keychain, then open Settings to save your connection again.")
             } catch {
                 phase = .configurationError("Open Settings to check the backend address and connection token.")
+            }
+        }
+
+        deinit {
+            task?.cancel()
+            revalidationTask?.cancel()
+        }
+
+        /// Rechecks provider authentication while the app remains open, including after sleep.
+        private func scheduleRevalidation() {
+            revalidationTask?.cancel()
+            revalidationTask = nil
+            guard case .signedIn = phase else { return }
+            var interval: TimeInterval = 60
+            #if DEBUG
+                // Accelerate time only in isolated UI tests, never in production storage.
+                if storage.service.contains(".uitests."),
+                   let value = ProcessInfo.processInfo.environment["UNARU_TEST_REVALIDATION_SECONDS"],
+                   let seconds = TimeInterval(value), seconds.isFinite, seconds >= 1, seconds <= 60
+                {
+                    interval = seconds
+                }
+            #endif
+            revalidationTask = Task { [weak self, interval] in
+                do {
+                    try await Task.sleep(for: .seconds(interval))
+                } catch { return }
+                guard !Task.isCancelled, let self, case .signedIn = phase else { return }
+                verify(preservingIdentity: true)
             }
         }
 
@@ -97,11 +131,20 @@
 
         /// Retries the saved connection without treating network failures as expired Kite authentication.
         func verify() {
+            verify(preservingIdentity: false)
+        }
+
+        /// Keeps a validated footer stable during a background read, then applies the same error policy.
+        private func verify(preservingIdentity: Bool) {
             guard let configuration else { return }
+            revalidationTask?.cancel()
+            revalidationTask = nil
             revision += 1
             let currentRevision = revision
             task?.cancel()
-            phase = .checking
+            if !preservingIdentity {
+                phase = .checking
+            }
             task = Task {
                 do {
                     let data = try await send("session", configuration: configuration)
