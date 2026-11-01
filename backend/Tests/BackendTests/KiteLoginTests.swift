@@ -243,7 +243,7 @@ struct KiteLoginTests {
     func start(_ app: Application) async throws -> LoginAttempt {
         let response = try await app.testing().sendRequest(.POST, "login", headers: authorization)
         #expect(response.status == .ok)
-        return try response.content.decode(LoginAttempt.self)
+        return try response.content.decode(LoginAttempt.self, using: JSONDecoder())
     }
 
     func callbackState(_ attempt: LoginAttempt) throws -> String {

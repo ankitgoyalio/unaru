@@ -21,6 +21,7 @@
             connect(app, address: address)
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 15))
             XCTAssertFalse(app.staticTexts["Approve This Connection"].exists)
+            app.typeKey("w", modifierFlags: .command)
             app.terminate()
             app.launch()
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))

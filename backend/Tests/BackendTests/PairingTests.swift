@@ -29,7 +29,7 @@ struct PairingTests {
             #expect(unrelated.status == .notFound)
             try PairingStore.approve(code: attempt.code, directory: directory)
             let status = try await app.testing().sendRequest(.GET, "pairing/\(attempt.id)", beforeRequest: { req in try sign(&req, key: key) })
-            #expect(try status.content.decode(PairingStatus.self).approved)
+            #expect(try status.content.decode(PairingStatus.self, using: JSONDecoder()).approved)
             let response = try await app.testing().sendRequest(.GET, "session", beforeRequest: { req in try sign(&req, key: key) })
             #expect(response.status == .ok)
             let reopened = try PairingStore(directory: directory)
@@ -93,7 +93,7 @@ struct PairingTests {
                 captured = req
             })
             #expect(first.status == .ok)
-            let attempt = try first.content.decode(PairingStatus.self)
+            let attempt = try first.content.decode(PairingStatus.self, using: JSONDecoder())
             let replay = try await app.testing().sendRequest(.POST, "pairing", beforeRequest: { req in req = captured! })
             #expect(replay.status == .unauthorized)
             let cancelled = try await app.testing().sendRequest(.DELETE, "pairing/\(attempt.id)", beforeRequest: { req in try sign(&req, key: key) })
@@ -173,7 +173,7 @@ struct PairingTests {
         })
         #expect(response.status == .ok)
         #expect(response.headers["Cache-Control"] == ["no-store"])
-        return try response.content.decode(PairingStatus.self)
+        return try response.content.decode(PairingStatus.self, using: JSONDecoder())
     }
 
     private func withPairing(now: @escaping @Sendable () -> Date = { Date() }, _ test: (Application, PairingStore, URL) async throws -> Void) async throws {

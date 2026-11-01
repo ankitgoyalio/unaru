@@ -4,6 +4,7 @@
 //
 //  Created by Ankit Goyal on 01/11/2026.
 
+import Foundation
 import Shared
 import Vapor
 
@@ -25,7 +26,8 @@ func routes(
     }
     protected.post("login") { _ async throws -> Response in
         let response = Response(status: .ok)
-        try await response.content.encode(login.start(), as: .json)
+        // Match the Mac client's Foundation date representation.
+        try await response.content.encode(login.start(), using: JSONEncoder())
         return response
     }
     protected.get("login", ":id") { request async throws -> Response in

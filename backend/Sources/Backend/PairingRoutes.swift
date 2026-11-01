@@ -4,6 +4,7 @@
 //
 //  Created by Ankit Goyal on 01/11/2026.
 
+import Foundation
 import Shared
 import Vapor
 
@@ -31,7 +32,8 @@ func pairingRoutes(_ app: Application, store: PairingStore) {
 /// Keeps pairing progress and private comparison codes out of intermediary caches.
 private func pairingResponse(_ status: PairingStatus) throws -> Response {
     let response = Response(status: .ok)
-    try response.content.encode(status, as: .json)
+    // Match the Mac client's Foundation date representation.
+    try response.content.encode(status, using: JSONEncoder())
     response.headers.replaceOrAdd(name: .cacheControl, value: "no-store")
     return response
 }
