@@ -5,6 +5,7 @@
 //  Created by Ankit Goyal on 01/11/2026.
 
 #if os(macOS)
+    import CryptoKit
     import Foundation
     import Shared
 
@@ -26,26 +27,52 @@
                 request.setValue(localProof, forHTTPHeaderField: "X-Unaru-Local-Pairing")
             }
             request.timeoutInterval = 15
-            request.setValue("Bearer \(configuration.token)", forHTTPHeaderField: "Authorization")
+            if configuration.token.hasPrefix("unaru-key:"), let bytes = Data(base64Encoded: String(configuration.token.dropFirst(10))) {
+                let key = try Curve25519.Signing.PrivateKey(rawRepresentation: bytes)
+                let timestamp = String(Date().timeIntervalSince1970)
+                let nonce = UUID().uuidString
+                let digest = SHA256.hash(data: body ?? Data()).map { String(format: "%02x", $0) }.joined()
+                let message = [method, path.trimmingCharacters(in: CharacterSet(charactersIn: "/")), timestamp, nonce, digest].joined(separator: "\n")
+                request.setValue(key.publicKey.rawRepresentation.base64EncodedString(), forHTTPHeaderField: "X-Unaru-Key")
+                try request.setValue(key.signature(for: Data(message.utf8)).base64EncodedString(), forHTTPHeaderField: "X-Unaru-Signature")
+                request.setValue(timestamp, forHTTPHeaderField: "X-Unaru-Timestamp")
+                request.setValue(nonce, forHTTPHeaderField: "X-Unaru-Nonce")
+            } else {
+                request.setValue("Bearer \(configuration.token)", forHTTPHeaderField: "Authorization")
+            }
             request.setValue("application/json", forHTTPHeaderField: "Accept")
             let (data, response) = try await session.data(for: request)
-            guard let response = response as? HTTPURLResponse else { throw BackendConnection.LoginFailure.unavailable }
+            guard let response = response as? HTTPURLResponse else { throw Failure.unavailable }
             switch response.statusCode {
             case 200 ... 299: return data
             case 401, 403:
                 let problem = try? JSONDecoder().decode(ConnectionProblem.self, from: data)
                 if problem?.code == .kiteSignInRequired {
-                    throw BackendConnection.LoginFailure.signedOut
+                    throw Failure.signedOut
                 }
-                throw BackendConnection.LoginFailure.configuration
+                throw Failure.configuration
             case 503:
                 let problem = try? JSONDecoder().decode(ConnectionProblem.self, from: data)
                 if problem?.code == .backendNotConfigured {
-                    throw BackendConnection.LoginFailure.backendConfiguration
+                    throw Failure.backendConfiguration
                 }
-                throw BackendConnection.LoginFailure.unavailable
-            default: throw BackendConnection.LoginFailure.unavailable
+                throw Failure.unavailable
+            default: throw Failure.unavailable
             }
+        }
+
+        /// Shared failure categories for backend requests and authentication operations.
+        enum Failure: Error {
+            /// App authorization was rejected.
+            case configuration
+            /// The authorized backend has no valid Kite session.
+            case signedOut
+            /// The backend connection token has not been configured.
+            case backendConfiguration
+            /// Browser handoff could not begin.
+            case failed
+            /// A read or connection can be retried.
+            case unavailable
         }
 
         /// Validates transport and header safety before sending or persisting credentials.

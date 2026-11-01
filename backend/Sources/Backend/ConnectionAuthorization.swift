@@ -7,9 +7,9 @@
 import Shared
 import Vapor
 
-/// Protects app operations with the installation's separate connection token.
+/// Protects app operations with approved signed keys or a legacy connection token.
 struct ConnectionAuthorization: AsyncMiddleware {
-    /// The server-configured token, absent when the installation is not configured.
+    /// An optional server-configured token accepted for existing clients.
     let token: String?
 
     /// Credentials approved by the backend owner.
@@ -17,14 +17,14 @@ struct ConnectionAuthorization: AsyncMiddleware {
 
     /// Rejects missing or incorrect authorization before invoking protected handlers.
     func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
-        guard let supplied = request.headers.bearerAuthorization?.token, !supplied.isEmpty else {
-            throw Abort(.unauthorized, reason: "Connection token required.")
-        }
-        let paired = await pairing?.accepts(supplied) ?? false
-        if paired {
+        if let pairing, request.headers.first(name: "X-Unaru-Key") != nil {
+            _ = try await pairing.authenticate(request)
             let response = try await next.respond(to: request)
             response.headers.replaceOrAdd(name: .cacheControl, value: "no-store")
             return response
+        }
+        guard let supplied = request.headers.bearerAuthorization?.token, !supplied.isEmpty else {
+            throw Abort(.unauthorized, reason: "Connection authorization required.")
         }
         guard let token, !token.isEmpty, token.utf8.allSatisfy({ (33 ... 126).contains($0) }) else {
             if pairing != nil {

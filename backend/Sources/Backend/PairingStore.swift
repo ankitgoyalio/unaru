@@ -13,8 +13,10 @@ import Vapor
 actor PairingStore {
     /// Private installation directory, shared only with the owner's approval command.
     private let directory: URL
-    /// Durable hashes and a same-user local bootstrap secret.
+    /// Durable public keys and a same-user local bootstrap secret.
     private var installation: Installation
+    /// Recently accepted signed request nonces, bounded by their timestamp window.
+    private var nonces: [String: Date] = [:]
     /// Pending attempts, bounded to prevent unapproved requests exhausting resources.
     private var attempts: [String: Attempt] = [:]
     /// Controllable time for expiry checks at the HTTP boundary.
@@ -29,7 +31,7 @@ actor PairingStore {
         if FileManager.default.fileExists(atPath: file.path) {
             installation = try JSONDecoder().decode(Installation.self, from: Data(contentsOf: file))
         } else {
-            installation = Installation(localSecret: Self.secret(), credentials: [])
+            installation = Installation(localSecret: Self.secret(), publicKeys: [])
             try Self.write(installation, to: file)
         }
     }
@@ -54,23 +56,52 @@ actor PairingStore {
     }
 
     /// Accepts only durable credentials that have completed owner approval.
-    func accepts(_ credential: String) -> Bool {
-        installation.credentials.contains(Self.digest(credential))
+    func contains(publicKey: String) -> Bool {
+        installation.publicKeys.contains(publicKey)
+    }
+
+    /// Verifies a fresh request without transmitting a reusable client credential.
+    func authenticate(_ request: Request, approved: Bool = true) throws -> String {
+        guard let key = request.headers.first(name: "X-Unaru-Key"),
+              let encoded = request.headers.first(name: "X-Unaru-Signature"), let signature = Data(base64Encoded: encoded),
+              let timestamp = request.headers.first(name: "X-Unaru-Timestamp"), let time = TimeInterval(timestamp), time.isFinite,
+              abs(now().timeIntervalSince1970 - time) <= 60,
+              let nonce = request.headers.first(name: "X-Unaru-Nonce"), UUID(uuidString: nonce) != nil,
+              let bytes = Data(base64Encoded: key), let publicKey = try? Curve25519.Signing.PublicKey(rawRepresentation: bytes),
+              !approved || installation.publicKeys.contains(key) else { throw Abort(.unauthorized) }
+        nonces = nonces.filter { $0.value > now() }
+        let scope = installation.publicKeys.contains(key) ? "approved:" : "pending:"
+        let replayKey = scope + key + nonce
+        let capacity = scope == "approved:" ? 4096 : 256
+        guard nonces["approved:" + key + nonce] == nil, nonces["pending:" + key + nonce] == nil else { throw Abort(.unauthorized) }
+        guard nonces.keys.filter({ $0.hasPrefix(scope) }).count < capacity else { throw Abort(.tooManyRequests) }
+        let body = request.body.data.map { Data($0.readableBytesView) } ?? Data()
+        let digest = SHA256.hash(data: body).map { String(format: "%02x", $0) }.joined()
+        let message = [request.method.rawValue, request.url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")), timestamp, nonce, digest].joined(separator: "\n")
+        guard publicKey.isValidSignature(signature, for: Data(message.utf8)) else { throw Abort(.unauthorized) }
+        nonces[replayKey] = now().addingTimeInterval(120)
+        return key
     }
 
     /// Starts a five-minute attempt, optionally proving ownership through same-user Keychain access.
-    func start(credential: String, localProof: String?) throws -> PairingStatus {
+    func start(publicKey: String, localProof: String?) throws -> PairingStatus {
         try prune()
-        guard credential.utf8.count >= 40, credential.utf8.count <= 128,
-              credential.utf8.allSatisfy({ (33 ... 126).contains($0) }) else { throw Abort(.badRequest) }
-        guard attempts.count < 32, installation.credentials.count < 64 else { throw Abort(.tooManyRequests) }
+        guard let bytes = Data(base64Encoded: publicKey), bytes.count == 32,
+              (try? Curve25519.Signing.PublicKey(rawRepresentation: bytes)) != nil else { throw Abort(.badRequest) }
+        // A verified client reconnect replaces its earlier attempt rather than consuming another slot.
+        for (id, previous) in attempts where previous.publicKey == publicKey {
+            attempts[id] = nil
+            try removeFiles(id)
+        }
+        guard attempts.count < 32, installation.publicKeys.count < 64 || installation.publicKeys.contains(publicKey) else { throw Abort(.tooManyRequests) }
         let id = UUID().uuidString
         var code: String
         repeat {
             code = String(format: "%08d", Int.random(in: 0 ... 99_999_999))
         } while attempts.values.contains(where: { $0.code == code })
-        let approved = localProof.map { installation.localSecret.utf8.secureCompare(to: $0.utf8) } ?? false
-        let attempt = Attempt(id: id, code: code, expiresAt: now().addingTimeInterval(300), digest: Self.digest(credential))
+        let expected = Data(HMAC<SHA256>.authenticationCode(for: Data(publicKey.utf8), using: SymmetricKey(data: Data(installation.localSecret.utf8)))).base64EncodedString()
+        let approved = installation.publicKeys.contains(publicKey) || (localProof.map { expected.utf8.secureCompare(to: $0.utf8) } ?? false)
+        let attempt = Attempt(id: id, code: code, expiresAt: now().addingTimeInterval(300), publicKey: publicKey, previouslyApproved: installation.publicKeys.contains(publicKey))
         attempts[id] = attempt
         try Self.write(PendingApproval(id: id, code: code, expiresAt: attempt.expiresAt), to: pendingURL(id))
         if approved {
@@ -79,10 +110,10 @@ actor PairingStore {
         return status(attempt)
     }
 
-    /// Polls require the offered secret, rather than the visible comparison code or ID.
-    func poll(id: String, credential: String) throws -> PairingStatus {
+    /// Polls are restricted to the public key whose private key signed the request.
+    func poll(id: String, publicKey: String) throws -> PairingStatus {
         try prune()
-        guard let attempt = attempts[id], attempt.digest == Self.digest(credential) else { throw Abort(.notFound) }
+        guard let attempt = attempts[id], attempt.publicKey == publicKey else { throw Abort(.notFound) }
         let approval = directory.appendingPathComponent("\(id).approved")
         if FileManager.default.fileExists(atPath: approval.path) {
             try authorize(attempt)
@@ -92,10 +123,12 @@ actor PairingStore {
     }
 
     /// Revokes a cancelled offer, including an approval racing with app cancellation.
-    func cancel(id: String, credential: String) throws {
-        guard let attempt = attempts[id], attempt.digest == Self.digest(credential) else { throw Abort(.notFound) }
-        installation.credentials.removeAll { $0 == attempt.digest }
-        try persist()
+    func cancel(id: String, publicKey: String) throws {
+        guard let attempt = attempts[id], attempt.publicKey == publicKey else { throw Abort(.notFound) }
+        if !attempt.previouslyApproved {
+            installation.publicKeys.removeAll { $0 == attempt.publicKey }
+            try persist()
+        }
         attempts[id] = nil
         try removeFiles(id)
     }
@@ -114,17 +147,12 @@ actor PairingStore {
         try write(true, to: directory.appendingPathComponent("\(pending.id).approved"))
     }
 
-    /// Hashes high-entropy credentials so the persistent registry cannot be used as a bearer token.
-    private static func digest(_ credential: String) -> String {
-        SHA256.hash(data: Data(credential.utf8)).map { String(format: "%02x", $0) }.joined()
-    }
-
     /// Persists approval before reporting success to the app.
     private func authorize(_ attempt: Attempt) throws {
-        guard !installation.credentials.contains(attempt.digest) else { return }
-        installation.credentials.append(attempt.digest)
+        guard !installation.publicKeys.contains(attempt.publicKey) else { return }
+        installation.publicKeys.append(attempt.publicKey)
         do { try persist() } catch {
-            installation.credentials.removeAll { $0 == attempt.digest }
+            installation.publicKeys.removeAll { $0 == attempt.publicKey }
             throw error
         }
     }
@@ -132,7 +160,7 @@ actor PairingStore {
     /// Encodes the nonsecret progress of an attempt.
     private func status(_ attempt: Attempt) -> PairingStatus {
         PairingStatus(id: attempt.id, code: attempt.code, expiresAt: attempt.expiresAt,
-                      approved: installation.credentials.contains(attempt.digest))
+                      approved: installation.publicKeys.contains(attempt.publicKey))
     }
 
     /// Removes expired pending requests without revoking completed credentials.
@@ -191,11 +219,11 @@ actor PairingStore {
     private struct Installation: Codable {
         /// Secret disclosed only through the same-user local Keychain bootstrap.
         let localSecret: String
-        /// Hashes of approved client-generated credentials.
-        var credentials: [String]
+        /// Approved client public verification keys.
+        var publicKeys: [String]
     }
 
-    /// In-memory association between a public code and a secret credential hash.
+    /// In-memory association between a comparison code and a candidate public key.
     private struct Attempt {
         /// Unguessable server-generated identifier.
         let id: String
@@ -203,8 +231,10 @@ actor PairingStore {
         let code: String
         /// Hard deadline for approval and polling.
         let expiresAt: Date
-        /// Hash of the candidate credential.
-        let digest: String
+        /// Public verification key for the requesting app.
+        let publicKey: String
+        /// Reconnecting an existing client must not revoke its earlier approval on cancellation.
+        let previouslyApproved: Bool
     }
 
     /// Minimal metadata read by the owner's approval command, containing no bearer credential.

@@ -6,14 +6,14 @@
 
 import Foundation
 
-/// A client-generated credential offered for approval by the backend owner.
+/// A client-generated public key offered for approval by the backend owner.
 public struct PairingRequest: Codable, Sendable {
-    /// Random credential retained in the app's Keychain after approval.
-    public let credential: String
+    /// Public verification key; the private signing key stays in the app’s Keychain.
+    public let publicKey: String
 
-    /// Creates a request without exposing the credential in a URL.
-    public init(credential: String) {
-        self.credential = credential
+    /// Creates a request without exposing private key material.
+    public init(publicKey: String) {
+        self.publicKey = publicKey
     }
 }
 

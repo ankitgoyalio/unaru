@@ -58,6 +58,8 @@
         private var configuration: (url: URL, token: String)?
         /// The app's current attempt, retained only for retrying profile/status reads.
         private var activeAttempt: LoginAttempt?
+        /// Pending approval authority, revoked explicitly when Settings cancels or changes.
+        private var pendingPairing: (id: String, configuration: (url: URL, token: String))?
         /// An ephemeral transport that refuses redirects carrying credentials.
         private let transport = BackendTransport()
 
@@ -72,7 +74,7 @@
             } catch is ConnectionStorage.StorageFailure {
                 phase = .configurationError("The saved connection could not be read. Unlock Keychain, then open Settings to save your connection again.")
             } catch {
-                phase = .configurationError("Open Settings to check the backend address and connection token.")
+                phase = .configurationError("Open Settings to check the backend address and connect again.")
             }
         }
 
@@ -113,17 +115,26 @@
             let currentRevision = revision
             task = Task {
                 do {
-                    let paired = try await BackendPairing(transport: transport).connect(address: address) { [weak self] code in
-                        guard let self, revision == currentRevision else { return }
-                        phase = .pairing(code)
+                    let paired = try await BackendPairing(transport: transport).connect(address: address, savedCredential: address == self.address ? storage.readToken() : nil) { [weak self] status, configuration in
+                        guard let self else { return }
+                        guard revision == currentRevision, !Task.isCancelled else {
+                            Task { _ = try? await transport.send("pairing/\(status.id)", method: "DELETE", configuration: configuration) }
+                            return
+                        }
+                        pendingPairing = (status.id, configuration)
+                        if !status.approved {
+                            phase = .pairing(status.code)
+                        }
                     }
                     guard !Task.isCancelled, revision == currentRevision else { return }
                     try storage.save(address: paired.url.absoluteString, token: paired.token)
+                    pendingPairing = nil
                     self.address = paired.url.absoluteString
                     configuration = paired
                     verify()
                 } catch {
                     guard !Task.isCancelled, revision == currentRevision else { return }
+                    cancelPairing()
                     if let error = error as? BackendTransport.InvalidConfiguration {
                         phase = .configurationError(error.message)
                     } else {
@@ -166,10 +177,10 @@
                 } catch {
                     guard !Task.isCancelled, currentRevision == revision else { return }
                     switch error {
-                    case LoginFailure.signedOut: phase = .signedOut
-                    case LoginFailure.configuration:
+                    case BackendTransport.Failure.signedOut: phase = .signedOut
+                    case BackendTransport.Failure.configuration:
                         phase = .configurationError("This Mac is no longer authorized. Open Settings and choose Connect again.")
-                    case LoginFailure.backendConfiguration: phase = .backendError
+                    case BackendTransport.Failure.backendConfiguration: phase = .backendError
                     default: phase = .unavailable
                     }
                 }
@@ -192,15 +203,15 @@
                     activeAttempt = attempt
                     let url = attempt.browserURL
                     guard url.scheme == "https", url.host == "kite.zerodha.com", url.path == "/connect/login",
-                          url.user == nil, url.password == nil, url.fragment == nil else { throw LoginFailure.failed }
+                          url.user == nil, url.password == nil, url.fragment == nil else { throw BackendTransport.Failure.failed }
                     #if DEBUG
                         if storage.service.contains(".uitests."), ProcessInfo.processInfo.environment["UNARU_TEST_BROWSER"] == "1" {
                             _ = try await transport.send("test/browser", method: "POST", configuration: configuration, body: data)
                         } else {
-                            guard NSWorkspace.shared.open(url) else { throw LoginFailure.failed }
+                            guard NSWorkspace.shared.open(url) else { throw BackendTransport.Failure.failed }
                         }
                     #else
-                        guard NSWorkspace.shared.open(url) else { throw LoginFailure.failed }
+                        guard NSWorkspace.shared.open(url) else { throw BackendTransport.Failure.failed }
                     #endif
                     try await observe(attempt, configuration: configuration, revision: currentRevision)
                 } catch {
@@ -232,12 +243,20 @@
         func cancelLogin() {
             revision += 1
             task?.cancel()
+            cancelPairing()
             let oldAttempt = activeAttempt
             activeAttempt = nil
             phase = configuration == nil ? .setup : .signedOut
             if let oldAttempt, let configuration {
                 Task { _ = try? await transport.send("login/\(oldAttempt.id)", method: "DELETE", configuration: configuration) }
             }
+        }
+
+        /// Revokes a pending connection outside the cancelled request task.
+        private func cancelPairing() {
+            guard let pending = pendingPairing else { return }
+            pendingPairing = nil
+            Task { _ = try? await transport.send("pairing/\(pending.id)", method: "DELETE", configuration: pending.configuration) }
         }
 
         /// Polls only the authorized attempt until success, terminal failure, or a bounded deadline.
@@ -251,7 +270,7 @@
                 case .pending:
                     try await Task.sleep(for: .seconds(1))
                 case .signedIn:
-                    guard let profile = result.profile else { throw LoginFailure.failed }
+                    guard let profile = result.profile else { throw BackendTransport.Failure.failed }
                     activeAttempt = nil
                     phase = .signedIn(profile)
                     return
@@ -268,34 +287,20 @@
         /// Maps login errors to an actionable state without displaying server diagnostics.
         private func showLoginError(_ error: any Error) {
             switch error {
-            case LoginFailure.configuration:
+            case BackendTransport.Failure.configuration:
                 activeAttempt = nil
                 phase = .configurationError("This Mac is no longer authorized. Open Settings and choose Connect again.")
-            case LoginFailure.signedOut:
+            case BackendTransport.Failure.signedOut:
                 activeAttempt = nil
                 phase = .signedOut
-            case LoginFailure.backendConfiguration:
+            case BackendTransport.Failure.backendConfiguration:
                 phase = .backendError
-            case LoginFailure.failed:
+            case BackendTransport.Failure.failed:
                 cancelLogin()
                 phase = .loginFailed
             default:
                 phase = .loginUnavailable
             }
-        }
-
-        /// Safe error categories for the browser flow.
-        enum LoginFailure: Error {
-            /// App authorization was rejected.
-            case configuration
-            /// The authorized backend has no valid Kite session.
-            case signedOut
-            /// The backend connection token has not been configured.
-            case backendConfiguration
-            /// Browser handoff could not begin.
-            case failed
-            /// A read or connection can be retried.
-            case unavailable
         }
     }
 

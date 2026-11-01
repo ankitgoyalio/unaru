@@ -5,6 +5,7 @@
 //  Created by Ankit Goyal on 01/11/2026.
 
 #if os(macOS)
+    import CryptoKit
     import Foundation
     import Security
 
@@ -24,6 +25,11 @@
                 throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
             }
             return value
+        }
+
+        /// Proves Keychain access for this public key without disclosing the bootstrap secret.
+        public static func proof(secret: String, publicKey: String) -> String {
+            Data(HMAC<SHA256>.authenticationCode(for: Data(publicKey.utf8), using: SymmetricKey(data: Data(secret.utf8)))).base64EncodedString()
         }
 
         /// Publishes the bootstrap in the owner's login Keychain; never uses an unrestricted ACL.

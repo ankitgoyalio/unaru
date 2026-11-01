@@ -11,17 +11,19 @@ import Vapor
 func pairingRoutes(_ app: Application, store: PairingStore) {
     let pairing = app.grouped("pairing")
     pairing.post { request async throws -> Response in
+        let key = try await store.authenticate(request, approved: false)
         let offered = try request.content.decode(PairingRequest.self)
-        let status = try await store.start(credential: offered.credential, localProof: request.headers.first(name: "X-Unaru-Local-Pairing"))
+        guard offered.publicKey == key else { throw Abort(.unauthorized) }
+        let status = try await store.start(publicKey: offered.publicKey, localProof: request.headers.first(name: "X-Unaru-Local-Pairing"))
         return try pairingResponse(status)
     }
     pairing.get(":id") { request async throws -> Response in
-        guard let credential = request.headers.bearerAuthorization?.token else { throw Abort(.unauthorized) }
-        return try await pairingResponse(store.poll(id: request.parameters.get("id") ?? "", credential: credential))
+        let key = try await store.authenticate(request, approved: false)
+        return try await pairingResponse(store.poll(id: request.parameters.get("id") ?? "", publicKey: key))
     }
     pairing.delete(":id") { request async throws -> HTTPStatus in
-        guard let credential = request.headers.bearerAuthorization?.token else { throw Abort(.unauthorized) }
-        try await store.cancel(id: request.parameters.get("id") ?? "", credential: credential)
+        let key = try await store.authenticate(request, approved: false)
+        try await store.cancel(id: request.parameters.get("id") ?? "", publicKey: key)
         return .noContent
     }
 }

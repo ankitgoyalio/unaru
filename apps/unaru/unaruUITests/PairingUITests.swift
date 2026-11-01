@@ -19,7 +19,7 @@
             app.buttons["Configure Connection"].click()
             connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Approve This Connection"].firstMatch.waitForExistence(timeout: 10))
-            XCTAssertTrue(app.staticTexts["Backend pair 12345678"].firstMatch.exists)
+            XCTAssertTrue(app.descendants(matching: .any)["Backend pair 12345678"].firstMatch.exists)
             XCTAssertFalse(app.secureTextFields["Connection token"].exists)
             XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
             backend.approvePairing()

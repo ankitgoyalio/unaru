@@ -189,8 +189,8 @@
                             override?.body ?? responseBody, responseLocation, authenticated)
                 }
                 let authorized = lines.contains {
-                    $0.lowercased().hasPrefix("authorization:") &&
-                        $0.dropFirst("authorization:".count).trimmingCharacters(in: .whitespaces) == lock.withLock { "Bearer \(credential)" }
+                    $0.lowercased().hasPrefix("x-unaru-key:") &&
+                        $0.dropFirst("x-unaru-key:".count).trimmingCharacters(in: .whitespaces) == lock.withLock { credential }
                 }
                 let isPairing = path == "/pairing" || path.hasPrefix("/pairing/")
                 let status = isPairing ? 200 : (authorized ? configuredStatus : 401)
@@ -198,7 +198,7 @@
                 if isPairing {
                     if path == "/pairing", text.hasPrefix("POST") {
                         let payload = try? JSONSerialization.jsonObject(with: requestBody) as? [String: String]
-                        lock.withLock { credential = payload?["credential"] ?? "" }
+                        lock.withLock { credential = payload?["publicKey"] ?? "" }
                     }
                     if text.hasPrefix("DELETE") {
                         lock.withLock { pairingCancelled = true }

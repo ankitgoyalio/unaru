@@ -5,23 +5,40 @@ The Vapor backend for Unaru.
 ## Overview
 
 The backend exposes health and greeting routes plus an authorized `GET /session`
-operation. ``PairingStore`` approves app-generated credentials and persists their hashes in an owner-only data directory. ``ConnectionAuthorization`` protects app operations with `Authorization: Bearer <credential>`. Existing `UNARU_CONNECTION_TOKEN` values remain accepted during migration. No credential belongs in a URL.
+operation. ``PairingStore`` approves app-generated credentials and persists their public keys
+in an owner-only data directory. ``ConnectionAuthorization`` protects app operations
+with fresh, signed requests using the app’s private key. Existing
+`UNARU_CONNECTION_TOKEN` values remain accepted during migration. No credential belongs
+in a URL.
 
-`POST /pairing` accepts a `PairingRequest` and returns a `PairingStatus` containing an attempt ID, comparison code, expiry, and approval state. A same-user Mac Keychain bootstrap proof can approve immediately. Otherwise the owner runs `Backend pair <code>` on the server; the command writes a private approval marker for the running backend to consume. A network caller cannot approve a code. The app polls `GET /pairing/:id` with its candidate credential and can cancel with `DELETE /pairing/:id`.
+`POST /pairing` accepts a `PairingRequest` and returns a `PairingStatus` containing an
+attempt ID, comparison code, expiry, and approval state. A same-user Mac Keychain
+bootstrap proof can approve immediately through an HMAC bound to the candidate public
+key. The bootstrap secret itself is never transmitted. Otherwise the owner runs `Backend
+pair <code>` on the server; the command writes a private approval marker for the running
+backend to consume. A network caller cannot approve a code. The app polls `GET
+/pairing/:id` with a signed request and can cancel with `DELETE /pairing/:id`.
 
-Attempts expire after five minutes. Polling and cancellation require the candidate credential, not the public ID or comparison code. Pairing responses use `Cache-Control: no-store`. Approved credential hashes survive restart; Kite sessions remain in memory. Protected endpoints reject unapproved credentials with HTTP 401. A missing legacy-only configuration can still return HTTP 503 with `backendNotConfigured`.
+Attempts expire after five minutes. Polling and cancellation require a signature from
+the candidate private key, not the public ID or comparison code. Pairing responses use
+`Cache-Control: no-store`. Approved public verification keys survive restart; Kite
+sessions remain in memory. Protected endpoints reject unapproved credentials with HTTP
+401. A missing legacy-only configuration can still return HTTP 503 with
+`backendNotConfigured`.
 
-New protected routes must use ``ConnectionAuthorization``. Request bodies and credential headers must be excluded from proxy logs. The app-facing identity payloads contain no Kite access token or API secret.
+New protected routes must use ``ConnectionAuthorization``. Request bodies and credential
+headers must be excluded from proxy logs. The app-facing identity payloads contain no
+Kite access token or API secret.
 
-Keep Kite's API secret and token exchange on the backend. The backend owns
-broker credential storage, login correlation, and app authorization.
-KiteConnect supplies the broker protocol implementation.
+Keep Kite's API secret and token exchange on the backend. The backend owns broker
+credential storage, login correlation, and app authorization. KiteConnect supplies the
+broker protocol implementation.
 
 ### Browser login contract
 
-Account and login routes require an approved connection credential. Payloads never contain the
-Kite API secret or access token. ``KiteLogin`` uses the pinned SDK and replaces
-only its external HTTP transport during tests.
+Account and login routes require an approved connection credential. Payloads never
+contain the Kite API secret or access token. ``KiteLogin`` uses the pinned SDK and
+replaces only its external HTTP transport during tests.
 
 - `POST /login` returns a Shared `LoginAttempt` with `id`, `browserURL`, and
   `expiresAt`. Dates use Foundation Codable's seconds since 2001. The browser URL
@@ -49,9 +66,9 @@ only its external HTTP transport during tests.
   exchange. Malformed, denied, expired, replayed, or superseded callbacks return
   HTTP 400 with a fixed message and no credential data.
 
-A cancelled browser tab sends no callback. The app provides cancellation and a
-bounded wait. The backend keeps only one attempt and one authenticated session
-in memory. A restart discards both.
+A cancelled browser tab sends no callback. The app provides cancellation and a bounded
+wait. The backend keeps only one attempt and one authenticated session in memory. A
+restart discards both.
 
 The following example compiles as a Swift Testing test body without a network request:
 

@@ -13,11 +13,13 @@
 6. If macOS requests Keychain access, review and allow Unaru to read the backend's local pairing item. A native backend running as the same Mac user can then pair automatically. If Keychain sharing is unavailable, use the approval steps below.
 7. After connection verification, return to the main window and choose **Sign in with Kite**.
 
-There is no connection token to create or copy. Unaru generates a credential and stores it in Keychain only after the backend approves it. The backend stores a hash of the approved credential. Kite API secrets and access tokens stay on the backend.
+There is no connection token to create or copy. Unaru generates a credential and stores
+it in Keychain only after the backend approves it. The backend stores the approved
+public verification key. Kite API secrets and access tokens stay on the backend.
 
 ## Approve a remote or container connection
 
-1. Expose the backend through HTTPS with a certificate trusted by your Mac. Forward the `Authorization` header. For a container on the same Mac, loopback HTTP also works.
+1. Expose the backend through HTTPS with a certificate trusted by your Mac. Forward `X-Unaru-Key`, `X-Unaru-Signature`, `X-Unaru-Timestamp`, and `X-Unaru-Nonce`. Forward `Authorization` for legacy clients. For a container on the same Mac, loopback HTTP also works.
 2. Enter the final backend address in Unaru Settings and choose **Connect**.
 3. Compare the eight-digit pairing code shown in Unaru. On the backend host, under the same user and with the same data directory as the running backend, run:
 
@@ -33,19 +35,41 @@ There is no connection token to create or copy. Unaru generates a credential and
 
 4. Approve only the code from the Mac you intend to connect. The code expires after five minutes. Unaru finishes connection automatically; subsequent launches do not require approval again.
 
-The code is a comparison value, not a password. Knowing a code or reaching the server does not authorize a client. Approval requires filesystem access under the backend owner's identity. **Cancel Connection** invalidates the pending request. A cancelled or expired request requires **Connect** again.
+The code is a comparison value, not a password. Knowing a code or reaching the server
+does not authorize a client. Approval requires filesystem access under the backend
+owner's identity. **Cancel Connection** invalidates the pending request. A cancelled or
+expired request requires **Connect** again.
 
-The native same-Mac path requires a loopback-bound backend, the same login Keychain, and an address without a proxy path prefix. A different user, a container, a remote server, or denied Keychain access uses code approval. Unaru never treats a loopback address alone as authorization.
+The native same-Mac path requires a loopback-bound backend, the same login Keychain, and
+an address without a proxy path prefix. A different user, a container, a remote server,
+or denied Keychain access uses code approval. Unaru never treats a loopback address
+alone as authorization.
 
 ## Preserve backend pairing state
 
-Pairing state lives in `~/.unaru` under the backend process user's home. Set `UNARU_DATA_DIRECTORY` to use another persistent directory. The directory is owner-only and contains approved credential hashes, local bootstrap authority, and short-lived approval metadata. Keep it private and use a separate directory for each backend installation. Run only one backend process per directory.
+Pairing state lives in `~/.unaru` under the backend process user's home. Set
+`UNARU_DATA_DIRECTORY` to use another persistent directory. The directory is owner-only
+and contains approved public verification keys, local bootstrap authority, and short-
+lived approval metadata. Keep it private and use a separate directory for each backend
+installation. Run only one backend process per directory.
 
-Docker Compose stores it in a named volume at `/app/.unaru`. Preserve that volume across container recreation. Approved Mac connections survive backend restarts; the in-memory Kite session does not. Deleting installation state revokes paired credentials and requires pairing again. Up to 64 credentials and 32 concurrent pending requests are supported.
+Docker Compose stores it in a named volume at `/app/.unaru`. Preserve that volume across
+container recreation. Signed requests include a timestamp and unique nonce; keep the Mac
+and backend clocks synchronized to within one minute. Approved Mac connections survive
+backend restarts; the in-memory Kite session does not. Deleting installation state
+revokes paired credentials and requires pairing again. Up to 64 credentials and 32
+concurrent pending requests are supported.
 
-Existing `UNARU_CONNECTION_TOKEN` configuration remains supported for already connected apps during migration. New users do not configure it. Reconnecting in Settings replaces the app's saved credential through pairing.
+Existing `UNARU_CONNECTION_TOKEN` configuration remains supported for already connected
+apps during migration. New users do not configure it. Reconnecting to the same saved
+address reuses the app’s private key. A different address creates a new key and requires
+pairing.
 
-HTTP is accepted only for loopback addresses or `localhost`; remote connections require HTTPS. The app refuses redirects, embedded URL credentials, query parameters, and fragments. Use the final backend URL. A reverse proxy path prefix is supported when routes such as `<prefix>/pairing` reach `/pairing`. Keep credential headers, pairing request bodies, and callback query strings out of proxy logs.
+HTTP is accepted only for loopback addresses or `localhost`; remote connections require
+HTTPS. The app refuses redirects, embedded URL credentials, query parameters, and
+fragments. Use the final backend URL. A reverse proxy path prefix is supported when
+routes such as `<prefix>/pairing` reach `/pairing`. Keep credential headers, pairing
+request bodies, and callback query strings out of proxy logs.
 
 ## Configure Kite browser login
 
@@ -64,45 +88,44 @@ HTTP is accepted only for loopback addresses or `localhost`; remote connections 
    you to return. Unaru observes completion through authorized HTTP polling.
 
 Kite's [login documentation](https://kite.trade/docs/connect/v3/user/#login-flow)
-specifies `redirect_params` as a URL-encoded query string returned to the
-registered redirect. Unaru uses `state=<random-value>` within that parameter,
-rather than assuming Kite echoes an OAuth `state` parameter directly.
-The [desktop guidance](https://kite.trade/docs/connect/v3/apps/) permits a
-personal loopback redirect. The browser must run on the backend's Mac for a
-loopback callback; use your public HTTPS backend address otherwise.
+specifies `redirect_params` as a URL-encoded query string returned to the registered
+redirect. Unaru uses `state=<random-value>` within that parameter, rather than assuming
+Kite echoes an OAuth `state` parameter directly. The [desktop
+guidance](https://kite.trade/docs/connect/v3/apps/) permits a personal loopback
+redirect. The browser must run on the backend's Mac for a loopback callback; use your
+public HTTPS backend address otherwise.
 
-Each installation serves one Kite account and keeps its access token only in
-memory. Restarting the backend requires another login. A new login supersedes
-any earlier attempt. Cancellation and the five-minute deadline reject old
-callbacks, including exchanges or profile responses already in flight. Callback
-authority is consumed before exchange, so a failed exchange needs a new login.
-A temporary profile failure permits **Retry Sign-In** without replaying exchange.
-Closing a browser tab does not notify Unaru. Choose **Cancel Sign-In**, or let
-the attempt expire, then try again.
+Each installation serves one Kite account and keeps its access token only in memory.
+Restarting the backend requires another login. A new login supersedes any earlier
+attempt. Cancellation and the five-minute deadline reject old callbacks, including
+exchanges or profile responses already in flight. Callback authority is consumed before
+exchange, so a failed exchange needs a new login. A temporary profile failure permits
+**Retry Sign-In** without replaying exchange. Closing a browser tab does not notify
+Unaru. Choose **Cancel Sign-In**, or let the attempt expire, then try again.
 
-Configure proxy access logs to omit query strings, request bodies, and
-Authorization headers, particularly on `/kite/callback`. Kite supplies its
-short-lived request token in that callback query. Unaru returns plain text with
-no external resources, `Cache-Control: no-store`, and `Referrer-Policy: no-referrer`.
-Never put the connection credential, API secret, or access token in a browser URL.
-The app opens the default browser in production. Debug UI tests with isolated
-storage replace only that browser handoff with a controlled HTTP receipt;
-they never open a real Kite session or use browser cookies.
+Configure proxy access logs to omit query strings, request bodies, and Authorization
+headers, particularly on `/kite/callback`. Kite supplies its short-lived request token
+in that callback query. Unaru returns plain text with no external resources, `Cache-
+Control: no-store`, and `Referrer-Policy: no-referrer`. Never put the connection
+credential, API secret, or access token in a browser URL. The app opens the default
+browser in production. Debug UI tests with isolated storage replace only that browser
+handoff with a controlled HTTP receipt; they never open a real Kite session or use
+browser cookies.
 
 ## Restore a Kite session
 
-Reopen Unaru with the backend running. Unaru restores the saved address and
-Keychain connection credential, shows **Verifying Connection…**, and asks the backend
-for the current profile before displaying the account footer. The backend uses
-its in-memory Kite access token for a fresh provider request. The app stores no
-Kite token, cached authenticated identity, or separate app session reference.
-An unfinished browser attempt is not restored after the app quits.
+Reopen Unaru with the backend running. Unaru restores the saved address and Keychain
+connection credential, shows **Verifying Connection…**, and asks the backend for the
+current profile before displaying the account footer. The backend uses its in-memory
+Kite access token for a fresh provider request. The app stores no Kite token, cached
+authenticated identity, or separate app session reference. An unfinished browser attempt
+is not restored after the app quits.
 
-Kite access tokens normally expire at 6 AM the following day and can be revoked
-earlier. Unaru handles Kite's authentication response rather than a local expiry
-timer. If Kite rejects the token, choose **Sign in with Kite** and complete browser
-login again. A backend restart also requires login because it discards the
-in-memory Kite session. Saved app connection settings remain available.
+Kite access tokens normally expire at 6 AM the following day and can be revoked earlier.
+Unaru handles Kite's authentication response rather than a local expiry timer. If Kite
+rejects the token, choose **Sign in with Kite** and complete browser login again. A
+backend restart also requires login because it discards the in-memory Kite session.
+Saved app connection settings remain available.
 
 ## Recover a connection
 
@@ -119,10 +142,10 @@ in-memory Kite session. Saved app connection settings remain available.
 - If the backend cannot read or write its pairing directory, correct its filesystem permissions and restart it. This failure does not mean Kite login expired.
 - If Keychain is locked or unavailable, unlock it and reopen Settings.
 
-Connecting to a different backend or pairing again clears the current
-identity and cancels earlier verification or login. Delayed responses cannot
-restore the previous connection's identity.
-The main window keeps setup and retry accessible when the sidebar is hidden.
+Connecting to a different backend or pairing again clears the current identity and
+cancels earlier verification or login. Delayed responses cannot restore the previous
+connection's identity. The main window keeps setup and retry accessible when the sidebar
+is hidden.
 
-See the [backend contract](Sources/Backend/Backend.docc/Backend.md) for HTTP details
-and [Development](../docs/development.md) for checks.
+See the [backend contract](Sources/Backend/Backend.docc/Backend.md) for HTTP details and
+[Development](../docs/development.md) for checks.

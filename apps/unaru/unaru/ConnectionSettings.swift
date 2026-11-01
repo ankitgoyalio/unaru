@@ -29,8 +29,8 @@
                     .keyboardShortcut(.defaultAction)
                 switch connection.phase {
                 case let .pairing(code):
-                    PairingInstructions(code: code)
                     Button("Cancel Connection") { connection.cancelLogin() }
+                    PairingInstructions(code: code)
                 case .checking:
                     ProgressView("Connecting…")
                     Button("Cancel Connection") { connection.cancelLogin() }
@@ -62,7 +62,7 @@
         var body: some View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Approve This Connection").font(.headline)
-                Text(code).font(.title.monospacedDigit()).textSelection(.enabled)
+                Text(code).font(.title.monospacedDigit())
                     .accessibilityLabel("Pairing code: \(code.map(String.init).joined(separator: " "))")
                 Text("On your server, approve this code within five minutes:")
                 Text("Backend pair \(code)").font(.body.monospaced()).textSelection(.enabled)
