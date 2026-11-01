@@ -14,7 +14,8 @@
 #
 
 x-shared_environment: &shared_environment
-  LOG_LEVEL: ${LOG_LEVEL:-debug}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  UNARU_CONNECTION_TOKEN: ${UNARU_CONNECTION_TOKEN:?Set a separate backend connection token}
   
 services:
   app:

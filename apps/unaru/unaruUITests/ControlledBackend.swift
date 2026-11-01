@@ -1,0 +1,133 @@
+//
+//  ControlledBackend.swift
+//  unaru
+//
+//  Created by Ankit Goyal on 01/11/2026.
+
+#if os(macOS)
+    import Foundation
+    import Network
+
+    /// A real loopback HTTP server owned by each UI test, with no broker dependency.
+    final class ControlledBackend: @unchecked Sendable {
+        private let listener: NWListener
+        private let queue = DispatchQueue(label: "unaru.ui-test-backend")
+        private let lock = NSLock()
+        private var responseStatus = 200
+        private var holdResponses = false
+        private var heldResponses: [@Sendable () -> Void] = []
+        private var responseBody: String?
+        private var responseLocation: String?
+        private var requestCount = 0
+        private var completedCount = 0
+
+        var address: String {
+            "http://127.0.0.1:\(listener.port!.rawValue)"
+        }
+
+        var requests: Int {
+            lock.withLock { requestCount }
+        }
+
+        var pendingResponses: Int {
+            lock.withLock { heldResponses.count }
+        }
+
+        var completedResponses: Int {
+            lock.withLock { completedCount }
+        }
+
+        init() throws {
+            let parameters = NWParameters.tcp
+            parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
+            listener = try NWListener(using: parameters)
+            let ready = DispatchSemaphore(value: 0)
+            listener.stateUpdateHandler = { state in
+                switch state {
+                case .ready, .failed: ready.signal()
+                default: break
+                }
+            }
+            listener.newConnectionHandler = { [weak self] connection in
+                guard let self else { return }
+                connection.start(queue: queue)
+                receive(connection, accumulated: Data())
+            }
+            listener.start(queue: queue)
+            guard ready.wait(timeout: .now() + 5) == .success, listener.port != nil else {
+                listener.cancel()
+                throw NSError(domain: "ControlledBackend", code: 1)
+            }
+        }
+
+        func respond(status: Int, hold: Bool = false, body: String? = nil, location: String? = nil) {
+            lock.withLock {
+                responseStatus = status
+                holdResponses = hold
+                responseBody = body
+                responseLocation = location
+            }
+        }
+
+        func releaseResponses() {
+            let pending = lock.withLock {
+                holdResponses = false
+                let pending = heldResponses
+                heldResponses.removeAll()
+                return pending
+            }
+            for response in pending {
+                queue.async(execute: response)
+            }
+        }
+
+        func stop() {
+            listener.cancel()
+        }
+
+        private func receive(_ connection: NWConnection, accumulated: Data) {
+            connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { [weak self] data, _, complete, error in
+                guard let self else { return }
+                let request = accumulated + (data ?? Data())
+                guard request.count <= 8192, error == nil else {
+                    connection.cancel()
+                    return
+                }
+                guard let text = String(data: request, encoding: .utf8), text.contains("\r\n\r\n") else {
+                    if complete {
+                        connection.cancel()
+                    } else {
+                        receive(connection, accumulated: request)
+                    }
+                    return
+                }
+                let (configuredStatus, hold, configuredBody, location) = lock.withLock {
+                    requestCount += 1
+                    return (responseStatus, holdResponses, responseBody, responseLocation)
+                }
+                let lines = text.components(separatedBy: "\r\n")
+                let authorized = lines.contains {
+                    $0.lowercased().hasPrefix("authorization:") &&
+                        $0.dropFirst("authorization:".count).trimmingCharacters(in: .whitespaces) == "Bearer ui-test-token"
+                }
+                let status = !text.hasPrefix("GET /session HTTP/") ? 404 : (authorized ? configuredStatus : 401)
+                let body = configuredBody ?? (status == 200 ? "{\"state\":\"signedOut\"}" : "{}")
+                let locationHeader = location.map { "Location: \($0)\r\n" } ?? ""
+                let response = "HTTP/1.1 \(status) Response\r\n\(locationHeader)Content-Type: application/json\r\nCache-Control: no-store\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
+                let send: @Sendable () -> Void = { [self] in
+                    lock.withLock { completedCount += 1 }
+                    if status == 0 {
+                        connection.cancel()
+                        return
+                    }
+                    connection.send(content: Data(response.utf8), completion: .contentProcessed { _ in connection.cancel() })
+                }
+                if hold {
+                    lock.withLock { heldResponses.append(send) }
+                } else {
+                    send()
+                }
+            }
+        }
+    }
+#endif
