@@ -15,8 +15,6 @@ enum Entrypoint {
     /// Creates, configures, and runs the application.
     static func main() async throws {
         var env = try Environment.detect()
-        try LoggingSystem.bootstrap(from: &env)
-
         let app = try await Application.make(env)
 
         // This attempts to install NIO as the Swift Concurrency global executor.
@@ -27,6 +25,10 @@ enum Entrypoint {
         // app.logger.debug("Tried to install SwiftNIO's EventLoopGroup as Swift's global concurrency executor", metadata: ["success": .stringConvertible(executorTakeoverSuccess)])
 
         do {
+            // Application.make loads Vapor's dotenv files before logging reads LOG_LEVEL.
+            try LoggingSystem.bootstrap(from: &env)
+            app.environment = env
+            app.logger = Logger(label: "codes.vapor.application")
             try await configure(app)
             try await app.execute()
         } catch {

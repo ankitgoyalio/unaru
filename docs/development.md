@@ -33,11 +33,19 @@ python3 Scripts/check-documentation.py
 python3 Scripts/check-documentation-examples.py
 swift test --package-path packages/Shared
 swift test --package-path backend
+python3 -m unittest discover -s Tests/BackendConfiguration -p 'test_*.py'
 xcodebuild build-for-testing -project apps/unaru/unaru.xcodeproj -scheme unaru -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
 xcodebuild build-for-testing -project apps/unaru/unaru.xcodeproj -scheme unaru -destination 'generic/platform=visionOS Simulator' CODE_SIGNING_ALLOWED=NO
 xcodebuild test -project apps/unaru/unaru.xcodeproj -scheme unaru -destination 'platform=macOS' CODE_SIGN_IDENTITY=- -only-testing:unaruUITests
 python3 Scripts/build-documentation.py
 ```
+
+The backend loads Vapor dotenv files from its working directory. Copy
+[`backend/.env.example`](../backend/.env.example) to `backend/.env` for local Kite
+configuration, as described in [backend setup](../backend/README.md). Real dotenv
+files stay out of Git and Docker build contexts. The subprocess configuration tests
+use temporary dotenv files and fake credentials to check startup, precedence, logging,
+and authorized login initiation. They make no live Kite requests or Keychain changes.
 
 Linux CI runs the Shared and Backend suites with Swift 6.4.2. Apple CI also
 compiles the app and its tests for iOS and visionOS simulators, runs macOS UI tests,

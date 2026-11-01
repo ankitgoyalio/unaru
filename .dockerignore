@@ -4,3 +4,7 @@
 .agents
 .test-results
 **/xcuserdata
+
+# Never copy local credentials into build contexts or images.
+**/.env
+**/.env.*

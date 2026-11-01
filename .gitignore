@@ -66,3 +66,8 @@ fastlane/test_output
 __pycache__/
 .swiftformat.cache
 .DS_Store
+
+# Backend configuration and local secrets
+.env
+.env.*
+!.env.example

@@ -51,6 +51,7 @@ jobs:
           swift --version
           swift test --package-path packages/Shared 2>&1 | tee .test-results/shared-linux.log
           swift test --package-path backend 2>&1 | tee .test-results/backend-linux.log
+          python3 -m unittest discover -s Tests/BackendConfiguration -p 'test_*.py' 2>&1 | tee .test-results/environment-linux.log
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
@@ -93,6 +94,7 @@ jobs:
           python3 Scripts/check-documentation-examples.py
           swift test --package-path packages/Shared 2>&1 | tee .test-results/shared-apple.log
           swift test --package-path backend 2>&1 | tee .test-results/backend-apple.log
+          python3 -m unittest discover -s Tests/BackendConfiguration -p 'test_*.py' 2>&1 | tee .test-results/environment-apple.log
       - name: Compile the app and tests for iOS Simulator
         run: |
           xcodebuild build-for-testing -project apps/unaru/unaru.xcodeproj -scheme unaru \

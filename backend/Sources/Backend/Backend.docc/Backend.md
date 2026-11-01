@@ -34,6 +34,27 @@ Keep Kite's API secret and token exchange on the backend. The backend owns broke
 credential storage, login correlation, and app authorization. KiteConnect supplies the
 broker protocol implementation.
 
+### Environment configuration
+
+``Entrypoint`` uses Vapor's automatic dotenv loading before configuring logging and
+routes. Files resolve against the backend process working directory. Process variables
+override `.env.<environment>`, which overrides `.env`. The default environment is
+`development`; `--env` or process-level `VAPOR_ENV` selects another environment before
+file loading. File changes take effect on restart.
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `KITE_API_KEY` | Public API key for browser login | Required for login |
+| `KITE_API_SECRET` | Backend-only request-token exchange secret | Required for login |
+| `LOG_LEVEL` | Logging threshold, overridden by `--log` | `info` in development, `notice` in production |
+| `UNARU_DATA_DIRECTORY` | Native persistent pairing state directory | Backend user's `~/.unaru` |
+| `UNARU_CONNECTION_TOKEN` | Optional authorization for legacy clients | Unset; new clients use pairing |
+
+Missing Kite credentials leave pairing and session status available, but login
+initiation returns HTTP 503. Startup logs a warning without credential values. The
+hostname and port remain `serve` command options. The example configuration and local,
+Xcode, and Compose launch procedures are in the repository's backend setup guide.
+
 ### Browser login contract
 
 Account and login routes require an approved connection credential. Payloads never

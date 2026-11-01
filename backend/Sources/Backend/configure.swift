@@ -22,6 +22,9 @@ func configure(_ app: Application) async throws {
     if app.environment.arguments.contains("pair") {
         return
     }
+    if Environment.get("KITE_API_KEY")?.isEmpty != false || Environment.get("KITE_API_SECRET")?.isEmpty != false {
+        app.logger.warning("Kite login is unavailable. Set KITE_API_KEY and KITE_API_SECRET in the process environment or the backend working directory's .env file.")
+    }
     let pairing = try PairingStore(directory: PairingStore.defaultDirectory)
     #if os(macOS)
         let arguments = app.environment.arguments
