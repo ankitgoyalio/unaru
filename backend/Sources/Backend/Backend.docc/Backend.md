@@ -41,10 +41,17 @@ only its external HTTP transport during tests.
   the profile. HTTP 503 permits retrying that read without repeating exchange.
 - `DELETE /login/:id` invalidates that attempt, including in-flight responses.
 - `GET /profile` retrieves the backend-held session's current public identity.
-  A Kite `TokenException` returns HTTP 401 and invalidates the session. Other
-  upstream failures return HTTP 503 without discarding it.
-- `GET /session` reports `signedIn` only after exchange and profile retrieval.
-  Session restoration and full recovery policy are completed by issue #5.
+  A missing session or Kite `TokenException` returns HTTP 401 with
+  `{"code":"kiteSignInRequired"}`. A token rejection invalidates the session.
+  Missing or incorrect connection credentials return HTTP 401 before this route
+  runs, without that code. Other upstream failures, including transport errors,
+  rate limits, malformed responses, and permission errors, return HTTP 503
+  without discarding the Kite session.
+- `GET /session` reports whether an in-memory session exists after exchange and
+  profile retrieval. This status alone does not validate a saved Kite token.
+  On launch and retry, the app follows `signedIn` with `GET /profile` and presents
+  identity only after that fresh provider request succeeds. A backend restart
+  returns `signedOut`, and the app requests browser login again.
 - Public `GET /kite/callback` accepts Kite's `state`, `status`, and
   `request_token` query fields. A matching unconsumed attempt must exist and
   remain within its five-minute deadline. Callback authority is consumed before

@@ -35,7 +35,12 @@ func routes(
     }
     protected.get("profile") { _ async throws -> Response in
         let response = Response(status: .ok)
-        try await response.content.encode(login.profile(), as: .json)
+        do {
+            try await response.content.encode(login.profile(), as: .json)
+        } catch let error as any AbortError where error.status == .unauthorized {
+            response.status = .unauthorized
+            try response.content.encode(ConnectionProblem(code: .kiteSignInRequired), as: .json)
+        }
         return response
     }
     app.get("kite", "callback") { request async -> Response in

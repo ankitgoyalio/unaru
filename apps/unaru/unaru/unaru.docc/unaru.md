@@ -18,6 +18,12 @@ signed-in main area stays empty.
 configuration or cancelled login. A revision guard applies after every network
 response, including token-exchange completion and profile retrieval. Temporary
 login-status or profile failures offer Retry Sign-In for the same attempt.
+On launch, saved connection settings are restored and the backend-held session
+is validated through a fresh profile request before identity appears. No profile
+or Kite credential is cached in the app. Kite authentication rejection and a
+missing backend session return to sign-in. Temporary validation failures retain
+configuration and offer Retry without another login. Backend connection-token
+rejection directs the user to Settings separately from Kite authentication.
 Denied or expired attempts permit a new browser login. Connection failures offer Retry. Invalid app credentials lead to
 Settings, while a missing server token identifies a backend configuration problem.
 Remote addresses require HTTPS. HTTP is allowed only for loopback connections,
