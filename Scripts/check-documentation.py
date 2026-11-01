@@ -12,7 +12,7 @@ from urllib.parse import unquote, urlsplit
 
 
 GUIDES = {"README.md", "DocC.md", "Pages.md"}
-ROOT_GUIDES = {"README.md", "AGENTS.md", "GLOSSARY.md"}
+ROOT_GUIDES = {"README.md", "AGENTS.md", "GLOSSARY.md", "CONTRIBUTING.md", "SECURITY.md"}
 PROJECT_GUIDES = {"development.md", "agents/domain.md", "agents/issue-tracker.md",
                   "agents/triage-labels.md"}
 

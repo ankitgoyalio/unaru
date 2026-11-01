@@ -1,6 +1,6 @@
 # Development
 
-Use Swift 6.4 and Xcode 27.2 for Apple builds. `.swift-version` selects Swift 6.4.0
+Use Swift 6.4 and Xcode 27.2 for Apple builds. `.swift-version` selects Swift 6.4.2
 for standalone tools and Linux CI. Newer 6.4 patches are accepted. The Xcode
 project uses Swift 6 language mode. Shared and Backend require macOS 15 or later.
 The app supports iOS 18, macOS 15, and visionOS 2 or later.
@@ -37,7 +37,7 @@ xcodebuild build-for-testing -project apps/unaru/unaru.xcodeproj -scheme unaru -
 python3 Scripts/build-documentation.py
 ```
 
-Linux CI runs the Shared and Backend suites with Swift 6.4.0. Apple CI also
+Linux CI runs the Shared and Backend suites with Swift 6.4.2. Apple CI also
 compiles the app and its tests for iOS Simulator, builds the macOS app for DocC,
 and validates the static documentation. Workflow timeouts bound builds and tests.
 Logs and result artifacts belong in ignored `.test-results/`.
@@ -61,12 +61,22 @@ python3 .githooks/pre-commit --base origin/main
 CI applies the same commit checks against the pull request base or previous push.
 Change the formatter pin, configuration, tests, CI installer, and this guide together.
 
+GitHub Actions references use full commit SHAs. Repository policy requires these
+pins and allows only the action repositories used by the workflows. Keep the
+allowlist synchronized when introducing an action. Every checkout disables
+persisted Git credentials. Workflow runs from outside contributors require approval.
+
+CI runs actionlint with a checksum-verified binary. The Security workflow scans
+Actions and Python with CodeQL. Swift scanning awaits support for the Swift 6.4
+compiler, as described in [Security](../SECURITY.md).
+
 ## Update dependencies
 
 Dependabot checks both Swift packages and GitHub Actions every Monday at 08:00
 Asia/Kolkata. Networking patch and minor updates are grouped. KiteConnect and
 major upgrades remain separate. Review release notes and require passing CI
-before merging updates. Keep resolved package files in Git.
+before merging updates. Keep resolved package files in Git. Dependabot security alerts and security
+updates are also enabled.
 
 The backend uses KiteConnect 0.1.0 as an exact package dependency. Keep the Kite
 API secret and token exchange on the backend. This setup adds the dependency;
@@ -81,6 +91,6 @@ docker build -f backend/Dockerfile -t unaru-backend .
 docker compose -f backend/docker-compose.yml build
 ```
 
-The builder uses Swift 6.4.0 on Ubuntu 24.04. The runtime includes libcurl for
+The builder uses Swift 6.4.2 on Ubuntu 24.04. The runtime includes libcurl for
 KiteConnect's FoundationNetworking transport. See [DocC](../Documentation/DocC.md)
 for documentation builds and [Pages](../Documentation/Pages.md) for publication.
