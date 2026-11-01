@@ -10,6 +10,19 @@ import VaporTesting
 
 @Suite("App Tests")
 struct BackendTests {
+    @Test("Login operations require connection authorization", arguments: ["", "Bearer wrong-token", "Basic test-connection-token"])
+    func loginAuthorization(header: String) async throws {
+        try await withApp(configure: { app in
+            try routes(app, connectionToken: "test-connection-token")
+        }) { app in
+            for (method, path) in [(HTTPMethod.POST, "login"), (.GET, "login/status"), (.GET, "profile"), (.DELETE, "login/status")] {
+                try await app.testing().test(method, path, headers: ["Authorization": header], afterResponse: { res async in
+                    #expect(res.status == .unauthorized)
+                })
+            }
+        }
+    }
+
     @Test("Test Hello World Route")
     func helloWorld() async throws {
         try await withApp(configure: configure) { app in

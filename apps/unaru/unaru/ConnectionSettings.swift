@@ -54,7 +54,7 @@
                     Text("Set UNARU_CONNECTION_TOKEN on the backend, then retry in the main window.")
                 case .unavailable:
                     Text("The backend could not be reached or returned an unexpected response. Retry in the main window.")
-                case .setup:
+                case .setup, .loggingIn, .loginUnavailable, .loginFailed, .signedIn:
                     EmptyView()
                 }
             }

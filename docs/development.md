@@ -49,14 +49,18 @@ They use only test tokens and a unique defaults suite and Keychain service per
 case. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to select that storage;
 `UNARU_TEST_RESET=1` clears only the selected test storage. Release builds ignore
 these variables. Test cleanup clears those credentials by relaunching the app.
-No test needs Kite credentials or browser cookies. Run UI tests in an unlocked
-Mac login session with Xcode's UI automation authorization enabled. A runner
+Debug builds with isolated storage also accept `UNARU_TEST_BROWSER=1` to send
+the handoff to the controlled backend instead of opening a browser. Release
+builds ignore this setting. No test needs Kite credentials or browser cookies.
+Run UI tests in an unlocked Mac login session with Xcode's UI automation authorization enabled. A runner
 initialization or system-authentication failure means the UI tests did not run.
 
 For manual accessibility verification, use VoiceOver and keyboard navigation to
-open Settings, edit both fields, save, retry a failed connection, and hide and
-restore the sidebar. Check the minimum window size and both appearances. UI
-queries cover accessible labels and control availability but do not verify spoken
+open Settings, edit both fields, save, start and cancel login, retry a failed
+connection or login, and hide and restore the sidebar. After login, resize the
+sidebar and check that the informational account name and ID wrap and remain
+readable. Verify avatar initials when an image cannot load. Check the minimum
+window size and both appearances. UI queries cover accessible labels and control availability but do not verify spoken
 VoiceOver output.
 
 ## Resolve commit check failures
@@ -96,8 +100,9 @@ before merging updates. Keep resolved package files in Git. Dependabot security 
 updates are also enabled.
 
 The backend uses KiteConnect 0.1.0 as an exact package dependency. Keep the Kite
-API secret and token exchange on the backend. This setup adds the dependency;
-it does not implement application authentication or trading routes.
+API secret and token exchange on the backend. Browser login uses its request-token
+exchange and profile API through the backend's outbound HTTP boundary. See [backend setup](../backend/README.md) for
+Kite credentials and redirect registration. No trading routes are implemented.
 
 ## Build the container
 

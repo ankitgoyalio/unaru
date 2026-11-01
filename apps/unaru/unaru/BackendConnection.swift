@@ -5,6 +5,7 @@
 //  Created by Ankit Goyal on 01/11/2026.
 
 #if os(macOS)
+    import AppKit
     import Combine
     import Foundation
     import Shared
@@ -20,6 +21,14 @@
             case checking
             /// The backend is reachable and requires Kite authentication.
             case signedOut
+            /// An authorized browser attempt is pending.
+            case loggingIn
+            /// A temporary profile/status error can retry the same attempt.
+            case loginUnavailable
+            /// The browser attempt failed and can be started again.
+            case loginFailed
+            /// Exchange and profile retrieval have both completed.
+            case signedIn(AccountProfile)
             /// The user must correct connection settings.
             case configurationError(String)
             /// The server configuration needs repair, rather than Kite reauthentication.
@@ -40,6 +49,8 @@
         private var revision = 0
         /// The current validated connection information.
         private var configuration: (url: URL, token: String)?
+        /// The app's current attempt, retained only for retrying profile/status reads.
+        private var activeAttempt: LoginAttempt?
         /// An ephemeral transport that refuses redirects carrying credentials.
         private let session = URLSession(configuration: .ephemeral, delegate: ConnectionRedirectPolicy(), delegateQueue: nil)
 
@@ -66,8 +77,7 @@
         /// Invalidates prior results, saves valid settings, and verifies the new connection.
         @discardableResult
         func save(address: String, token: String) -> Bool {
-            revision += 1
-            task?.cancel()
+            cancelLogin()
             configuration = nil
             phase = .setup
             do {
@@ -109,6 +119,11 @@
                         let status = try JSONDecoder().decode(SessionStatus.self, from: data)
                         switch status.state {
                         case .signedOut: phase = .signedOut
+                        case .signedIn:
+                            let profileData = try await send("profile", configuration: configuration)
+                            let profile = try JSONDecoder().decode(AccountProfile.self, from: profileData)
+                            guard !Task.isCancelled, currentRevision == revision else { return }
+                            phase = .signedIn(profile)
                         }
                     case 401, 403:
                         phase = .configurationError("The backend rejected the connection token. Check the token in Settings.")
@@ -123,6 +138,135 @@
                     phase = .unavailable
                 }
             }
+        }
+
+        /// Creates an authorized attempt and opens the system's default browser.
+        func signIn() {
+            guard let configuration else { return }
+            revision += 1
+            let currentRevision = revision
+            task?.cancel()
+            activeAttempt = nil
+            phase = .loggingIn
+            task = Task {
+                do {
+                    let data = try await send("login", method: "POST", configuration: configuration)
+                    let attempt = try JSONDecoder().decode(LoginAttempt.self, from: data)
+                    guard !Task.isCancelled, revision == currentRevision else { return }
+                    activeAttempt = attempt
+                    let url = attempt.browserURL
+                    guard url.scheme == "https", url.host == "kite.zerodha.com", url.path == "/connect/login",
+                          url.user == nil, url.password == nil, url.fragment == nil else { throw LoginFailure.failed }
+                    #if DEBUG
+                        if storage.service.contains(".uitests."), ProcessInfo.processInfo.environment["UNARU_TEST_BROWSER"] == "1" {
+                            _ = try await send("test/browser", method: "POST", configuration: configuration, body: data)
+                        } else {
+                            guard NSWorkspace.shared.open(url) else { throw LoginFailure.failed }
+                        }
+                    #else
+                        guard NSWorkspace.shared.open(url) else { throw LoginFailure.failed }
+                    #endif
+                    try await observe(attempt, configuration: configuration, revision: currentRevision)
+                } catch {
+                    guard !Task.isCancelled, revision == currentRevision else { return }
+                    showLoginError(error)
+                }
+            }
+        }
+
+        /// Retries the pending read operation without replaying a consumed request token.
+        func retryLogin() {
+            guard let configuration, let attempt = activeAttempt else { signIn(); return }
+            revision += 1
+            let currentRevision = revision
+            task?.cancel()
+            phase = .loggingIn
+            task = Task {
+                do {
+                    try await observe(attempt, configuration: configuration, revision: currentRevision)
+                } catch {
+                    guard !Task.isCancelled, revision == currentRevision else { return }
+                    showLoginError(error)
+                }
+            }
+        }
+
+        /// Makes earlier browser/profile results obsolete immediately, then revokes the server attempt.
+        func cancelLogin() {
+            revision += 1
+            task?.cancel()
+            let oldAttempt = activeAttempt
+            activeAttempt = nil
+            phase = .signedOut
+            if let oldAttempt, let configuration {
+                Task { _ = try? await send("login/\(oldAttempt.id)", method: "DELETE", configuration: configuration) }
+            }
+        }
+
+        /// Polls only the authorized attempt until success, terminal failure, or a bounded deadline.
+        private func observe(_ attempt: LoginAttempt, configuration: (url: URL, token: String), revision currentRevision: Int) async throws {
+            let deadline = min(attempt.expiresAt, Date().addingTimeInterval(300))
+            while Date() < deadline {
+                let data = try await send("login/\(attempt.id)", configuration: configuration)
+                let result = try JSONDecoder().decode(LoginStatus.self, from: data)
+                guard !Task.isCancelled, revision == currentRevision else { return }
+                switch result.state {
+                case .pending:
+                    try await Task.sleep(for: .seconds(1))
+                case .signedIn:
+                    guard let profile = result.profile else { throw LoginFailure.failed }
+                    activeAttempt = nil
+                    phase = .signedIn(profile)
+                    return
+                case .failed, .expired:
+                    activeAttempt = nil
+                    phase = .loginFailed
+                    return
+                }
+            }
+            cancelLogin()
+            phase = .loginFailed
+        }
+
+        /// Sends credentials only in headers and refuses redirects through the shared transport.
+        private func send(_ path: String, method: String = "GET", configuration: (url: URL, token: String), body: Data? = nil) async throws -> Data {
+            var request = URLRequest(url: configuration.url.appendingPathComponent(path))
+            request.httpMethod = method
+            request.httpBody = body
+            request.timeoutInterval = 15
+            request.setValue("Bearer \(configuration.token)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            let (data, response) = try await session.data(for: request)
+            guard let response = response as? HTTPURLResponse else { throw LoginFailure.unavailable }
+            switch response.statusCode {
+            case 200 ... 299: return data
+            case 401, 403: throw LoginFailure.configuration
+            default: throw LoginFailure.unavailable
+            }
+        }
+
+        /// Maps login errors to an actionable state without displaying server diagnostics.
+        private func showLoginError(_ error: any Error) {
+            switch error {
+            case LoginFailure.configuration:
+                activeAttempt = nil
+                phase = .configurationError("The backend rejected the connection token. Check the token in Settings.")
+            case LoginFailure.failed:
+                cancelLogin()
+                phase = .loginFailed
+            default:
+                phase = .loginUnavailable
+            }
+        }
+
+        /// Safe error categories for the browser flow.
+        private enum LoginFailure: Error {
+            /// App authorization was rejected.
+            case configuration
+            /// Browser handoff could not begin.
+            case failed
+            /// A read or connection can be retried.
+            case unavailable
         }
 
         /// Validates transport and header safety before sending or persisting credentials.
