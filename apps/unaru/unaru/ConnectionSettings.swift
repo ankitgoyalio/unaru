@@ -19,6 +19,7 @@
             Form {
                 Section {
                     TextField("Backend address", text: $address, prompt: Text("http://127.0.0.1:8080"))
+                        .multilineTextAlignment(.leading)
                         .accessibilityIdentifier("Backend address")
                     Text("Use HTTPS for a remote server. A backend on this Mac can use HTTP with a loopback address.")
                         .font(.callout).foregroundStyle(.secondary)
