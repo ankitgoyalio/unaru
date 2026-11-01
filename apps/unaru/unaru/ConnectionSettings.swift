@@ -73,7 +73,7 @@
                     .accessibilityLabel("Pairing code: \(code.map(String.init).joined(separator: " "))")
                 Text("On your server, approve this code within five minutes:")
                 Text("Backend pair \(code)").font(.body.monospaced()).textSelection(.enabled)
-                Text("For a Swift source checkout, run swift run --package-path backend Backend pair followed by this code. Only approve the code shown on your Mac.")
+                Text("From your checkout’s backend directory, run swift run Backend pair followed by this code. Only approve the code shown on your Mac.")
                     .font(.callout).foregroundStyle(.secondary)
             }
         }

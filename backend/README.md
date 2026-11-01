@@ -11,10 +11,11 @@
    Edit `backend/.env` and fill in `KITE_API_KEY` and `KITE_API_SECRET` from the
    [Kite developer console](https://developers.kite.trade/). The [example file](.env.example)
    describes every backend variable. Existing process variables take precedence over files.
-3. From the repository root, start the native backend bound to loopback:
+3. Change into the backend directory, then start the native backend bound to loopback:
 
    ```fish
-   swift run --package-path backend Backend serve --hostname 127.0.0.1 --port 8080
+   cd backend
+   swift run Backend serve --hostname 127.0.0.1 --port 8080
    ```
 
 4. Open Unaru and choose **Configure Connection**, or open **Unaru > Settings** with Command-comma.
@@ -28,10 +29,10 @@ public verification key. Kite API secrets and access tokens stay on the backend.
 
 ## Load configuration automatically
 
-Vapor loads `backend/.env` when you use the repository-root `swift run --package-path
-backend` command above. Swift changes the working directory to `backend` before launch.
-You can also run `swift run Backend serve --hostname 127.0.0.1 --port 8080` from `backend`.
-An installed executable reads dotenv files from its process working directory. In Xcode,
+Vapor loads `.env` from the backend process working directory. Start the backend from
+this checkout's `backend` directory, as shown above. `swift run --package-path backend`
+from the repository root does not make the running server use `backend` as its working
+directory. An installed executable also reads dotenv files from its process working directory. In Xcode,
 set the Backend scheme's custom working directory to this checkout's `backend` folder.
 
 For deployment, `--env production` selects `.env.production` as an optional override.
@@ -60,10 +61,10 @@ It does not automatically load your native `.env.production` override.
 
 1. Expose the backend through HTTPS with a certificate trusted by your Mac. Forward `X-Unaru-Key`, `X-Unaru-Signature`, `X-Unaru-Timestamp`, and `X-Unaru-Nonce`. Forward `Authorization` for legacy clients. For a container on the same Mac, loopback HTTP also works.
 2. Enter the final backend address in Unaru Settings and choose **Connect**.
-3. Compare the eight-digit pairing code shown in Unaru. On the backend host, under the same user and with the same data directory as the running backend, run:
+3. Compare the eight-digit pairing code shown in Unaru. On the backend host, use the same user and data directory as the running backend. From the checkout's `backend` directory, run:
 
    ```fish
-   swift run --package-path backend Backend pair 12345678
+   swift run Backend pair 12345678
    ```
 
    Replace `12345678` with the code shown on your Mac. With an installed executable, run `Backend pair 12345678`. For Docker Compose:
