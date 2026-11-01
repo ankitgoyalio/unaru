@@ -26,7 +26,30 @@
                 case .signedOut:
                     Text("Kite Sign-In Required").font(.title2)
                     Text("Your backend connection is verified. No Kite account is signed in.")
+                    Button("Sign in with Kite") { connection.signIn() }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
                     settingsLink
+                case .loggingIn:
+                    ProgressView("Complete Sign-In in Your Browser")
+                    Text("Return here after signing in. This attempt expires after five minutes.")
+                    Button("Cancel Sign-In") { connection.cancelLogin() }
+                        .keyboardShortcut(.cancelAction)
+                    settingsLink
+                case .loginUnavailable:
+                    Text("Sign-In Temporarily Unavailable").font(.title2)
+                    Text("Check your connection, then retry to finish signing in.")
+                    Button("Retry Sign-In") { connection.retryLogin() }
+                    Button("Cancel Sign-In") { connection.cancelLogin() }
+                    settingsLink
+                case .loginFailed:
+                    Text("Sign-In Not Completed").font(.title2)
+                    Text("The login was cancelled, rejected, or expired. You can try again.")
+                    Button("Sign in with Kite") { connection.signIn() }
+                        .buttonStyle(.borderedProminent)
+                    settingsLink
+                case .signedIn:
+                    Color.clear
                 case let .configurationError(message):
                     Text("Check Connection Settings").font(.title2)
                     Text(message)

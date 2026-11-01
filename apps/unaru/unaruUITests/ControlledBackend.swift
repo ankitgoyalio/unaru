@@ -20,6 +20,31 @@
         private var responseLocation: String?
         private var requestCount = 0
         private var completedCount = 0
+        private var loginResult = "pending"
+        private var handoffs = 0
+        private var attemptNumber = 0
+        private var avatar: String?
+        private var handoffURL: String?
+
+        var browserURL: String? {
+            lock.withLock { handoffURL }
+        }
+
+        func finishLogin(state: String) {
+            lock.withLock { loginResult = state }
+        }
+
+        func useAvatar(_ url: String) {
+            lock.withLock { avatar = url }
+        }
+
+        var browserHandoffs: Int {
+            lock.withLock { handoffs }
+        }
+
+        func completeLogin() {
+            lock.withLock { loginResult = "signedIn" }
+        }
 
         var address: String {
             "http://127.0.0.1:\(listener.port!.rawValue)"
@@ -101,6 +126,19 @@
                     }
                     return
                 }
+                let headerEnd = text.range(of: "\r\n\r\n")!
+                let headerLines = String(text[..<headerEnd.lowerBound]).components(separatedBy: "\r\n")
+                let contentLength = headerLines.first { $0.lowercased().hasPrefix("content-length:") }
+                    .flatMap { Int($0.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) } ?? 0
+                let requestBody = Data(text[headerEnd.upperBound...].utf8)
+                guard requestBody.count >= contentLength else {
+                    if complete {
+                        connection.cancel()
+                    } else {
+                        receive(connection, accumulated: request)
+                    }
+                    return
+                }
                 let (configuredStatus, hold, configuredBody, location) = lock.withLock {
                     requestCount += 1
                     return (responseStatus, holdResponses, responseBody, responseLocation)
@@ -110,8 +148,42 @@
                     $0.lowercased().hasPrefix("authorization:") &&
                         $0.dropFirst("authorization:".count).trimmingCharacters(in: .whitespaces) == "Bearer ui-test-token"
                 }
-                let status = !text.hasPrefix("GET /session HTTP/") ? 404 : (authorized ? configuredStatus : 401)
-                let body = configuredBody ?? (status == 200 ? "{\"state\":\"signedOut\"}" : "{}")
+                let path = lines[0].split(separator: " ").dropFirst().first.map(String.init) ?? ""
+                let status = authorized ? configuredStatus : 401
+                let body: String
+                if path == "/login", text.hasPrefix("POST") {
+                    let number = lock.withLock {
+                        loginResult = "pending"
+                        attemptNumber += 1
+                        return attemptNumber
+                    }
+                    body = "{\"id\":\"ui-attempt-\(number)\",\"browserURL\":\"https://kite.zerodha.com/connect/login?v=3&api_key=test-key&redirect_params=state%3Dtest-state\",\"expiresAt\":2000000000}"
+                } else if path == "/test/browser" {
+                    let payload = try? JSONSerialization.jsonObject(with: requestBody) as? [String: Any]
+                    let url = payload?["browserURL"] as? String
+                    lock.withLock {
+                        handoffs += 1
+                        handoffURL = url
+                    }
+                    body = "{}"
+                } else if path.hasPrefix("/login/ui-attempt-"), text.hasPrefix("DELETE") {
+                    lock.withLock {
+                        if path == "/login/ui-attempt-\(attemptNumber)" {
+                            loginResult = "failed"
+                        }
+                    }
+                    body = "{}"
+                } else if path.hasPrefix("/login/ui-attempt-") {
+                    let (result, avatar) = lock.withLock {
+                        (path == "/login/ui-attempt-\(attemptNumber)" ? loginResult : "failed", avatar)
+                    }
+                    let avatarField = avatar.map { ",\"avatarURL\":\"\($0)\"" } ?? ""
+                    body = configuredBody ?? (result == "signedIn"
+                        ? "{\"state\":\"signedIn\",\"profile\":{\"name\":\"Asha Rao\",\"userID\":\"AB1234\"\(avatarField)}}"
+                        : "{\"state\":\"\(result)\"}")
+                } else {
+                    body = configuredBody ?? (status == 200 ? "{\"state\":\"signedOut\"}" : "{}")
+                }
                 let locationHeader = location.map { "Location: \($0)\r\n" } ?? ""
                 let response = "HTTP/1.1 \(status) Response\r\n\(locationHeader)Content-Type: application/json\r\nCache-Control: no-store\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
                 let send: @Sendable () -> Void = { [self] in

@@ -4,6 +4,8 @@ public struct SessionStatus: Codable, Sendable {
     public enum State: String, Codable, Sendable {
         /// The backend has no authenticated Kite session.
         case signedOut
+        /// The backend has completed Kite authentication and profile retrieval.
+        case signedIn
     }
 
     /// The current authentication state.

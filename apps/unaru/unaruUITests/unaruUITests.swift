@@ -27,6 +27,30 @@ final class unaruUITests: XCTestCase {
 
     #if os(macOS)
         @MainActor
+        func testKiteBrowserCompletionShowsNoninteractiveIdentity() throws {
+            let backend = try ControlledBackend()
+            defer { backend.stop() }
+            let app = launch()
+            defer { cleanUp(app) }
+            app.buttons["Configure Connection"].click()
+            save(app, address: backend.address, token: "ui-test-token")
+            XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
+            app.typeKey("w", modifierFlags: .command)
+            app.buttons["Sign in with Kite"].click()
+            XCTAssertTrue(app.staticTexts["Complete Sign-In in Your Browser"].waitForExistence(timeout: 5))
+            let handoff = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.browserHandoffs > 0 }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [handoff], timeout: 5), .completed)
+            XCTAssertEqual(backend.browserURL, "https://kite.zerodha.com/connect/login?v=3&api_key=test-key&redirect_params=state%3Dtest-state")
+            backend.completeLogin()
+            XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["AB1234"].exists)
+            XCTAssertTrue(app.staticTexts["AR"].exists)
+            XCTAssertFalse(app.buttons["Asha Rao"].exists)
+            XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
+            XCTAssertFalse(app.buttons["Sign Out"].exists)
+        }
+
+        @MainActor
         func testAuthorizedConnectionPersistsAcrossLaunches() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
@@ -35,7 +59,7 @@ final class unaruUITests: XCTestCase {
             app.buttons["Configure Connection"].click()
             save(app, address: backend.address, token: "ui-test-token")
             XCTAssertTrue(app.staticTexts["Kite Sign-In Required"].waitForExistence(timeout: 10))
-            XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
+            XCTAssertTrue(app.buttons["Sign in with Kite"].exists)
             app.terminate()
             app.launch()
             XCTAssertTrue(app.staticTexts["Kite Sign-In Required"].waitForExistence(timeout: 10))
@@ -181,10 +205,142 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
+        func testCancellingLoginRejectsDelayedCompletionAndAllowsNewLogin() throws {
+            let backend = try ControlledBackend()
+            defer { backend.stop() }
+            let app = launch()
+            defer { cleanUp(app) }
+            beginLogin(app, backend: backend)
+            backend.respond(status: 200, hold: true, body: "{\"state\":\"signedIn\",\"profile\":{\"name\":\"Obsolete Person\",\"userID\":\"OLD123\"}}")
+            waitForPending(backend)
+            app.buttons["Cancel Sign-In"].click()
+            XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 5))
+            backend.respond(status: 200)
+            backend.releaseResponses()
+            XCTAssertFalse(app.staticTexts["Obsolete Person"].exists)
+            app.buttons["Sign in with Kite"].click()
+            XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForExistence(timeout: 5))
+            waitForHandoff(backend, count: 2)
+            backend.completeLogin()
+            XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
+            XCTAssertFalse(app.staticTexts["Obsolete Person"].exists)
+        }
+
+        @MainActor
+        func testLoginDenialAndExpiryAllowAnotherAttempt() throws {
+            for outcome in ["failed", "expired"] {
+                let backend = try ControlledBackend()
+                defer { backend.stop() }
+                let app = launch()
+                defer { cleanUp(app) }
+                beginLogin(app, backend: backend)
+                backend.finishLogin(state: outcome)
+                XCTAssertTrue(app.staticTexts["Sign-In Not Completed"].waitForExistence(timeout: 10))
+                XCTAssertTrue(app.buttons["Sign in with Kite"].isHittable)
+                XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
+                app.buttons["Sign in with Kite"].click()
+                XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForExistence(timeout: 5))
+                waitForHandoff(backend, count: 2)
+                backend.completeLogin()
+                XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
+            }
+        }
+
+        @MainActor
+        func testTemporaryLoginFailureRetriesCompletionWithoutAnotherBrowserHandoff() throws {
+            let backend = try ControlledBackend()
+            defer { backend.stop() }
+            let app = launch()
+            defer { cleanUp(app) }
+            beginLogin(app, backend: backend)
+            backend.respond(status: 503)
+            XCTAssertTrue(app.buttons["Retry Sign-In"].waitForExistence(timeout: 10))
+            XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
+            backend.respond(status: 200)
+            backend.completeLogin()
+            app.buttons["Retry Sign-In"].click()
+            XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
+            XCTAssertEqual(backend.browserHandoffs, 1)
+        }
+
+        @MainActor
+        func testChangingConnectionRejectsDelayedLoginIdentity() throws {
+            let previous = try ControlledBackend()
+            let current = try ControlledBackend()
+            defer { previous.stop(); current.stop() }
+            let app = launch()
+            defer { cleanUp(app) }
+            beginLogin(app, backend: previous)
+            previous.respond(status: 200, hold: true, body: "{\"state\":\"signedIn\",\"profile\":{\"name\":\"Obsolete Person\",\"userID\":\"OLD123\"}}")
+            waitForPending(previous)
+            app.typeKey(",", modifierFlags: .command)
+            save(app, address: current.address, token: "ui-test-token")
+            XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
+            previous.releaseResponses()
+            XCTAssertFalse(app.staticTexts["Obsolete Person"].exists)
+            XCTAssertTrue(app.buttons["Sign in with Kite"].exists)
+        }
+
+        @MainActor
+        func testSignInWithHiddenSidebarAndReadableFooterInBothAppearances() throws {
+            for appearance in ["Light", "Dark"] {
+                let backend = try ControlledBackend()
+                defer { backend.stop() }
+                backend.useAvatar(backend.address + "/missing-avatar")
+                let app = launch(appearance: appearance)
+                defer { cleanUp(app) }
+                app.buttons["Configure Connection"].click()
+                save(app, address: backend.address, token: "ui-test-token")
+                XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
+                app.typeKey("w", modifierFlags: .command)
+                let toggle = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
+                toggle.click()
+                XCTAssertTrue(app.buttons["Sign in with Kite"].isHittable)
+                app.typeKey(.return, modifierFlags: [])
+                XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForExistence(timeout: 5))
+                waitForHandoff(backend, count: 1)
+                backend.completeLogin()
+                XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForNonExistence(timeout: 10))
+                toggle.click()
+                XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 5))
+                XCTAssertTrue(app.staticTexts["AR"].waitForExistence(timeout: 5))
+                let splitter = app.splitters.firstMatch
+                let start = splitter.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: -30, dy: 0)))
+                XCTAssertTrue(app.staticTexts["Asha Rao"].isHittable)
+                XCTAssertTrue(app.staticTexts["AB1234"].isHittable)
+                XCTAssertGreaterThan(app.staticTexts["Asha Rao"].frame.minY, app.windows.firstMatch.frame.midY)
+            }
+        }
+
+        @MainActor
+        private func beginLogin(_ app: XCUIApplication, backend: ControlledBackend) {
+            app.buttons["Configure Connection"].click()
+            save(app, address: backend.address, token: "ui-test-token")
+            XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
+            app.typeKey("w", modifierFlags: .command)
+            app.buttons["Sign in with Kite"].click()
+            XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForExistence(timeout: 5))
+            let handoff = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.browserHandoffs > 0 }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [handoff], timeout: 5), .completed)
+        }
+
+        private func waitForHandoff(_ backend: ControlledBackend, count: Int) {
+            let handoff = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.browserHandoffs >= count }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [handoff], timeout: 5), .completed)
+        }
+
+        private func waitForPending(_ backend: ControlledBackend) {
+            let pending = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.pendingResponses > 0 }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [pending], timeout: 5), .completed)
+        }
+
+        @MainActor
         private func launch(appearance: String = "Light") -> XCUIApplication {
             continueAfterFailure = false
             let app = XCUIApplication()
             app.launchEnvironment["UNARU_TEST_STORAGE"] = UUID().uuidString
+            app.launchEnvironment["UNARU_TEST_BROWSER"] = "1"
             app.launchArguments = ["-ApplePersistenceIgnoreState", "YES", "-AppleInterfaceStyle", appearance]
             app.launch()
             return app
