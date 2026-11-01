@@ -34,13 +34,30 @@ python3 Scripts/check-documentation-examples.py
 swift test --package-path packages/Shared
 swift test --package-path backend
 xcodebuild build-for-testing -project apps/unaru/unaru.xcodeproj -scheme unaru -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+xcodebuild build-for-testing -project apps/unaru/unaru.xcodeproj -scheme unaru -destination 'generic/platform=visionOS Simulator' CODE_SIGNING_ALLOWED=NO
+xcodebuild test -project apps/unaru/unaru.xcodeproj -scheme unaru -destination 'platform=macOS' CODE_SIGN_IDENTITY=- -only-testing:unaruUITests
 python3 Scripts/build-documentation.py
 ```
 
 Linux CI runs the Shared and Backend suites with Swift 6.4.2. Apple CI also
-compiles the app and its tests for iOS Simulator, builds the macOS app for DocC,
-and validates the static documentation. Workflow timeouts bound builds and tests.
+compiles the app and its tests for iOS and visionOS simulators, runs macOS UI tests,
+builds the macOS app for DocC, and validates the static documentation. Workflow timeouts bound builds and tests.
 Logs and result artifacts belong in ignored `.test-results/`.
+
+Mac UI tests run a controlled loopback HTTP server inside the XCTest runner.
+They use only test tokens and a unique defaults suite and Keychain service per
+case. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to select that storage;
+`UNARU_TEST_RESET=1` clears only the selected test storage. Release builds ignore
+these variables. Test cleanup clears those credentials by relaunching the app.
+No test needs Kite credentials or browser cookies. Run UI tests in an unlocked
+Mac login session with Xcode's UI automation authorization enabled. A runner
+initialization or system-authentication failure means the UI tests did not run.
+
+For manual accessibility verification, use VoiceOver and keyboard navigation to
+open Settings, edit both fields, save, retry a failed connection, and hide and
+restore the sidebar. Check the minimum window size and both appearances. UI
+queries cover accessible labels and control availability but do not verify spoken
+VoiceOver output.
 
 ## Resolve commit check failures
 

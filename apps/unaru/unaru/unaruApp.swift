@@ -6,13 +6,30 @@
 
 import SwiftUI
 
-/// Creates the application's main window.
+/// Creates the application's main window and native Mac connection Settings.
 @main
 struct unaruApp: App {
-    /// The scene containing the initial content view.
+    #if os(macOS)
+        /// One shared backend connection across Settings and app windows.
+        @StateObject private var connection = BackendConnection()
+    #endif
+
+    /// The main window and platform-appropriate commands.
     var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
+        #if os(macOS)
+            WindowGroup {
+                ContentView()
+                    .environmentObject(connection)
+            }
+            .commands { SidebarCommands() }
+            Settings {
+                ConnectionSettings()
+                    .environmentObject(connection)
+            }
+        #else
+            WindowGroup {
+                ContentView()
+            }
+        #endif
     }
 }

@@ -99,6 +99,20 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath .build/ios CODE_SIGNING_ALLOWED=NO \
             2>&1 | tee .test-results/ios-build.log
+      - name: Compile the app and tests for visionOS Simulator
+        run: |
+          xcodebuild build-for-testing -project apps/unaru/unaru.xcodeproj -scheme unaru \
+            -destination 'generic/platform=visionOS Simulator' \
+            -derivedDataPath .build/visionos CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee .test-results/visionos-build.log
+      - name: Run deterministic macOS UI acceptance tests
+        run: |
+          xcodebuild test -project apps/unaru/unaru.xcodeproj -scheme unaru \
+            -destination 'platform=macOS' -derivedDataPath .build/macos \
+            -only-testing:unaruUITests CODE_SIGN_IDENTITY=- \
+            -test-timeouts-enabled YES -default-test-execution-time-allowance 120 \
+            -maximum-test-execution-time-allowance 180 \
+            2>&1 | tee .test-results/macos-ui.log
       - name: Build and verify full DocC site
         run: python3 Scripts/build-documentation.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
