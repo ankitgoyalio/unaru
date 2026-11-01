@@ -33,14 +33,51 @@ python3 Scripts/check-documentation.py
 python3 Scripts/check-documentation-examples.py
 swift test --package-path packages/Shared
 swift test --package-path backend
+python3 -m unittest discover -s Tests/BackendConfiguration -p 'test_*.py'
 xcodebuild build-for-testing -project apps/unaru/unaru.xcodeproj -scheme unaru -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+xcodebuild build-for-testing -project apps/unaru/unaru.xcodeproj -scheme unaru -destination 'generic/platform=visionOS Simulator' CODE_SIGNING_ALLOWED=NO
+xcodebuild test -project apps/unaru/unaru.xcodeproj -scheme unaru -destination 'platform=macOS' CODE_SIGN_IDENTITY=- -only-testing:unaruUITests
 python3 Scripts/build-documentation.py
 ```
 
+The backend loads Vapor dotenv files from its working directory. Copy
+[`backend/.env.example`](../backend/.env.example) to `backend/.env` for local Kite
+configuration, as described in [backend setup](../backend/README.md). Real dotenv
+files stay out of Git and Docker build contexts. The subprocess configuration tests
+use temporary dotenv files and fake credentials to check startup, precedence, logging,
+and authorized login initiation. They make no live Kite requests or Keychain changes.
+
 Linux CI runs the Shared and Backend suites with Swift 6.4.2. Apple CI also
-compiles the app and its tests for iOS Simulator, builds the macOS app for DocC,
-and validates the static documentation. Workflow timeouts bound builds and tests.
+compiles the app and its tests for iOS and visionOS simulators, runs macOS UI tests,
+builds the macOS app for DocC, and validates the static documentation. Workflow timeouts bound builds and tests.
 Logs and result artifacts belong in ignored `.test-results/`.
+
+Mac UI tests run a controlled loopback HTTP server inside the XCTest runner.
+They use only generated test credentials and a unique defaults suite and Keychain service per
+case. The macOS UI-test runner has the incoming-network entitlement needed to
+bind its loopback server; the shipping app has only outgoing-network access.
+The controlled server rejects failed listener startup rather than using port 0. Pairing cases exercise approval, cancellation, and credential restoration without a user-entered token.
+Restoration cases hold profile responses to verify validation progress, simulate
+provider rejection and backend session loss, and retry socket and HTTP failures
+without another browser handoff. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to select that storage;
+`UNARU_TEST_RESET=1` clears only the selected test storage. Release builds ignore
+these variables. Test cleanup clears those credentials by relaunching the app.
+Debug builds with isolated storage also accept `UNARU_TEST_BROWSER=1` to send
+the handoff to the controlled backend instead of opening a browser. Release
+builds ignore this setting. No test needs Kite credentials or browser cookies.
+Isolated Debug UI tests use `UNARU_TEST_APPEARANCE=Light` or `Dark` to force the
+SwiftUI appearance for their windows. Release builds ignore this override.
+Run UI tests in an unlocked Mac login session with Xcode's UI automation authorization enabled. A runner
+initialization or system-authentication failure means the UI tests did not run.
+
+For manual accessibility verification, use VoiceOver and keyboard navigation to
+open Settings, edit the backend address, connect, approve or cancel pairing, start and cancel login, retry a failed
+connection or login. Verify that setup, sign-in, and session recovery have no sidebar.
+After login, hide and restore the sidebar, resize the
+sidebar and check that the informational account name and ID wrap and remain
+readable. Verify avatar initials when an image cannot load. Check the minimum
+window size and both appearances. UI queries cover accessible labels and control availability but do not verify spoken
+VoiceOver output.
 
 ## Resolve commit check failures
 
@@ -79,8 +116,9 @@ before merging updates. Keep resolved package files in Git. Dependabot security 
 updates are also enabled.
 
 The backend uses KiteConnect 0.1.0 as an exact package dependency. Keep the Kite
-API secret and token exchange on the backend. This setup adds the dependency;
-it does not implement application authentication or trading routes.
+API secret and token exchange on the backend. Browser login uses its request-token
+exchange and profile API through the backend's outbound HTTP boundary. See [backend setup](../backend/README.md) for
+Kite credentials and redirect registration. No trading routes are implemented.
 
 ## Build the container
 

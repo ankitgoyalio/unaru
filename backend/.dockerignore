@@ -1,2 +1,6 @@
 .build/
 .swiftpm/
+
+# Never copy local credentials into build contexts or images.
+**/.env
+**/.env.*
