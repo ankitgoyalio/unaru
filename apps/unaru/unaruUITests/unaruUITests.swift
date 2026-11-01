@@ -37,7 +37,7 @@ final class unaruUITests: XCTestCase {
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
             app.typeKey("w", modifierFlags: .command)
             app.buttons["Sign in with Kite"].click()
-            XCTAssertTrue(app.staticTexts["Complete Sign-In in Your Browser"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.descendants(matching: .any)["Complete Sign-In in Your Browser"].firstMatch.waitForExistence(timeout: 5))
             let handoff = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.browserHandoffs > 0 }, object: nil)
             XCTAssertEqual(XCTWaiter.wait(for: [handoff], timeout: 5), .completed)
             XCTAssertEqual(backend.browserURL, "https://kite.zerodha.com/connect/login?v=3&api_key=test-key&redirect_params=state%3Dtest-state")
@@ -336,11 +336,12 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        func launch(appearance: String = "Light") -> XCUIApplication {
+        func launch(appearance: String = "Light", revalidationInterval: String? = nil) -> XCUIApplication {
             continueAfterFailure = false
             let app = XCUIApplication()
             app.launchEnvironment["UNARU_TEST_STORAGE"] = UUID().uuidString
             app.launchEnvironment["UNARU_TEST_BROWSER"] = "1"
+            app.launchEnvironment["UNARU_TEST_REVALIDATION_SECONDS"] = revalidationInterval
             app.launchArguments = ["-ApplePersistenceIgnoreState", "YES", "-AppleInterfaceStyle", appearance]
             app.launch()
             return app
@@ -356,16 +357,7 @@ final class unaruUITests: XCTestCase {
 
         @MainActor
         func save(_ app: XCUIApplication, address: String, token: String) {
-            let field = app.textFields["Backend address"]
-            XCTAssertTrue(field.waitForExistence(timeout: 5))
-            field.click()
-            field.typeKey("a", modifierFlags: .command)
-            field.typeText(address)
-            let credential = app.secureTextFields["Connection token"]
-            credential.click()
-            credential.typeKey("a", modifierFlags: .command)
-            credential.typeText(token)
-            app.buttons["Save Connection"].click()
+            pasteConnection(app, address: address, token: token)
         }
     #endif
 }
