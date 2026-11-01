@@ -18,9 +18,15 @@
         var body: some View {
             Form {
                 Section {
-                    TextField("Backend address", text: $address, prompt: Text("http://127.0.0.1:8080"))
-                        .multilineTextAlignment(.leading)
-                        .accessibilityIdentifier("Backend address")
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Backend address")
+                            .fixedSize()
+                        TextField("Backend address", text: $address, prompt: Text("http://127.0.0.1:8080"))
+                            .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.leading)
+                            .accessibilityIdentifier("Backend address")
+                    }
                     Text("Use HTTPS for a remote server. A backend on this Mac can use HTTP with a loopback address.")
                         .font(.callout).foregroundStyle(.secondary)
                     Text("Unaru saves this Mac’s connection credential in Keychain. A local backend can connect through Keychain; a remote backend requires approval on the server.")
