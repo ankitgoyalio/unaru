@@ -18,17 +18,21 @@ struct ContentView: View {
     /// The current platform's initial content.
     var body: some View {
         #if os(macOS)
-            NavigationSplitView(columnVisibility: $visibility) {
-                VStack {
-                    Spacer(minLength: 0)
-                    if case let .signedIn(profile) = connection.phase {
-                        AccountFooter(profile: profile)
+            Group {
+                if case let .signedIn(profile) = connection.phase {
+                    NavigationSplitView(columnVisibility: $visibility) {
+                        VStack {
+                            Spacer(minLength: 0)
+                            AccountFooter(profile: profile)
+                        }
+                        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 360)
+                        .accessibilityLabel("Sidebar")
+                    } detail: {
+                        Color.clear
                     }
+                } else {
+                    ConnectionStatusView()
                 }
-                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 360)
-                .accessibilityLabel("Sidebar")
-            } detail: {
-                ConnectionStatusView()
             }
             .frame(minWidth: 600, minHeight: 400)
         #else

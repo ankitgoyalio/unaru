@@ -65,12 +65,15 @@ these variables. Test cleanup clears those credentials by relaunching the app.
 Debug builds with isolated storage also accept `UNARU_TEST_BROWSER=1` to send
 the handoff to the controlled backend instead of opening a browser. Release
 builds ignore this setting. No test needs Kite credentials or browser cookies.
+Isolated Debug UI tests use `UNARU_TEST_APPEARANCE=Light` or `Dark` to force the
+SwiftUI appearance for their windows. Release builds ignore this override.
 Run UI tests in an unlocked Mac login session with Xcode's UI automation authorization enabled. A runner
 initialization or system-authentication failure means the UI tests did not run.
 
 For manual accessibility verification, use VoiceOver and keyboard navigation to
 open Settings, edit the backend address, connect, approve or cancel pairing, start and cancel login, retry a failed
-connection or login, and hide and restore the sidebar. After login, resize the
+connection or login. Verify that setup, sign-in, and session recovery have no sidebar.
+After login, hide and restore the sidebar, resize the
 sidebar and check that the informational account name and ID wrap and remain
 readable. Verify avatar initials when an image cannot load. Check the minimum
 window size and both appearances. UI queries cover accessible labels and control availability but do not verify spoken

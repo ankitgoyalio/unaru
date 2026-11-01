@@ -188,25 +188,22 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        func testSetupRemainsAvailableWithSidebarHiddenInBothAppearances() {
+        func testSetupUsesDedicatedScreenInBothAppearances() {
             for appearance in ["Light", "Dark"] {
                 let app = launch(appearance: appearance)
                 defer { cleanUp(app) }
-                let toggle = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
-                XCTAssertTrue(toggle.waitForExistence(timeout: 5))
-                let splitter = app.splitters.firstMatch
-                XCTAssertTrue(splitter.waitForExistence(timeout: 5))
+                XCTAssertTrue(app.buttons["Configure Connection"].waitForExistence(timeout: 5))
+                assertConnectionScreen(app)
                 let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
                 screenshot.name = "Connection setup - \(appearance)"
                 screenshot.lifetime = .keepAlways
                 add(screenshot)
-                toggle.click()
                 XCTAssertTrue(app.buttons["Configure Connection"].isHittable)
                 app.typeKey(",", modifierFlags: .command)
                 XCTAssertTrue(app.textFields["Backend address"].waitForExistence(timeout: 5))
                 XCTAssertTrue(app.buttons["Connect"].isHittable)
                 app.typeKey("w", modifierFlags: .command)
-                toggle.click()
+                assertConnectionScreen(app)
                 XCTAssertTrue(app.buttons["Configure Connection"].isHittable)
                 app.terminate()
             }
@@ -290,7 +287,7 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        func testSignInWithHiddenSidebarAndReadableFooterInBothAppearances() throws {
+        func testDedicatedSignInTransitionsToReadableSidebarInBothAppearances() throws {
             for appearance in ["Light", "Dark"] {
                 let backend = try ControlledBackend()
                 defer { backend.stop() }
@@ -301,16 +298,19 @@ final class unaruUITests: XCTestCase {
                 connect(app, address: backend.address)
                 XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
                 app.typeKey("w", modifierFlags: .command)
-                let toggle = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
-                toggle.click()
+                assertConnectionScreen(app)
+                capture(app, name: "Dedicated sign-in - \(appearance)")
                 XCTAssertTrue(app.buttons["Sign in with Kite"].isHittable)
                 app.typeKey(.return, modifierFlags: [])
                 XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForExistence(timeout: 5))
+                assertConnectionScreen(app)
+                capture(app, name: "Browser sign-in pending - \(appearance)")
                 waitForHandoff(backend, count: 1)
                 backend.completeLogin()
                 XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForNonExistence(timeout: 10))
-                toggle.click()
                 XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 5))
+                XCTAssertTrue(app.buttons["Hide Sidebar"].exists)
+                XCTAssertFalse(app.descendants(matching: .any)["Connection screen"].exists)
                 XCTAssertTrue(app.staticTexts["AR"].waitForExistence(timeout: 5))
                 let splitter = app.splitters.firstMatch
                 let start = splitter.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
@@ -318,7 +318,23 @@ final class unaruUITests: XCTestCase {
                 XCTAssertTrue(app.staticTexts["Asha Rao"].isHittable)
                 XCTAssertTrue(app.staticTexts["AB1234"].isHittable)
                 XCTAssertGreaterThan(app.staticTexts["Asha Rao"].frame.minY, app.windows.firstMatch.frame.midY)
+                capture(app, name: "Authenticated sidebar - \(appearance)")
             }
+        }
+
+        @MainActor
+        func assertConnectionScreen(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+            XCTAssertTrue(app.descendants(matching: .any)["Connection screen"].firstMatch.exists, file: file, line: line)
+            XCTAssertFalse(app.splitters.firstMatch.exists, file: file, line: line)
+            XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch.exists, file: file, line: line)
+        }
+
+        @MainActor
+        func capture(_ app: XCUIApplication, name: String) {
+            let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+            screenshot.name = name
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
         }
 
         @MainActor
@@ -349,8 +365,9 @@ final class unaruUITests: XCTestCase {
             let app = XCUIApplication()
             app.launchEnvironment["UNARU_TEST_STORAGE"] = UUID().uuidString
             app.launchEnvironment["UNARU_TEST_BROWSER"] = "1"
+            app.launchEnvironment["UNARU_TEST_APPEARANCE"] = appearance
             app.launchEnvironment["UNARU_TEST_REVALIDATION_SECONDS"] = revalidationInterval
-            app.launchArguments = ["-ApplePersistenceIgnoreState", "YES", "-AppleInterfaceStyle", appearance]
+            app.launchArguments = ["-ApplePersistenceIgnoreState", "YES"]
             app.launch()
             return app
         }
