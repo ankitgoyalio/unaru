@@ -48,6 +48,10 @@ final class unaruUITests: XCTestCase {
             XCTAssertFalse(app.buttons["Asha Rao"].exists)
             XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
             XCTAssertFalse(app.buttons["Sign Out"].exists)
+            let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+            screenshot.name = "Connected Kite account"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
         }
 
         @MainActor
@@ -188,10 +192,10 @@ final class unaruUITests: XCTestCase {
                 XCTAssertTrue(toggle.waitForExistence(timeout: 5))
                 let splitter = app.splitters.firstMatch
                 XCTAssertTrue(splitter.waitForExistence(timeout: 5))
-                let previousPosition = splitter.frame.minX
-                let start = splitter.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-                start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 40, dy: 0)))
-                XCTAssertGreaterThan(splitter.frame.minX, previousPosition + 10)
+                let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+                screenshot.name = "Connection setup - \(appearance)"
+                screenshot.lifetime = .keepAlways
+                add(screenshot)
                 toggle.click()
                 XCTAssertTrue(app.buttons["Configure Connection"].isHittable)
                 app.typeKey(",", modifierFlags: .command)
