@@ -103,46 +103,35 @@
             task?.cancel()
             phase = .checking
             task = Task {
-                var request = URLRequest(url: configuration.url.appendingPathComponent("session"))
-                request.timeoutInterval = 15
-                request.setValue("Bearer \(configuration.token)", forHTTPHeaderField: "Authorization")
-                request.setValue("application/json", forHTTPHeaderField: "Accept")
                 do {
-                    let (data, response) = try await session.data(for: request)
+                    let data = try await send("session", configuration: configuration)
                     guard !Task.isCancelled, currentRevision == revision else { return }
-                    guard let response = response as? HTTPURLResponse else {
-                        phase = .unavailable
-                        return
-                    }
-                    switch response.statusCode {
-                    case 200:
-                        let status = try JSONDecoder().decode(SessionStatus.self, from: data)
-                        switch status.state {
-                        case .signedOut: phase = .signedOut
-                        case .signedIn:
-                            let profileData = try await send("profile", configuration: configuration)
-                            let profile = try JSONDecoder().decode(AccountProfile.self, from: profileData)
-                            guard !Task.isCancelled, currentRevision == revision else { return }
-                            phase = .signedIn(profile)
-                        }
-                    case 401, 403:
-                        phase = .configurationError("The backend rejected the connection token. Check the token in Settings.")
-                    case 503:
-                        let problem = try? JSONDecoder().decode(ConnectionProblem.self, from: data)
-                        phase = problem?.code == .backendNotConfigured ? .backendError : .unavailable
-                    default:
-                        phase = .unavailable
+                    let status = try JSONDecoder().decode(SessionStatus.self, from: data)
+                    switch status.state {
+                    case .signedOut:
+                        phase = .signedOut
+                    case .signedIn:
+                        let profileData = try await send("profile", configuration: configuration)
+                        let profile = try JSONDecoder().decode(AccountProfile.self, from: profileData)
+                        guard !Task.isCancelled, currentRevision == revision else { return }
+                        phase = .signedIn(profile)
                     }
                 } catch {
                     guard !Task.isCancelled, currentRevision == revision else { return }
-                    phase = .unavailable
+                    switch error {
+                    case LoginFailure.signedOut: phase = .signedOut
+                    case LoginFailure.configuration:
+                        phase = .configurationError("The backend rejected the connection token. Check the token in Settings.")
+                    case LoginFailure.backendConfiguration: phase = .backendError
+                    default: phase = .unavailable
+                    }
                 }
             }
         }
 
         /// Creates an authorized attempt and opens the system's default browser.
         func signIn() {
-            guard let configuration else { return }
+            guard let configuration, phase == .signedOut || phase == .loginFailed || (phase == .loginUnavailable && activeAttempt == nil) else { return }
             revision += 1
             let currentRevision = revision
             task?.cancel()
@@ -176,6 +165,7 @@
 
         /// Retries the pending read operation without replaying a consumed request token.
         func retryLogin() {
+            guard phase == .loginUnavailable else { return }
             guard let configuration, let attempt = activeAttempt else { signIn(); return }
             revision += 1
             let currentRevision = revision
@@ -240,7 +230,18 @@
             guard let response = response as? HTTPURLResponse else { throw LoginFailure.unavailable }
             switch response.statusCode {
             case 200 ... 299: return data
-            case 401, 403: throw LoginFailure.configuration
+            case 401, 403:
+                let problem = try? JSONDecoder().decode(ConnectionProblem.self, from: data)
+                if problem?.code == .kiteSignInRequired {
+                    throw LoginFailure.signedOut
+                }
+                throw LoginFailure.configuration
+            case 503:
+                let problem = try? JSONDecoder().decode(ConnectionProblem.self, from: data)
+                if problem?.code == .backendNotConfigured {
+                    throw LoginFailure.backendConfiguration
+                }
+                throw LoginFailure.unavailable
             default: throw LoginFailure.unavailable
             }
         }
@@ -251,6 +252,11 @@
             case LoginFailure.configuration:
                 activeAttempt = nil
                 phase = .configurationError("The backend rejected the connection token. Check the token in Settings.")
+            case LoginFailure.signedOut:
+                activeAttempt = nil
+                phase = .signedOut
+            case LoginFailure.backendConfiguration:
+                phase = .backendError
             case LoginFailure.failed:
                 cancelLogin()
                 phase = .loginFailed
@@ -263,6 +269,10 @@
         private enum LoginFailure: Error {
             /// App authorization was rejected.
             case configuration
+            /// The authorized backend has no valid Kite session.
+            case signedOut
+            /// The backend connection token has not been configured.
+            case backendConfiguration
             /// Browser handoff could not begin.
             case failed
             /// A read or connection can be retried.

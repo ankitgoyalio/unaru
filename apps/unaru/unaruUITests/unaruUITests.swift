@@ -314,7 +314,7 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        private func beginLogin(_ app: XCUIApplication, backend: ControlledBackend) {
+        func beginLogin(_ app: XCUIApplication, backend: ControlledBackend) {
             app.buttons["Configure Connection"].click()
             save(app, address: backend.address, token: "ui-test-token")
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
@@ -325,18 +325,18 @@ final class unaruUITests: XCTestCase {
             XCTAssertEqual(XCTWaiter.wait(for: [handoff], timeout: 5), .completed)
         }
 
-        private func waitForHandoff(_ backend: ControlledBackend, count: Int) {
+        func waitForHandoff(_ backend: ControlledBackend, count: Int) {
             let handoff = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.browserHandoffs >= count }, object: nil)
             XCTAssertEqual(XCTWaiter.wait(for: [handoff], timeout: 5), .completed)
         }
 
-        private func waitForPending(_ backend: ControlledBackend) {
+        func waitForPending(_ backend: ControlledBackend) {
             let pending = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.pendingResponses > 0 }, object: nil)
             XCTAssertEqual(XCTWaiter.wait(for: [pending], timeout: 5), .completed)
         }
 
         @MainActor
-        private func launch(appearance: String = "Light") -> XCUIApplication {
+        func launch(appearance: String = "Light") -> XCUIApplication {
             continueAfterFailure = false
             let app = XCUIApplication()
             app.launchEnvironment["UNARU_TEST_STORAGE"] = UUID().uuidString
@@ -347,7 +347,7 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        private func cleanUp(_ app: XCUIApplication) {
+        func cleanUp(_ app: XCUIApplication) {
             app.terminate()
             app.launchEnvironment["UNARU_TEST_RESET"] = "1"
             app.launch()
@@ -355,7 +355,7 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        private func save(_ app: XCUIApplication, address: String, token: String) {
+        func save(_ app: XCUIApplication, address: String, token: String) {
             let field = app.textFields["Backend address"]
             XCTAssertTrue(field.waitForExistence(timeout: 5))
             field.click()

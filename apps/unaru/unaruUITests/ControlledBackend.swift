@@ -13,6 +13,9 @@
         private let listener: NWListener
         private let queue = DispatchQueue(label: "unaru.ui-test-backend")
         private let lock = NSLock()
+        private var responses: [String: (status: Int, hold: Bool, body: String?)] = [:]
+        private var authenticated = false
+        private var profileRequests = 0
         private var responseStatus = 200
         private var holdResponses = false
         private var heldResponses: [@Sendable () -> Void] = []
@@ -43,7 +46,26 @@
         }
 
         func completeLogin() {
-            lock.withLock { loginResult = "signedIn" }
+            lock.withLock {
+                loginResult = "signedIn"
+                authenticated = true
+            }
+        }
+
+        func loseSession() {
+            lock.withLock { authenticated = false }
+        }
+
+        var validations: Int {
+            lock.withLock { profileRequests }
+        }
+
+        var loginAttempts: Int {
+            lock.withLock { attemptNumber }
+        }
+
+        func respond(path: String, status: Int, hold: Bool = false, body: String? = nil) {
+            lock.withLock { responses[path] = (status, hold, body) }
         }
 
         var address: String {
@@ -79,7 +101,7 @@
                 receive(connection, accumulated: Data())
             }
             listener.start(queue: queue)
-            guard ready.wait(timeout: .now() + 5) == .success, listener.port != nil else {
+            guard ready.wait(timeout: .now() + 5) == .success, case .ready = listener.state, (listener.port?.rawValue ?? 0) != 0 else {
                 listener.cancel()
                 throw NSError(domain: "ControlledBackend", code: 1)
             }
@@ -108,6 +130,7 @@
 
         func stop() {
             listener.cancel()
+            releaseResponses()
         }
 
         private func receive(_ connection: NWConnection, accumulated: Data) {
@@ -139,21 +162,27 @@
                     }
                     return
                 }
-                let (configuredStatus, hold, configuredBody, location) = lock.withLock {
-                    requestCount += 1
-                    return (responseStatus, holdResponses, responseBody, responseLocation)
-                }
                 let lines = text.components(separatedBy: "\r\n")
+                let path = lines[0].split(separator: " ").dropFirst().first.map(String.init) ?? ""
+                let (configuredStatus, hold, configuredBody, location, signedIn) = lock.withLock {
+                    requestCount += 1
+                    if path == "/profile" {
+                        profileRequests += 1
+                    }
+                    let override = responses[path]
+                    return (override?.status ?? responseStatus, override?.hold ?? holdResponses,
+                            override?.body ?? responseBody, responseLocation, authenticated)
+                }
                 let authorized = lines.contains {
                     $0.lowercased().hasPrefix("authorization:") &&
                         $0.dropFirst("authorization:".count).trimmingCharacters(in: .whitespaces) == "Bearer ui-test-token"
                 }
-                let path = lines[0].split(separator: " ").dropFirst().first.map(String.init) ?? ""
                 let status = authorized ? configuredStatus : 401
                 let body: String
                 if path == "/login", text.hasPrefix("POST") {
                     let number = lock.withLock {
                         loginResult = "pending"
+                        authenticated = false
                         attemptNumber += 1
                         return attemptNumber
                     }
@@ -181,8 +210,11 @@
                     body = configuredBody ?? (result == "signedIn"
                         ? "{\"state\":\"signedIn\",\"profile\":{\"name\":\"Asha Rao\",\"userID\":\"AB1234\"\(avatarField)}}"
                         : "{\"state\":\"\(result)\"}")
+                } else if path == "/profile" {
+                    let avatarField = lock.withLock { avatar.map { ",\"avatarURL\":\"\($0)\"" } ?? "" }
+                    body = configuredBody ?? "{\"name\":\"Asha Rao\",\"userID\":\"AB1234\"\(avatarField)}"
                 } else {
-                    body = configuredBody ?? (status == 200 ? "{\"state\":\"signedOut\"}" : "{}")
+                    body = configuredBody ?? (status == 200 ? "{\"state\":\"\(signedIn ? "signedIn" : "signedOut")\"}" : "{}")
                 }
                 let locationHeader = location.map { "Location: \($0)\r\n" } ?? ""
                 let response = "HTTP/1.1 \(status) Response\r\n\(locationHeader)Content-Type: application/json\r\nCache-Control: no-store\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"

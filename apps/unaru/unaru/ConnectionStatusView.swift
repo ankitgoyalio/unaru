@@ -61,7 +61,7 @@
                     settingsLink
                 case .unavailable:
                     Text("Connection Unavailable").font(.title2)
-                    Text("Check that your backend is running and the address is correct, then retry.")
+                    Text("Check your network and backend, then retry. A temporary backend or Kite failure does not require another sign-in.")
                     retryButton
                     settingsLink
                 }
@@ -83,6 +83,7 @@
         /// Repeats verification without altering the stored address or token.
         private var retryButton: some View {
             Button("Retry") { connection.verify() }
+                .keyboardShortcut(.defaultAction)
         }
     }
 #endif

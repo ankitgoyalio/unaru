@@ -82,16 +82,40 @@ The app opens the default browser in production. Debug UI tests with isolated
 storage replace only that browser handoff with a controlled HTTP receipt;
 they never open a real Kite session or use browser cookies.
 
+## Restore a Kite session
+
+Reopen Unaru with the backend running. Unaru restores the saved address and
+Keychain connection token, shows **Verifying Connection…**, and asks the backend
+for the current profile before displaying the account footer. The backend uses
+its in-memory Kite access token for a fresh provider request. The app stores no
+Kite token, cached authenticated identity, or separate app session reference.
+An unfinished browser attempt is not restored after the app quits.
+
+Kite access tokens normally expire at 6 AM the following day and can be revoked
+earlier. Unaru handles Kite's authentication response rather than a local expiry
+timer. If Kite rejects the token, choose **Sign in with Kite** and complete browser
+login again. A backend restart also requires login because it discards the
+in-memory Kite session. Saved app connection settings remain available.
+
 ## Recover a connection
 
 - If the backend rejects the connection token, open Settings and correct it.
-- If the backend is unavailable, restore connectivity and choose **Retry** in
-  the main window. You do not need to repeat setup.
+- If your network, backend, or Kite is temporarily unavailable, restore
+  connectivity and choose **Retry** in the main window. Unaru retains your
+  connection configuration and validates the existing session again. A temporary
+  failure hides authenticated identity until validation succeeds; it does not
+  discard the backend's Kite session or open another browser login.
+- If login completion encounters a temporary profile failure, choose
+  **Retry Sign-In**. This retries the same attempt without repeating token exchange
+  or opening the browser again. A cancelled, denied, or expired attempt needs
+  **Sign in with Kite** instead.
 - If the server has no valid connection token, set `UNARU_CONNECTION_TOKEN` on
   the server, restart it, and retry. This failure does not mean Kite login expired.
 - If Keychain is locked or unavailable, unlock it and reopen Settings.
 
-Changing saved settings cancels earlier verification and discards its result.
+Changing the saved backend address or connection token clears the current
+identity and cancels earlier verification or login. Delayed responses cannot
+restore the previous connection's identity.
 The main window keeps setup and retry accessible when the sidebar is hidden.
 
 See the [backend contract](Sources/Backend/Backend.docc/Backend.md) for HTTP details

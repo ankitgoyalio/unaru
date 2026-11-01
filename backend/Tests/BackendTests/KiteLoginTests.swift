@@ -13,7 +13,7 @@ import VaporTesting
 
 @Suite("Kite browser login over HTTP")
 struct KiteLoginTests {
-    private let authorization: HTTPHeaders = ["Authorization": "Bearer test-connection-token"]
+    let authorization: HTTPHeaders = ["Authorization": "Bearer test-connection-token"]
 
     @Test("Authorized browser handoff exchanges once and returns only public identity")
     func completion() async throws {
@@ -184,6 +184,7 @@ struct KiteLoginTests {
             await transport.setProfileStatus(403)
             let expired = try await app.testing().sendRequest(.GET, "profile", headers: authorization)
             #expect(expired.status == .unauthorized)
+            #expect(try expired.content.decode(ConnectionProblem.self).code == .kiteSignInRequired)
             let signedOut = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try signedOut.content.decode(SessionStatus.self).state == .signedOut)
             let oldLogin = try await app.testing().sendRequest(.GET, "login/\(attempt.id)", headers: authorization)
@@ -239,13 +240,13 @@ struct KiteLoginTests {
         }
     }
 
-    private func start(_ app: Application) async throws -> LoginAttempt {
+    func start(_ app: Application) async throws -> LoginAttempt {
         let response = try await app.testing().sendRequest(.POST, "login", headers: authorization)
         #expect(response.status == .ok)
         return try response.content.decode(LoginAttempt.self)
     }
 
-    private func callbackState(_ attempt: LoginAttempt) throws -> String {
+    func callbackState(_ attempt: LoginAttempt) throws -> String {
         let url = try #require(URLComponents(url: attempt.browserURL, resolvingAgainstBaseURL: false))
         let redirect = try #require(url.queryItems?.first { $0.name == "redirect_params" }?.value)
         return try #require(URLComponents(string: "https://example.invalid/?" + redirect)?.queryItems?.first { $0.name == "state" }?.value)
@@ -253,10 +254,13 @@ struct KiteLoginTests {
 }
 
 /// Substitutes only Kite's outbound HTTP responses, leaving SDK encoding and decoding intact.
-private actor KiteResponses: KiteHTTPTransport {
+actor KiteResponses: KiteHTTPTransport {
     var requests: [KiteHTTPRequest] = []
     var exchangeStatus = 200
     var profileStatus = 200
+    private var profileErrorType: String?
+    private var profileBody: String?
+    private var disconnectProfile = false
     private var heldPath: String?
     private var heldRequest: CheckedContinuation<Void, Never>?
     private var observer: CheckedContinuation<Void, Never>?
@@ -286,9 +290,17 @@ private actor KiteResponses: KiteHTTPTransport {
         profileStatus = code
     }
 
+    func setProfileResponse(status: Int, errorType: String? = nil, body: String? = nil, disconnect: Bool = false) {
+        profileStatus = status
+        profileErrorType = errorType
+        profileBody = body
+        disconnectProfile = disconnect
+    }
+
     func send(_ request: KiteHTTPRequest) async throws -> KiteHTTPResponse {
         requests.append(request)
         if heldPath == request.url.path {
+            heldPath = nil
             await withCheckedContinuation { continuation in
                 heldRequest = continuation
                 observer?.resume()
@@ -296,13 +308,19 @@ private actor KiteResponses: KiteHTTPTransport {
             }
         }
         let exchange = request.url.path == "/session/token"
+        if !exchange, disconnectProfile {
+            throw URLError(.networkConnectionLost)
+        }
+        if !exchange, let profileBody {
+            return KiteHTTPResponse(statusCode: profileStatus, body: Data(profileBody.utf8))
+        }
         let status = exchange ? exchangeStatus : profileStatus
         let body: String
         if status == 200 {
             let credentials = exchange ? ",\"api_key\":\"test-key\",\"access_token\":\"test-access\",\"public_token\":\"test-public\",\"refresh_token\":\"\",\"login_time\":\"2026-11-01 10:00:00\"" : ""
             body = "{\"status\":\"success\",\"data\":{\"user_id\":\"AB1234\",\"user_name\":\"Asha Rao\",\"user_shortname\":\"Asha\",\"user_type\":\"individual\",\"email\":\"asha@example.invalid\",\"broker\":\"ZERODHA\",\"exchanges\":[\"NSE\"],\"products\":[\"CNC\"],\"order_types\":[\"LIMIT\"],\"avatar_url\":null,\"meta\":{\"demat_consent\":\"physical\"}\(credentials)}}"
         } else {
-            body = "{\"status\":\"error\",\"error_type\":\"\(status == 403 ? "TokenException" : "NetworkException")\",\"message\":\"Controlled failure\"}"
+            body = "{\"status\":\"error\",\"error_type\":\"\(profileErrorType ?? (status == 403 ? "TokenException" : "NetworkException"))\",\"message\":\"Controlled failure\"}"
         }
         return KiteHTTPResponse(statusCode: status, body: Data(body.utf8))
     }

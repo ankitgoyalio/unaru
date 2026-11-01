@@ -46,7 +46,12 @@ Logs and result artifacts belong in ignored `.test-results/`.
 
 Mac UI tests run a controlled loopback HTTP server inside the XCTest runner.
 They use only test tokens and a unique defaults suite and Keychain service per
-case. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to select that storage;
+case. The macOS UI-test runner has the incoming-network entitlement needed to
+bind its loopback server; the shipping app has only outgoing-network access.
+The controlled server rejects failed listener startup rather than using port 0.
+Restoration cases hold profile responses to verify validation progress, simulate
+provider rejection and backend session loss, and retry socket and HTTP failures
+without another browser handoff. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to select that storage;
 `UNARU_TEST_RESET=1` clears only the selected test storage. Release builds ignore
 these variables. Test cleanup clears those credentials by relaunching the app.
 Debug builds with isolated storage also accept `UNARU_TEST_BROWSER=1` to send
