@@ -1,0 +1,3 @@
+interface:
+  display_name: "Pull Request Message"
+  short_description: "Draft PR bodies with visuals, evidence, and merge risk"
