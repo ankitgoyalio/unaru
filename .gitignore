@@ -60,3 +60,9 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# Local validation and documentation artifacts
+.test-results/
+__pycache__/
+.swiftformat.cache
+.DS_Store

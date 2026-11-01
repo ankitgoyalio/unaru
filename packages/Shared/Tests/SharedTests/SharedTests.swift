@@ -1,7 +1,13 @@
-import Testing
-@testable import Shared
+//
+//  SharedTests.swift
+//  unaru
+//
+//  Created by Ankit Goyal on 01/11/2026.
 
-@Test func example() async throws {
+@testable import Shared
+import Testing
+
+@Test func example() {
     // Write your test here and use APIs like `#expect(...)` to check expected conditions.
     // Swift Testing Documentation
     // https://developer.apple.com/documentation/testing

@@ -1,14 +1,12 @@
 //
 //  unaruUITests.swift
-//  unaruUITests
+//  unaru
 //
-//  Created by Ankit Goyal on 01/11/26.
-//
+//  Created by Ankit Goyal on 01/11/2026.
 
 import XCTest
 
 final class unaruUITests: XCTestCase {
-
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
 
@@ -23,7 +21,7 @@ final class unaruUITests: XCTestCase {
     }
 
     @MainActor
-    func testExample() throws {
+    func testExample() {
         // UI tests must launch the application that they test.
         let app = XCUIApplication()
         app.launch()
@@ -34,7 +32,7 @@ final class unaruUITests: XCTestCase {
     }
 
     @MainActor
-    func testLaunchPerformance() throws {
+    func testLaunchPerformance() {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             XCUIApplication().launch()

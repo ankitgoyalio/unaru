@@ -1,5 +1,5 @@
 {
-  "originHash" : "8d7ca93162ee68e9b2b537dd0724bd1029301b5ef6c05177cb64d05e6227466b",
+  "originHash" : "fd699ccd08f10055c0b36c241cf2ba19751f5aa266a67eb5aa3358066ca42db9",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -114,8 +114,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-crypto.git",
       "state" : {
-        "revision" : "c2cbadd7263439d8015189668f96ff5b5be565ce",
-        "version" : "5.0.3"
+        "revision" : "bcd2b89f2a4446395830b82e4e192765edd71e18",
+        "version" : "4.0.0"
       }
     },
     {
@@ -242,6 +242,15 @@
       "state" : {
         "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
         "version" : "1.8.1"
+      }
+    },
+    {
+      "identity" : "swiftkiteconnect",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ankitgoyalio/swiftkiteconnect.git",
+      "state" : {
+        "revision" : "b210694a48fb065ff7d96d418b9e05e5beaa5c84",
+        "version" : "0.1.0"
       }
     },
     {

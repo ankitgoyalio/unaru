@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""Check staged authored file sizes and Swift formatting without changing files."""
+
+import argparse
+import os
+import subprocess
+import sys
+
+from check_swift_format import check_swift_format
+
+MAX_BYTES = 5_000 * 4
+
+
+def git(*args, data=None):
+    return subprocess.run(
+        ["git", *args], input=data, stdout=subprocess.PIPE, check=True
+    ).stdout
+
+
+def authored_files(files):
+    attributes = git(
+        "check-attr", "--cached", "-z", "--stdin",
+        "linguist-generated", "linguist-vendored",
+        data=b"".join(path + b"\0" for path, _ in files),
+    ).split(b"\0")
+    exempt = set()
+    for offset in range(0, len(attributes) - 1, 3):
+        path, _, value = attributes[offset:offset + 3]
+        if value in (b"set", b"true"):
+            exempt.add(path)
+    return [(path, oid) for path, oid in files if path not in exempt]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--base", help="Check committed changes from this revision to HEAD (CI)")
+    args = parser.parse_args()
+    subprocess.run([sys.executable, "Scripts/check-documentation.py", "--staged"], check=True)
+    # Raw, NUL-delimited records give the staged mode and object ID without
+    # reading working-tree content or interpreting unusual filenames.
+    comparison = (args.base, "HEAD") if args.base else ("--cached",)
+    records = git(
+        "diff", *comparison, "--raw", "--no-abbrev", "--no-renames",
+        "--diff-filter=ACMRT", "-z", "--",
+    ).split(b"\0")
+    files = []
+    for offset in range(0, len(records) - 1, 2):
+        metadata, path = records[offset:offset + 2]
+        _, mode, _, object_id, _ = metadata.split()
+        if mode in (b"100644", b"100755"):
+            files.append((path, object_id))
+    if not files:
+        return 0
+
+    authored = authored_files(files)
+    if not authored:
+        return 0
+
+    sizes = git(
+        "cat-file", "--batch-check=%(objecttype) %(objectsize)",
+        data=b"".join(oid + b"\n" for _, oid in authored),
+    ).splitlines()
+    if len(sizes) != len(authored):
+        raise ValueError("Could not read all staged file sizes")
+    oversized = []
+    for (path, _), result in zip(authored, sizes):
+        kind, size = result.split()
+        if kind != b"blob":
+            raise ValueError("Expected a staged file blob")
+        size = int(size)
+        if size > MAX_BYTES:
+            oversized.append((path, size))
+    if not oversized:
+        if {path for path, _ in files} & {b".swiftformat", b".gitattributes"}:
+            # Rule changes affect all authored Swift, but size checks stay limited
+            # to changed files, preserving the staged-file size contract.
+            swift_files = []
+            for record in git("ls-files", "--stage", "-z").split(b"\0"):
+                if not record:
+                    continue
+                metadata, path = record.split(b"\t", 1)
+                mode, object_id, _ = metadata.split()
+                if mode in (b"100644", b"100755") and path.endswith(b".swift"):
+                    swift_files.append((path, object_id))
+            authored = authored_files(swift_files) if swift_files else []
+        return check_swift_format(authored)
+
+    print(
+        "Commit blocked: staged authored files exceed 5,000 tokens "
+        "(tokens = bytes / 4; maximum 20,000 bytes per file).",
+        file=sys.stderr,
+    )
+    for path, size in oversized:
+        print(
+            f"  {os.fsdecode(path)!r}: {size:,} bytes = {size / 4:,.2f} tokens",
+            file=sys.stderr,
+        )
+    print(
+        "\nSplit each listed file before committing:\n"
+        "  1. Group code by responsibility: move independent types, endpoint\n"
+        "     families, or helpers into focused files and update references.\n"
+        "     For docs, move standalone sections into linked topic pages;\n"
+        "     for tests, separate suites by the behavior they verify.\n"
+        "  2. Keep each resulting file at or below 20,000 bytes. Preserve\n"
+        "     behavior and imports; do not split at arbitrary byte offsets.\n"
+        "  3. Stage the revised original and all extracted files with git add,\n"
+        "     then retry the commit. The check reads staged content only.\n"
+        "\nLockfiles, generated code, and vendored files are excluded through\n"
+        "staged .gitattributes entries (linguist-generated/linguist-vendored).",
+        file=sys.stderr,
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(f"Pre-commit hook failed: {error}", file=sys.stderr)
+        sys.exit(1)

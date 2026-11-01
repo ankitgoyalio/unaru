@@ -20,7 +20,8 @@ services:
   app:
     image: backend:latest
     build:
-      context: .
+      context: ..
+      dockerfile: backend/Dockerfile
     environment:
       <<: *shared_environment
     ports:

@@ -2,6 +2,15 @@
 
 ## Agent skills
 
+### Development
+
+Before building, testing, configuring hooks, or committing changes,
+read `docs/development.md`.
+
+### Documentation
+
+Before adding or moving documentation, read `Documentation/README.md`.
+
 ### Issue tracker
 
 Track issues and specs in GitHub Issues for `ankitgoyalio/unaru`.

@@ -1,0 +1,13 @@
+# Tool-managed lockfiles, generated output, and vendored files.
+Package.resolved linguist-generated=true
+skills-lock.json linguist-generated=true
+*.lock linguist-generated=true
+**/Generated/** linguist-generated=true
+**/generated/** linguist-generated=true
+*.generated.* linguist-generated=true
+*.g.swift linguist-generated=true
+Vendor/** linguist-vendored=true
+vendor/** linguist-vendored=true
+
+# Compilation units generated from authored DocC examples.
+**/DocumentationExamples.swift linguist-generated=true

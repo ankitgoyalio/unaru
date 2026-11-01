@@ -1,0 +1,6 @@
+**/.build
+**/.swiftpm
+.git
+.agents
+.test-results
+**/xcuserdata
