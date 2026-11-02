@@ -28,7 +28,6 @@
         @EnvironmentObject private var connection: BackendConnection
         /// The current in-memory Kite account profile.
         let profile: AccountProfile
-        @EnvironmentObject private var connection: BackendConnection
         @Environment(\.dismiss) private var dismiss
 
         var body: some View {
@@ -63,12 +62,12 @@
                                 Text(available(profile.name) ?? "Not available")
                                     .font(.title3.bold())
                                     .textSelection(.enabled)
-                                detail("Kite ID", value: profile.userID, copy: true)
+                                detail("Kite ID", value: profile.userID, copyLabel: "Kite ID")
                             }
                         }
                         GroupBox {
                             VStack(alignment: .leading, spacing: 14) {
-                                detail("Email", value: profile.email, copy: true)
+                                detail("Email", value: profile.email, copyLabel: "email")
                                 detail("Broker", value: profile.broker)
                                 detail("Account type", value: profile.accountType)
                             }
@@ -104,7 +103,7 @@
             .onExitCommand { dismiss() }
         }
 
-        private func detail(_ label: String, value: String?, copy: Bool = false) -> some View {
+        private func detail(_ label: String, value: String?, copyLabel: String? = nil) -> some View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(label).font(.subheadline).foregroundStyle(.secondary)
                 HStack(alignment: .top) {
@@ -112,8 +111,8 @@
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
-                    if copy, let value = available(value) {
-                        AccountCopyButton(label: label == "Email" ? "email" : label, value: value)
+                    if let copyLabel, let value = available(value) {
+                        AccountCopyButton(label: copyLabel, value: value)
                     }
                 }
             }

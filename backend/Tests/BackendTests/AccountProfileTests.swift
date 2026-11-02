@@ -11,6 +11,35 @@ import Testing
 import VaporTesting
 
 extension KiteLoginTests {
+    @Test("Superseded profile responses cannot invalidate a newer validated session", arguments: [200, 403])
+    func supersededProfile(status: Int) async throws {
+        let transport = KiteResponses()
+        try await withApp(configure: { app in
+            try routes(app, connectionToken: "test-connection-token", login: KiteLogin(apiKey: "test-key", apiSecret: "test-secret", transport: transport))
+        }) { app in
+            let attempt = try await LogoutTests().signIn(app)
+            await transport.hold("/user/profile")
+            let pending = Task { try await app.testing().sendRequest(.GET, "profile", headers: authorization) }
+            await transport.waitForHeldRequest()
+            let latest = try await app.testing().sendRequest(.GET, "profile", headers: authorization)
+            #expect(latest.status == .ok)
+            #expect(try latest.content.decode(AccountProfile.self).userID == "AB1234")
+            // The existing transport chooses the held response when released.
+            await transport.setProfileStatus(status)
+            await transport.release()
+            let obsolete = try await pending.value
+            #expect(obsolete.status == .serviceUnavailable)
+            #expect(!obsolete.body.string.contains("Asha Rao"))
+            let session = try await app.testing().sendRequest(.GET, "session", headers: authorization)
+            #expect(try session.content.decode(SessionStatus.self).state == .signedIn)
+            let completion = try await app.testing().sendRequest(.GET, "login/\(attempt.id)", headers: authorization)
+            #expect(try completion.content.decode(LoginStatus.self).state == .signedIn)
+            await transport.setProfileStatus(200)
+            let profile = try await app.testing().sendRequest(.GET, "profile", headers: authorization)
+            #expect(profile.status == .ok)
+        }
+    }
+
     @Test("Public profile preserves provider codes and empty permissions while rejecting unsafe avatars", arguments: [
         "https://images.example.invalid/avatar.png",
         "http://images.example.invalid/avatar.png",

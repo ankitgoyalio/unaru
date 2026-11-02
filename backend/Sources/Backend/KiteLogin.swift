@@ -27,6 +27,8 @@ actor KiteLogin {
     private var attempt: Attempt?
     /// The client whose exchange and profile retrieval have succeeded.
     private var authenticated: KiteClient?
+    /// Only the latest authenticated profile read may publish identity or reject the session.
+    private var profileRequestID: UUID?
 
     /// Creates an installation with production transport unless tests supply HTTP responses.
     init(
@@ -134,22 +136,28 @@ actor KiteLogin {
     /// Reads an authenticated profile without exposing the SDK's token-bearing session.
     func profile() async throws -> AccountProfile {
         guard let client = authenticated else { throw Abort(.unauthorized, reason: "Kite sign-in required.") }
+        let requestID = UUID()
+        profileRequestID = requestID
+        let profile: KiteUserProfile
         do {
-            let profile = try await client.profile()
-            guard authenticated === client else { throw Abort(.conflict) }
-            return Self.identity(profile)
+            profile = try await client.profile()
         } catch {
+            guard authenticated === client, profileRequestID == requestID else {
+                throw Abort(.serviceUnavailable, reason: "Kite profile request was superseded.")
+            }
             if Self.isAuthenticationRejection(error) {
-                if authenticated === client {
-                    authenticated = nil
-                    if attempt?.client === client {
-                        attempt = nil
-                    }
+                authenticated = nil
+                if attempt?.client === client {
+                    attempt = nil
                 }
                 throw Abort(.unauthorized, reason: "Kite sign-in required.")
             }
             throw Abort(.serviceUnavailable, reason: "Kite profile is temporarily unavailable.")
         }
+        guard authenticated === client, profileRequestID == requestID else {
+            throw Abort(.serviceUnavailable, reason: "Kite profile request was superseded.")
+        }
+        return Self.identity(profile)
     }
 
     /// Reports only whether a completed backend-held session exists.
