@@ -108,6 +108,17 @@ CI runs actionlint with a checksum-verified binary. The Security workflow scans
 Actions and Python with CodeQL. Swift scanning awaits support for the Swift 6.4
 compiler, as described in [Security](../SECURITY.md).
 
+## Measure CI changes
+
+Before changing CI, run the existing workflow on the proposed branch and record
+the commit, run URL, runner labels, queue time, job durations, and step durations.
+Keep the application source and required check coverage fixed during the comparison.
+After changing CI, record a run with empty optimization caches and a second run
+that restores those caches. Report elapsed workflow time separately from the sum
+of runner time, because parallel jobs can reduce latency while consuming more compute.
+Keep raw API responses, logs, and timing reports in ignored `.test-results/` or CI
+artifacts. A failed or cancelled run is not a successful performance measurement.
+
 ## Update dependencies
 
 Dependabot checks both Swift packages and GitHub Actions every Monday at 08:00
