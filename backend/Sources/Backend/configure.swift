@@ -25,6 +25,16 @@ func configure(_ app: Application) async throws {
     if Environment.get("KITE_API_KEY")?.isEmpty != false || Environment.get("KITE_API_SECRET")?.isEmpty != false {
         app.logger.warning("Kite login is unavailable. Set KITE_API_KEY and KITE_API_SECRET in the process environment or the backend working directory's .env file.")
     }
+    // The bundled helper uses launch-scoped authorization and no pairing registry.
+    if Environment.get("UNARU_BUNDLED") == "1" {
+        guard let token = Environment.get("UNARU_CONNECTION_TOKEN"), token.count >= 32,
+              token.utf8.allSatisfy({ (33 ... 126).contains($0) }),
+              Array(app.environment.arguments.suffix(5).prefix(4)) == ["serve", "--hostname", "127.0.0.1", "--port"],
+              let port = Int(app.environment.arguments.last ?? ""), (1 ... 65535).contains(port)
+        else { throw Abort(.internalServerError, reason: "Invalid bundled backend configuration.") }
+        try routes(app, connectionToken: token)
+        return
+    }
     let pairing = try PairingStore(directory: PairingStore.defaultDirectory)
     #if os(macOS)
         let arguments = app.environment.arguments

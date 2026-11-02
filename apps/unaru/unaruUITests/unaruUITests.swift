@@ -8,34 +8,14 @@ import XCTest
 
 /// Acceptance tests use only the running Mac UI and a controlled loopback HTTP server.
 final class unaruUITests: XCTestCase {
-    @MainActor
-    func testFirstRunOpensAndReopensNativeSettings() throws {
-        #if os(macOS)
-            let app = launch()
-            defer { cleanUp(app) }
-            XCTAssertTrue(app.buttons["Configure Connection"].waitForExistence(timeout: 5))
-            app.buttons["Configure Connection"].click()
-            XCTAssertTrue(app.textFields["Backend address"].waitForExistence(timeout: 5))
-            XCTAssertFalse(app.secureTextFields["Connection token"].exists)
-            app.typeKey("w", modifierFlags: .command)
-            app.typeKey(",", modifierFlags: .command)
-            XCTAssertTrue(app.textFields["Backend address"].waitForExistence(timeout: 5))
-        #else
-            throw XCTSkip("Connection setup is a macOS feature.")
-        #endif
-    }
-
     #if os(macOS)
         @MainActor
         func testKiteBrowserCompletionShowsNoninteractiveIdentity() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
-            let app = launch()
+            let app = launch(backend: backend)
             defer { cleanUp(app) }
-            app.buttons["Configure Connection"].click()
-            connect(app, address: backend.address)
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
-            app.typeKey("w", modifierFlags: .command)
             app.buttons["Sign in with Kite"].click()
             XCTAssertTrue(app.descendants(matching: .any)["Complete Sign-In in Your Browser"].firstMatch.waitForExistence(timeout: 5))
             let handoff = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.browserHandoffs > 0 }, object: nil)
@@ -55,54 +35,14 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        func testAuthorizedConnectionPersistsAcrossLaunches() throws {
-            let backend = try ControlledBackend()
-            defer { backend.stop() }
-            let app = launch()
-            defer { cleanUp(app) }
-            app.buttons["Configure Connection"].click()
-            backend.respond(status: 200)
-            connect(app, address: backend.address)
-            XCTAssertTrue(app.staticTexts["Kite Sign-In Required"].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.buttons["Sign in with Kite"].exists)
-            app.terminate()
-            app.launch()
-            XCTAssertTrue(app.staticTexts["Kite Sign-In Required"].waitForExistence(timeout: 10))
-            app.typeKey(",", modifierFlags: .command)
-            XCTAssertTrue(app.textFields["Backend address"].waitForExistence(timeout: 5))
-            XCTAssertEqual(app.textFields["Backend address"].value as? String, backend.address)
-        }
-
-        @MainActor
-        func testRevokedConnectionCanReconnectFromSettings() throws {
-            let backend = try ControlledBackend()
-            defer { backend.stop() }
-            let app = launch()
-            defer { cleanUp(app) }
-            app.buttons["Configure Connection"].click()
-            backend.respond(status: 401)
-            connect(app, address: backend.address)
-            XCTAssertTrue(app.staticTexts["Check Connection Settings"].waitForExistence(timeout: 10))
-            XCTAssertFalse(app.staticTexts["Kite Sign-In Required"].exists)
-            app.typeKey("w", modifierFlags: .command)
-            app.buttons["Configure Connection"].click()
-            backend.respond(status: 200)
-            connect(app, address: backend.address)
-            XCTAssertTrue(app.staticTexts["Kite Sign-In Required"].waitForExistence(timeout: 10))
-        }
-
-        @MainActor
         func testConnectionFailureCanRetryWithoutRepeatingSetup() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
             backend.respond(status: 0) // Close the real socket without a response.
-            let app = launch()
+            let app = launch(backend: backend)
             defer { cleanUp(app) }
-            app.buttons["Configure Connection"].click()
-            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Connection Unavailable"].waitForExistence(timeout: 20))
             XCTAssertFalse(app.staticTexts["Kite Sign-In Required"].exists)
-            app.typeKey("w", modifierFlags: .command)
             backend.respond(status: 200)
             app.buttons["Retry"].click()
             XCTAssertTrue(app.staticTexts["Kite Sign-In Required"].waitForExistence(timeout: 10))
@@ -113,12 +53,9 @@ final class unaruUITests: XCTestCase {
             let backend = try ControlledBackend()
             defer { backend.stop() }
             backend.respond(status: 503)
-            let app = launch()
+            let app = launch(backend: backend)
             defer { cleanUp(app) }
-            app.buttons["Configure Connection"].click()
-            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Connection Unavailable"].waitForExistence(timeout: 10))
-            app.typeKey("w", modifierFlags: .command)
             backend.respond(status: 200)
             app.buttons["Retry"].click()
             XCTAssertTrue(app.staticTexts["Kite Sign-In Required"].waitForExistence(timeout: 10))
@@ -129,38 +66,13 @@ final class unaruUITests: XCTestCase {
             let backend = try ControlledBackend()
             defer { backend.stop() }
             backend.respond(status: 503, body: "{\"code\":\"backendNotConfigured\"}")
-            let app = launch()
+            let app = launch(backend: backend)
             defer { cleanUp(app) }
-            app.buttons["Configure Connection"].click()
-            connect(app, address: backend.address)
-            XCTAssertTrue(app.staticTexts["Configure Your Backend"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["Set Up Kite"].waitForExistence(timeout: 10))
             XCTAssertFalse(app.staticTexts["Kite Sign-In Required"].exists)
-            app.typeKey("w", modifierFlags: .command)
             backend.respond(status: 200)
             app.buttons["Retry"].click()
             XCTAssertTrue(app.staticTexts["Kite Sign-In Required"].waitForExistence(timeout: 10))
-        }
-
-        @MainActor
-        func testChangingConnectionDiscardsDelayedResult() throws {
-            let previous = try ControlledBackend()
-            let current = try ControlledBackend()
-            defer { previous.stop(); current.stop() }
-            previous.respond(status: 200, hold: true)
-            let app = launch()
-            defer { cleanUp(app) }
-            app.buttons["Configure Connection"].click()
-            connect(app, address: previous.address)
-            let started = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in previous.pendingResponses > 0 }, object: nil)
-            XCTAssertEqual(XCTWaiter.wait(for: [started], timeout: 5), .completed)
-            current.respond(status: 401)
-            connect(app, address: current.address)
-            XCTAssertTrue(app.staticTexts["Check Connection Settings"].waitForExistence(timeout: 10))
-            previous.releaseResponses()
-            let completed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in previous.completedResponses > 0 }, object: nil)
-            XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 10), .completed)
-            XCTAssertTrue(app.staticTexts["Check Connection Settings"].exists)
-            XCTAssertFalse(app.staticTexts["Kite Sign-In Required"].exists)
         }
 
         @MainActor
@@ -169,51 +81,17 @@ final class unaruUITests: XCTestCase {
             let destination = try ControlledBackend()
             defer { backend.stop(); destination.stop() }
             backend.respond(status: 302, location: destination.address + "/session")
-            let app = launch()
+            let app = launch(backend: backend)
             defer { cleanUp(app) }
-            app.buttons["Configure Connection"].click()
-            connect(app, address: backend.address)
             XCTAssertTrue(app.staticTexts["Connection Unavailable"].waitForExistence(timeout: 10))
             XCTAssertEqual(destination.requests, 0)
-        }
-
-        @MainActor
-        func testRemoteHTTPIsRejectedBeforeCredentialsAreSent() {
-            let app = launch()
-            defer { cleanUp(app) }
-            app.buttons["Configure Connection"].click()
-            connect(app, address: "http://example.invalid")
-            XCTAssertTrue(app.staticTexts["Check Connection Settings"].waitForExistence(timeout: 5))
-            XCTAssertTrue(app.staticTexts["Use HTTPS for a remote backend, or HTTP with a loopback address on this Mac."].firstMatch.exists)
-        }
-
-        @MainActor
-        func testSetupUsesDedicatedScreenInBothAppearances() {
-            for appearance in ["Light", "Dark"] {
-                let app = launch(appearance: appearance)
-                defer { cleanUp(app) }
-                XCTAssertTrue(app.buttons["Configure Connection"].waitForExistence(timeout: 5))
-                assertConnectionScreen(app)
-                let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
-                screenshot.name = "Connection setup - \(appearance)"
-                screenshot.lifetime = .keepAlways
-                add(screenshot)
-                XCTAssertTrue(app.buttons["Configure Connection"].isHittable)
-                app.typeKey(",", modifierFlags: .command)
-                XCTAssertTrue(app.textFields["Backend address"].waitForExistence(timeout: 5))
-                XCTAssertTrue(app.buttons["Connect"].isHittable)
-                app.typeKey("w", modifierFlags: .command)
-                assertConnectionScreen(app)
-                XCTAssertTrue(app.buttons["Configure Connection"].isHittable)
-                app.terminate()
-            }
         }
 
         @MainActor
         func testCancellingLoginRejectsDelayedCompletionAndAllowsNewLogin() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
-            let app = launch()
+            let app = launch(backend: backend)
             defer { cleanUp(app) }
             beginLogin(app, backend: backend)
             backend.respond(status: 200, hold: true, body: "{\"state\":\"signedIn\",\"profile\":{\"name\":\"Obsolete Person\",\"userID\":\"OLD123\"}}")
@@ -236,7 +114,7 @@ final class unaruUITests: XCTestCase {
             for outcome in ["failed", "expired"] {
                 let backend = try ControlledBackend()
                 defer { backend.stop() }
-                let app = launch()
+                let app = launch(backend: backend)
                 defer { cleanUp(app) }
                 beginLogin(app, backend: backend)
                 backend.finishLogin(state: outcome)
@@ -255,7 +133,7 @@ final class unaruUITests: XCTestCase {
         func testTemporaryLoginFailureRetriesCompletionWithoutAnotherBrowserHandoff() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
-            let app = launch()
+            let app = launch(backend: backend)
             defer { cleanUp(app) }
             beginLogin(app, backend: backend)
             backend.respond(status: 503)
@@ -269,35 +147,14 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        func testChangingConnectionRejectsDelayedLoginIdentity() throws {
-            let previous = try ControlledBackend()
-            let current = try ControlledBackend()
-            defer { previous.stop(); current.stop() }
-            let app = launch()
-            defer { cleanUp(app) }
-            beginLogin(app, backend: previous)
-            previous.respond(status: 200, hold: true, body: "{\"state\":\"signedIn\",\"profile\":{\"name\":\"Obsolete Person\",\"userID\":\"OLD123\"}}")
-            waitForPending(previous)
-            app.typeKey(",", modifierFlags: .command)
-            connect(app, address: current.address)
-            XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
-            previous.releaseResponses()
-            XCTAssertFalse(app.staticTexts["Obsolete Person"].exists)
-            XCTAssertTrue(app.buttons["Sign in with Kite"].exists)
-        }
-
-        @MainActor
         func testDedicatedSignInTransitionsToReadableSidebarInBothAppearances() throws {
             for appearance in ["Light", "Dark"] {
                 let backend = try ControlledBackend()
                 defer { backend.stop() }
                 backend.useAvatar(backend.address + "/missing-avatar")
-                let app = launch(appearance: appearance)
+                let app = launch(backend: backend, appearance: appearance)
                 defer { cleanUp(app) }
-                app.buttons["Configure Connection"].click()
-                connect(app, address: backend.address)
                 XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
-                app.typeKey("w", modifierFlags: .command)
                 assertConnectionScreen(app)
                 capture(app, name: "Dedicated sign-in - \(appearance)")
                 XCTAssertTrue(app.buttons["Sign in with Kite"].isHittable)
@@ -339,10 +196,7 @@ final class unaruUITests: XCTestCase {
 
         @MainActor
         func beginLogin(_ app: XCUIApplication, backend: ControlledBackend) {
-            app.buttons["Configure Connection"].click()
-            connect(app, address: backend.address)
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
-            app.typeKey("w", modifierFlags: .command)
             app.buttons["Sign in with Kite"].click()
             XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForExistence(timeout: 5))
             let handoff = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.browserHandoffs > 0 }, object: nil)
@@ -360,10 +214,21 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        func launch(appearance: String = "Light", revalidationInterval: String? = nil) -> XCUIApplication {
+        func launch(backend: ControlledBackend? = nil, appearance: String = "Light", revalidationInterval: String? = nil, helperPort: String? = nil) -> XCUIApplication {
             continueAfterFailure = false
             let app = XCUIApplication()
+            if backend == nil {
+                // Reserve a test-only port rather than collide with the owner's running services.
+                if let helperPort {
+                    app.launchEnvironment["UNARU_TEST_BACKEND_PORT"] = helperPort
+                } else {
+                    let reservation = try! ControlledBackend()
+                    app.launchEnvironment["UNARU_TEST_BACKEND_PORT"] = URL(string: reservation.address)!.port!.description
+                    reservation.stop()
+                }
+            }
             app.launchEnvironment["UNARU_TEST_STORAGE"] = UUID().uuidString
+            app.launchEnvironment["UNARU_TEST_BACKEND_ADDRESS"] = backend?.address
             app.launchEnvironment["UNARU_TEST_BROWSER"] = "1"
             app.launchEnvironment["UNARU_TEST_APPEARANCE"] = appearance
             app.launchEnvironment["UNARU_TEST_REVALIDATION_SECONDS"] = revalidationInterval
@@ -375,14 +240,7 @@ final class unaruUITests: XCTestCase {
         @MainActor
         func cleanUp(_ app: XCUIApplication) {
             app.terminate()
-            app.launchEnvironment["UNARU_TEST_RESET"] = "1"
-            app.launch()
-            app.terminate()
         }
 
-        @MainActor
-        func connect(_ app: XCUIApplication, address: String) {
-            pasteConnection(app, address: address)
-        }
     #endif
 }

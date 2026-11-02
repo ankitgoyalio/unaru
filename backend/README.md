@@ -1,31 +1,44 @@
-# Connect the Mac app to your backend
+# Run Unaru with its bundled backend
 
-1. Install the tools listed in [Development](../docs/development.md).
-2. Create your local configuration once:
+Build and open the Mac app. Its build phase embeds the native backend in
+`unaru.app/Contents/Helpers/Backend`. The app starts that helper automatically; there is
+no backend address, Connect button, or pairing step.
 
-   ```fish
-   cp -n backend/.env.example backend/.env
-   chmod 600 backend/.env
-   ```
+1. Register `http://127.0.0.1:8080/kite/callback` as your Kite Connect app's redirect URL.
+2. Open Unaru and choose **Sign in with Kite**.
+3. If **Set Up Kite** appears, choose **Open Configuration Folder**. Edit the `.env`
+   template and fill in `KITE_API_KEY` and `KITE_API_SECRET` from your Kite developer app.
+4. Choose **Retry**, then **Sign in with Kite** to complete login in your browser.
 
-   Edit `backend/.env` and fill in `KITE_API_KEY` and `KITE_API_SECRET` from the
-   [Kite developer console](https://developers.kite.trade/). The [example file](.env.example)
-   describes every backend variable. Existing process variables take precedence over files.
-3. Change into the backend directory, then start the native backend bound to loopback:
+The configuration folder is `Unaru` inside the app's Application Support directory.
+For the sandboxed Mac app, this is normally
+`~/Library/Containers/io.ankitgoyal.unaru/Data/Library/Application Support/Unaru`.
+The app creates the folder with mode 700 and the template with mode 600. Credentials
+stay outside the signed bundle. Existing checkout dotenv files and saved remote
+connection settings are not imported. Copy your Kite values into this template once.
 
-   ```fish
-   cd backend
-   swift run Backend serve --hostname 127.0.0.1 --port 8080
-   ```
+The app generates an internal authorization credential for each launch and passes it
+directly to its child process. It does not save a connection credential in Keychain or
+publish pairing authority. The helper listens only on `127.0.0.1:8080`; an occupied port
+shows a startup error with **Retry**. Close the conflicting service and retry. The app
+never attaches to another running backend. It stops its helper on quit, including an
+abrupt exit. Kite sessions stay in memory, so quitting requires another browser login.
+Closing a window alone keeps the session available.
 
-4. Open Unaru and choose **Configure Connection**, or open **Unaru > Settings** with Command-comma.
-5. Enter `http://127.0.0.1:8080` as the backend address and choose **Connect**.
-6. If macOS requests Keychain access, review and allow Unaru to read the backend's local pairing item. A native backend running as the same Mac user can then pair automatically. If Keychain sharing is unavailable, use the approval steps below.
-7. After connection verification, return to the main window and choose **Sign in with Kite**.
+## Run a standalone backend for development
 
-There is no connection token to create or copy. Unaru generates a credential and stores
-it in Keychain only after the backend approves it. The backend stores the approved
-public verification key. Kite API secrets and access tokens stay on the backend.
+The following commands are for backend development. The Mac app always uses its own
+embedded helper.
+
+Install the tools in [Development](../docs/development.md). Copy `.env.example` to
+`backend/.env` and set its Kite credentials. From the backend directory, run:
+
+```fish
+swift run Backend serve --hostname 127.0.0.1 --port 8080
+```
+
+Stop the standalone process before opening the Mac app because they share the callback
+port. Standalone pairing and container support remain available for backend testing.
 
 ## Load configuration automatically
 
@@ -57,59 +70,12 @@ Compose passes the Kite variables into the container and keeps pairing state in 
 named volume. It uses `/app/.unaru` rather than a native `UNARU_DATA_DIRECTORY` override.
 It does not automatically load your native `.env.production` override.
 
-## Approve a remote or container connection
+## Preserve standalone pairing state
 
-1. Expose the backend through HTTPS with a certificate trusted by your Mac. Forward `X-Unaru-Key`, `X-Unaru-Signature`, `X-Unaru-Timestamp`, and `X-Unaru-Nonce`. Forward `Authorization` for legacy clients. For a container on the same Mac, loopback HTTP also works.
-2. Enter the final backend address in Unaru Settings and choose **Connect**.
-3. Compare the eight-digit pairing code shown in Unaru. On the backend host, use the same user and data directory as the running backend. From the checkout's `backend` directory, run:
-
-   ```fish
-   swift run Backend pair 12345678
-   ```
-
-   Replace `12345678` with the code shown on your Mac. With an installed executable, run `Backend pair 12345678`. For Docker Compose:
-
-   ```fish
-   docker compose -f backend/docker-compose.yml exec app ./Backend pair 12345678
-   ```
-
-4. Approve only the code from the Mac you intend to connect. The code expires after five minutes. Unaru finishes connection automatically; subsequent launches do not require approval again.
-
-The code is a comparison value, not a password. Knowing a code or reaching the server
-does not authorize a client. Approval requires filesystem access under the backend
-owner's identity. **Cancel Connection** invalidates the pending request. A cancelled or
-expired request requires **Connect** again.
-
-The native same-Mac path requires a loopback-bound backend, the same login Keychain, and
-an address without a proxy path prefix. A different user, a container, a remote server,
-or denied Keychain access uses code approval. Unaru never treats a loopback address
-alone as authorization.
-
-## Preserve backend pairing state
-
-Pairing state lives in `~/.unaru` under the backend process user's home. Set
-`UNARU_DATA_DIRECTORY` to use another persistent directory. The directory is owner-only
-and contains approved public verification keys, local bootstrap authority, and short-
-lived approval metadata. Keep it private and use a separate directory for each backend
-installation. Run only one backend process per directory.
-
-Docker Compose stores it in a named volume at `/app/.unaru`. Preserve that volume across
-container recreation. Signed requests include a timestamp and unique nonce; keep the Mac
-and backend clocks synchronized to within one minute. Approved Mac connections survive
-backend restarts; the in-memory Kite session does not. Deleting installation state
-revokes paired credentials and requires pairing again. Up to 64 credentials and 32
-concurrent pending requests are supported.
-
-Existing `UNARU_CONNECTION_TOKEN` configuration remains supported for already connected
-apps during migration. New users do not configure it. Reconnecting to the same saved
-address reuses the app’s private key. A different address creates a new key and requires
-pairing.
-
-HTTP is accepted only for loopback addresses or `localhost`; remote connections require
-HTTPS. The app refuses redirects, embedded URL credentials, query parameters, and
-fragments. Use the final backend URL. A reverse proxy path prefix is supported when
-routes such as `<prefix>/pairing` reach `/pairing`. Keep credential headers, pairing
-request bodies, and callback query strings out of proxy logs.
+Standalone backends retain the pairing API and `Backend pair <code>` approval command
+for development clients. They store approval state in `~/.unaru` or
+`UNARU_DATA_DIRECTORY`. Keep this directory private and persistent. Container builds
+use the Compose named volume. The bundled app does not read or write this registry.
 
 ## Configure Kite browser login
 
@@ -122,7 +88,7 @@ request bodies, and callback query strings out of proxy logs.
    Docker Compose forwards both Kite variables. Connection credentials are created by pairing.
 4. Restart the backend. Allow outbound HTTPS to `api.kite.trade` and ensure the
    browser can reach `kite.zerodha.com` and the registered callback address.
-5. Connect Unaru to the backend as described above, then choose **Sign in with Kite**. The browser
+5. In a development client, initiate the authorized browser login. The browser
    uses the public API key. The API secret and access token stay on the backend.
 6. Finish login within five minutes and return to Unaru. The callback page tells
    you to return. Unaru observes completion through authorized HTTP polling.
@@ -152,40 +118,15 @@ browser in production. Debug UI tests with isolated storage replace only that br
 handoff with a controlled HTTP receipt; they never open a real Kite session or use
 browser cookies.
 
-## Restore a Kite session
+## Recover the bundled app
 
-Reopen Unaru with the backend running. Unaru restores the saved address and Keychain
-connection credential, shows **Verifying Connection…**, and asks the backend for the
-current profile before displaying the account footer. The backend uses its in-memory
-Kite access token for a fresh provider request. The app stores no Kite token, cached
-authenticated identity, or separate app session reference. An unfinished browser attempt
-is not restored after the app quits.
-
-Kite access tokens normally expire at 6 AM the following day and can be revoked earlier.
-Unaru handles Kite's authentication response rather than a local expiry timer. If Kite
-rejects the token, choose **Sign in with Kite** and complete browser login again. A
-backend restart also requires login because it discards the in-memory Kite session.
-Saved app connection settings remain available.
-
-## Recover a connection
-
-- If the backend rejects this Mac’s connection credential, open Settings and choose **Connect** to pair again.
-- If your network, backend, or Kite is temporarily unavailable, restore
-  connectivity and choose **Retry** in the main window. Unaru retains your
-  connection configuration and validates the existing session again. A temporary
-  failure hides authenticated identity until validation succeeds; it does not
-  discard the backend's Kite session or open another browser login.
-- If login completion encounters a temporary profile failure, choose
-  **Retry Sign-In**. This retries the same attempt without repeating token exchange
-  or opening the browser again. A cancelled, denied, or expired attempt needs
-  **Sign in with Kite** instead.
-- If the backend cannot read or write its pairing directory, correct its filesystem permissions and restart it. This failure does not mean Kite login expired.
-- If Keychain is locked or unavailable, unlock it and reopen Settings.
-
-Connecting to a different backend or pairing again clears the current identity and
-cancels earlier verification or login. Delayed responses cannot restore the previous
-connection's identity. The main window keeps setup and retry accessible when the sidebar
-is hidden.
+- For a local startup error, close other copies or services using port 8080 and choose
+  **Retry**. If the embedded helper is missing, rebuild or reinstall the app.
+- For **Set Up Kite**, edit the app-owned `.env` and choose **Retry** to reload it.
+- For a temporary network or Kite failure, restore connectivity and choose **Retry**.
+  The app validates an existing Kite session before displaying identity.
+- For **Retry Sign-In**, retry the pending read without another token exchange or
+  browser handoff. Cancelled, denied, or expired attempts need a new sign-in.
 
 See the [backend contract](Sources/Backend/Backend.docc/Backend.md) for HTTP details and
 [Development](../docs/development.md) for checks.

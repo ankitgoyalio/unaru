@@ -4,6 +4,7 @@
 //
 //  Created by Ankit Goyal on 01/11/2026.
 
+import Foundation
 import Logging
 import NIOCore
 import NIOPosix
@@ -14,6 +15,13 @@ import Vapor
 enum Entrypoint {
     /// Creates, configures, and runs the application.
     static func main() async throws {
+        // A bundled helper must not outlive its app, including after a crash or force quit.
+        if ProcessInfo.processInfo.environment["UNARU_BUNDLED"] == "1" {
+            DispatchQueue.global().async {
+                _ = FileHandle.standardInput.readDataToEndOfFile()
+                exit(0)
+            }
+        }
         var env = try Environment.detect()
         let app = try await Application.make(env)
 
@@ -30,7 +38,14 @@ enum Entrypoint {
             app.environment = env
             app.logger = Logger(label: "codes.vapor.application")
             try await configure(app)
-            try await app.execute()
+            if ProcessInfo.processInfo.environment["UNARU_BUNDLED"] == "1" {
+                // startup returns only after the serve command has bound its listener.
+                try await app.startup()
+                try FileHandle.standardOutput.write(contentsOf: Data("UNARU_READY\n".utf8))
+                try await app.running?.onStop.get()
+            } else {
+                try await app.execute()
+            }
         } catch {
             app.logger.report(error: error)
             try? await app.asyncShutdown()

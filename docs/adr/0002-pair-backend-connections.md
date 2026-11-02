@@ -1,5 +1,7 @@
 # Pair backend connections instead of entering tokens
 
+Superseded for the Mac app by [ADR 0003](0003-bundle-the-mac-backend.md).
+
 The Mac app generates and stores its connection credential in Keychain. A native backend
 bound to loopback publishes a bootstrap secret in the same user's login Keychain; access
 to that item proves ownership through an HMAC bound to the app’s public key, subject to macOS access control. The bootstrap secret and app private key are never transmitted. Fresh signed requests prove possession of the private key and reject replay. Loopback network

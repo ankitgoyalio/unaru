@@ -1,5 +1,7 @@
 # Keep Kite integration in the self-hosted backend
 
+Superseded for the Mac app by [ADR 0003](0003-bundle-the-mac-backend.md).
+
 Unaru is self-hosted for personal use. Keep SwiftKiteConnect in the backend for the Kite token exchange and profile requests. The macOS app displays the resulting profile.
 
 A standalone Mac app could own the Kite integration for personal use. Keeping the existing backend boundary avoids moving credentials and Kite integration into the app, at the cost of requiring a running backend.

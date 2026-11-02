@@ -6,7 +6,9 @@ Types and behavior shared by the Unaru app and backend.
 
 This package defines the credential-free ``SessionStatus`` and ``ConnectionProblem``
 payloads shared by the app and backend. Session status is returned only after the
-backend authorizes the app’s connection credential. ``PairingRequest`` offers an app-
+backend authorizes the app’s connection credential. The bundled Mac app uses a private,
+launch-scoped credential. Standalone development clients can use connection pairing.
+``PairingRequest`` offers a client-
 generated public verification key for approval; ``PairingStatus`` reports its short-
 lived comparison code and approval state. The request contains only the public
 verification key. The private signing key is never transmitted. On macOS,

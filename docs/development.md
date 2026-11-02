@@ -52,32 +52,33 @@ compiles the app and its tests for iOS and visionOS simulators, runs macOS UI te
 builds the macOS app for DocC, and validates the static documentation. Workflow timeouts bound builds and tests.
 Logs and result artifacts belong in ignored `.test-results/`.
 
-Mac UI tests run a controlled loopback HTTP server inside the XCTest runner.
-They use only generated test credentials and a unique defaults suite and Keychain service per
-case. The macOS UI-test runner has the incoming-network entitlement needed to
-bind its loopback server; the shipping app has only outgoing-network access.
-The controlled server rejects failed listener startup rather than using port 0. Pairing cases exercise approval, cancellation, and credential restoration without a user-entered token.
-Restoration cases hold profile responses to verify validation progress, simulate
-provider rejection and backend session loss, and retry socket and HTTP failures
-without another browser handoff. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to select that storage;
-`UNARU_TEST_RESET=1` clears only the selected test storage. Release builds ignore
-these variables. Test cleanup clears those credentials by relaunching the app.
-Debug builds with isolated storage also accept `UNARU_TEST_BROWSER=1` to send
-the handoff to the controlled backend instead of opening a browser. Release
-builds ignore this setting. No test needs Kite credentials or browser cookies.
-Isolated Debug UI tests use `UNARU_TEST_APPEARANCE=Light` or `Dark` to force the
-SwiftUI appearance for their windows. Release builds ignore this override.
-Run UI tests in an unlocked Mac login session with Xcode's UI automation authorization enabled. A runner
-initialization or system-authentication failure means the UI tests did not run.
+The Mac app build runs `Scripts/bundle-backend.sh` to compile Backend for each requested
+architecture, combine the slices, and sign the helper with sandbox inheritance. The app
+allows incoming and outgoing networking so its child can bind loopback and call Kite.
+The helper lives in `Contents/Helpers`; iOS and visionOS builds skip this phase. SwiftPM
+builds use `.build/bundled-backend` and run outside Xcode's script sandbox. App Sandbox
+remains enabled. Distribution archives require the usual signing identity for both
+executables. No standalone backend needs to be launched for the Mac app.
 
-For manual accessibility verification, use VoiceOver and keyboard navigation to
-open Settings, edit the backend address, connect, approve or cancel pairing, start and cancel login, retry a failed
-connection or login. Verify that setup, sign-in, and session recovery have no sidebar.
-After login, hide and restore the sidebar, resize the
-sidebar and check that the informational account name and ID wrap and remain
-readable. Verify avatar initials when an image cannot load. Check the minimum
-window size and both appearances. UI queries cover accessible labels and control availability but do not verify spoken
-VoiceOver output.
+Mac UI tests use controlled loopback HTTP servers for browser completion and session
+recovery. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to isolate configuration,
+`UNARU_TEST_BACKEND_ADDRESS` to select the controlled loopback server, and
+`UNARU_TEST_BROWSER=1` to replace the browser handoff. Tests that launch the actual helper
+use `UNARU_TEST_BACKEND_PORT` to avoid occupying the owner's callback port.
+`UNARU_TEST_APPEARANCE=Light` or `Dark` fixes appearance, and
+`UNARU_TEST_REVALIDATION_SECONDS` accelerates session checks. Every override requires the
+isolated UUID and is ignored by Release builds. No test uses real Kite credentials or
+browser cookies. The subprocess suite checks bundled authorization, missing Kite
+configuration, disabled pairing, and helper exit after its parent pipe closes.
+
+Run UI tests in an unlocked Mac login session with Xcode UI automation authorization.
+An initialization or system-authentication failure means the tests did not run.
+For manual accessibility verification, use VoiceOver and keyboard navigation through
+startup, sign-in, cancellation, configuration recovery, and Retry. Confirm there is no
+backend address or pairing step. Check the minimum window size and both appearances.
+After login, hide and restore the sidebar and verify readable name and ID wrapping.
+UI queries cover labels and control availability but do not verify spoken VoiceOver
+output.
 
 ## Resolve commit check failures
 
