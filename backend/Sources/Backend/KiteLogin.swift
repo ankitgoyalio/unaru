@@ -21,6 +21,8 @@ actor KiteLogin {
     private let now: @Sendable () -> Date
     /// The lifetime of an authorized browser attempt.
     private let lifetime: TimeInterval
+    /// Maximum time to wait for provider revocation.
+    private let revocationTimeout: Duration
     /// The newest attempt, replacing all previous callback authority.
     private var attempt: Attempt?
     /// The client whose exchange and profile retrieval have succeeded.
@@ -32,12 +34,14 @@ actor KiteLogin {
         apiSecret: String? = Environment.get("KITE_API_SECRET"),
         transport: any KiteHTTPTransport = URLSessionKiteTransport(),
         lifetime: TimeInterval = 300,
+        revocationTimeout: Duration = .seconds(5),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.apiKey = apiKey
         self.apiSecret = apiSecret
         self.transport = transport
         self.lifetime = lifetime
+        self.revocationTimeout = revocationTimeout
         self.now = now
     }
 
@@ -115,6 +119,16 @@ actor KiteLogin {
             }
             attempt = nil
         }
+    }
+
+    /// Detaches all old authority before remote work; completion cannot mutate a newer session.
+    func logout() async -> LogoutResult {
+        let client = authenticated ?? attempt?.client
+        authenticated = nil
+        attempt = nil
+        guard let client else { return LogoutResult(revocation: .unconfirmed) }
+        let confirmed = await BoundedRevocation().run(client: client, timeout: revocationTimeout)
+        return LogoutResult(revocation: confirmed ? .confirmed : .unconfirmed)
     }
 
     /// Reads an authenticated profile without exposing the SDK's token-bearing session.

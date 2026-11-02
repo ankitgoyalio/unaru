@@ -27,7 +27,15 @@
                         ProgressView("Verifying Connection…")
                     case .signedOut:
                         Text("Kite Sign-In Required").font(.title2)
+                        if connection.isLoggingOut {
+                            ProgressView("Ending Kite API Session…")
+                        }
+                        if connection.logoutUnconfirmed {
+                            Text("Unaru signed out locally, but couldn’t confirm that the Kite API session ended.")
+                                .accessibilityIdentifier("Logout uncertainty")
+                        }
                         Button("Sign in with Kite") { connection.signIn() }
+                            .disabled(connection.isLoggingOut)
                             .buttonStyle(.borderedProminent)
                             .keyboardShortcut(.defaultAction)
                     case .loggingIn:

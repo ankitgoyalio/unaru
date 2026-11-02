@@ -42,6 +42,13 @@
             didSet { scheduleRevalidation() }
         }
 
+        /// Local identity is already cleared while remote logout is being bounded.
+        @Published private(set) var isLoggingOut = false
+        /// A visible explanation retained until the next explicit sign-in.
+        @Published private(set) var logoutUnconfirmed = false
+        /// Verification cannot reattach old backend authority after local logout.
+        private var requiresSignIn = false
+
         /// Launches and stops the backend bundled inside this application.
         private let backend = BundledBackend()
         /// The current request, cancelled before restart or a new login.
@@ -74,7 +81,11 @@
                     try await backend.waitUntilReady()
                     guard !Task.isCancelled, revision == currentRevision else { return }
                     self.configuration = configuration
-                    verify()
+                    if requiresSignIn {
+                        phase = .signedOut
+                    } else {
+                        verify()
+                    }
                 } catch {
                     guard !Task.isCancelled, revision == currentRevision else { return }
                     backend.stop()
@@ -134,7 +145,7 @@
 
         /// Keeps a validated footer stable during a background read, then applies the same error policy.
         private func verify(preservingIdentity: Bool) {
-            guard let configuration else { return }
+            guard !requiresSignIn, !isLoggingOut, let configuration else { return }
             revalidationTask?.cancel()
             revalidationTask = nil
             revision += 1
@@ -172,12 +183,13 @@
 
         /// Creates an authorized attempt and opens the system's default browser.
         func signIn() {
-            guard let configuration, phase == .signedOut || phase == .loginFailed || (phase == .loginUnavailable && activeAttempt == nil) else { return }
+            guard !isLoggingOut, let configuration, phase == .signedOut || phase == .loginFailed || (phase == .loginUnavailable && activeAttempt == nil) else { return }
             guard backend.isRunning else { start(); return }
             revision += 1
             let currentRevision = revision
             task?.cancel()
             activeAttempt = nil
+            logoutUnconfirmed = false
             phase = .loggingIn
             task = Task {
                 do {
@@ -223,6 +235,41 @@
             }
         }
 
+        /// Removes identity in every window synchronously, before contacting the backend.
+        func logOut() {
+            guard !isLoggingOut, case .signedIn = phase else { return }
+            revision += 1
+            let currentRevision = revision
+            task?.cancel()
+            revalidationTask?.cancel()
+            revalidationTask = nil
+            activeAttempt = nil
+            requiresSignIn = true
+            isLoggingOut = true
+            logoutUnconfirmed = false
+            phase = .signedOut
+            let oldConfiguration = configuration
+            task = Task {
+                do {
+                    guard let oldConfiguration else { throw BackendTransport.Failure.unavailable }
+                    let data = try await transport.send("logout", method: "POST", configuration: oldConfiguration)
+                    let result = try JSONDecoder().decode(LogoutResult.self, from: data)
+                    guard !Task.isCancelled, revision == currentRevision else { return }
+                    logoutUnconfirmed = result.revocation != .confirmed
+                    isLoggingOut = false
+                } catch {
+                    guard !Task.isCancelled, revision == currentRevision else { return }
+                    logoutUnconfirmed = true
+                    // An unreachable helper may still hold the old token. Destroy its
+                    // authority before accepting another session check or login.
+                    configuration = nil
+                    backend.stop()
+                    isLoggingOut = false
+                    start()
+                }
+            }
+        }
+
         /// Makes earlier browser/profile results obsolete immediately, then revokes the server attempt.
         func cancelLogin() {
             revision += 1
@@ -248,6 +295,7 @@
                 case .signedIn:
                     guard let profile = result.profile else { throw BackendTransport.Failure.failed }
                     activeAttempt = nil
+                    requiresSignIn = false
                     phase = .signedIn(profile)
                     return
                 case .failed, .expired:

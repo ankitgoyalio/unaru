@@ -25,6 +25,7 @@
         private var completedCount = 0
         private var loginResult = "pending"
         private var handoffs = 0
+        private var logoutRequests = 0
         private var attemptNumber = 0
         private var profileJSON: String?
         private var avatar: String?
@@ -70,6 +71,10 @@
 
         var validations: Int {
             lock.withLock { profileRequests }
+        }
+
+        var logouts: Int {
+            lock.withLock { logoutRequests }
         }
 
         var loginAttempts: Int {
@@ -188,7 +193,16 @@
                 let authorized = lines.contains { $0.lowercased() == "authorization: bearer ui-test-token" }
                 let status = authorized ? configuredStatus : 401
                 let body: String
-                if path == "/login", text.hasPrefix("POST") {
+                if path == "/logout", text.hasPrefix("POST") {
+                    lock.withLock {
+                        logoutRequests += 1
+                        if status == 200 {
+                            authenticated = false
+                            loginResult = "failed"
+                        }
+                    }
+                    body = configuredBody ?? #"{"revocation":"confirmed"}"#
+                } else if path == "/login", text.hasPrefix("POST") {
                     let number = lock.withLock {
                         loginResult = "pending"
                         authenticated = false

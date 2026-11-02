@@ -13,6 +13,7 @@
     struct AccountSheet: View {
         /// The current in-memory Kite account profile.
         let profile: AccountProfile
+        @EnvironmentObject private var connection: BackendConnection
         @Environment(\.dismiss) private var dismiss
 
         var body: some View {
@@ -58,6 +59,8 @@
                 }
                 Divider()
                 HStack {
+                    Button("Log Out", role: .destructive) { connection.logOut() }
+                        .disabled(connection.isLoggingOut)
                     Spacer()
                     Button("Done") { dismiss() }
                         .keyboardShortcut(.defaultAction)

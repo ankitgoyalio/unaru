@@ -264,6 +264,8 @@ actor KiteResponses: KiteHTTPTransport {
     private var profileErrorType: String?
     private var profileBody: String?
     private var disconnectProfile = false
+    private var invalidationBody = #"{"status":"success","data":true}"#
+    private var invalidationDisconnect = false
     private var heldPath: String?
     private var heldRequest: CheckedContinuation<Void, Never>?
     private var observer: CheckedContinuation<Void, Never>?
@@ -283,6 +285,11 @@ actor KiteResponses: KiteHTTPTransport {
         heldPath = nil
         heldRequest?.resume()
         heldRequest = nil
+    }
+
+    func setInvalidation(body: String, disconnect: Bool = false) {
+        invalidationBody = body
+        invalidationDisconnect = disconnect
     }
 
     func setExchangeStatus(_ code: Int) {
@@ -309,6 +316,12 @@ actor KiteResponses: KiteHTTPTransport {
                 observer?.resume()
                 observer = nil
             }
+        }
+        if request.method == .delete {
+            if invalidationDisconnect {
+                throw URLError(.networkConnectionLost)
+            }
+            return KiteHTTPResponse(statusCode: 200, body: Data(invalidationBody.utf8))
         }
         let exchange = request.url.path == "/session/token"
         if !exchange, disconnectProfile {
