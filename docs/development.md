@@ -52,6 +52,18 @@ compiles the app and its tests for iOS and visionOS simulators, runs macOS UI te
 builds the macOS app for DocC, and validates the static documentation. Workflow timeouts bound builds and tests.
 Logs and result artifacts belong in ignored `.test-results/`.
 
+Apple package checks and simulator builds, macOS UI tests, and DocC validation run
+in three parallel jobs. The required `apple` check succeeds only when all three
+jobs succeed. Linux package tests run independently. Every pull request still runs
+the full set of checks.
+
+CI caches SwiftPM dependencies and build products for each job, operating system,
+architecture, runner image, toolchain, and dependency manifest. A new commit can
+restore the previous compatible build and saves its own cache after success.
+Main-branch runs populate caches that new pull requests can restore. Restoring a
+cache never skips a build, test, or documentation check. Xcode DerivedData, result
+bundles, and generated documentation sites are not cached.
+
 The Mac app build runs `Scripts/bundle-backend.sh` to compile Backend for each requested
 architecture, combine the slices, and sign the helper with sandbox inheritance. The app
 allows incoming and outgoing networking so its child can bind loopback and call Kite.
