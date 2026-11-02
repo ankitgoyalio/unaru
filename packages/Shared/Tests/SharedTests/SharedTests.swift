@@ -4,11 +4,27 @@
 //
 //  Created by Ankit Goyal on 01/11/2026.
 
-@testable import Shared
+import Foundation
+import Shared
 import Testing
 
-@Test func example() {
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-    // Swift Testing Documentation
-    // https://developer.apple.com/documentation/testing
+@Test func olderProfileRemainsDecodable() throws {
+    let profile = try JSONDecoder().decode(AccountProfile.self, from: Data(#"{"name":"Asha Rao","userID":"AB1234"}"#.utf8))
+    #expect(profile.email == nil)
+    #expect(profile.broker == nil)
+    #expect(profile.accountType == nil)
+    #expect(profile.exchanges == nil)
+    #expect(profile.products == nil)
+    #expect(profile.orderTypes == nil)
+}
+
+@Test func profilePreservesExplicitEmptyPermissions() throws {
+    let profile = try JSONDecoder().decode(AccountProfile.self, from: Data(#"{"name":"Asha Rao","userID":"AB1234","email":"asha@example.invalid","broker":"ZERODHA","accountType":"individual","exchanges":[],"products":["CNC"],"orderTypes":["LIMIT"]}"#.utf8))
+    #expect(profile.email == "asha@example.invalid")
+    #expect(profile.broker == "ZERODHA")
+    #expect(profile.accountType == "individual")
+    #expect(profile.exchanges == [])
+    #expect(profile.products == ["CNC"])
+    #expect(profile.orderTypes == ["LIMIT"])
+    #expect(try JSONDecoder().decode(AccountProfile.self, from: JSONEncoder().encode(profile)) == profile)
 }

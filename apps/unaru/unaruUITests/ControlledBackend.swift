@@ -26,7 +26,19 @@
         private var loginResult = "pending"
         private var handoffs = 0
         private var attemptNumber = 0
+        private var profileJSON: String?
         private var avatar: String?
+
+        func useProfile(_ json: String) {
+            lock.withLock { profileJSON = json }
+        }
+
+        private func accountProfile(avatarField: String) -> String {
+            lock.withLock {
+                profileJSON ?? "{\"name\":\"Asha Rao\",\"userID\":\"AB1234\",\"email\":\"asha@example.invalid\",\"broker\":\"ZERODHA\",\"accountType\":\"individual\",\"exchanges\":[\"NSE\",\"BSE\"],\"products\":[\"CNC\",\"MIS\"],\"orderTypes\":[\"LIMIT\",\"SL-M\"]\(avatarField)}"
+            }
+        }
+
         private var handoffURL: String?
 
         var browserURL: String? {
@@ -205,11 +217,11 @@
                     }
                     let avatarField = avatar.map { ",\"avatarURL\":\"\($0)\"" } ?? ""
                     body = configuredBody ?? (result == "signedIn"
-                        ? "{\"state\":\"signedIn\",\"profile\":{\"name\":\"Asha Rao\",\"userID\":\"AB1234\"\(avatarField)}}"
+                        ? "{\"state\":\"signedIn\",\"profile\":\(accountProfile(avatarField: avatarField))}"
                         : "{\"state\":\"\(result)\"}")
                 } else if path == "/profile" {
                     let avatarField = lock.withLock { avatar.map { ",\"avatarURL\":\"\($0)\"" } ?? "" }
-                    body = configuredBody ?? "{\"name\":\"Asha Rao\",\"userID\":\"AB1234\"\(avatarField)}"
+                    body = configuredBody ?? accountProfile(avatarField: avatarField)
                 } else {
                     body = configuredBody ?? (status == 200 ? "{\"state\":\"\(signedIn ? "signedIn" : "signedOut")\"}" : "{}")
                 }

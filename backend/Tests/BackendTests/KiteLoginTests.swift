@@ -45,12 +45,15 @@ struct KiteLoginTests {
             try await app.testing().test(.GET, "login/\(attempt.id)", headers: authorization, afterResponse: { response async in
                 let status = try? response.content.decode(LoginStatus.self)
                 #expect(status?.state == .signedIn)
-                #expect(status?.profile == AccountProfile(name: "Asha Rao", userID: "AB1234"))
+                #expect(status?.profile == AccountProfile(name: "Asha Rao", userID: "AB1234", email: "asha@example.invalid", broker: "ZERODHA", accountType: "individual", exchanges: ["NSE"], products: ["CNC"], orderTypes: ["LIMIT"]))
                 #expect(!response.body.string.contains("test-access"))
                 #expect(!response.body.string.contains("test-secret"))
             })
             try await app.testing().test(.GET, "profile", headers: authorization, afterResponse: { response async in
-                #expect((try? response.content.decode(AccountProfile.self))?.userID == "AB1234")
+                let profile = try? response.content.decode(AccountProfile.self)
+                #expect(profile == AccountProfile(name: "Asha Rao", userID: "AB1234", email: "asha@example.invalid", broker: "ZERODHA", accountType: "individual", exchanges: ["NSE"], products: ["CNC"], orderTypes: ["LIMIT"]))
+                let object = try? JSONSerialization.jsonObject(with: Data(response.body.string.utf8)) as? [String: Any]
+                #expect(Set(object?.keys.map(\.self) ?? []) == ["name", "userID", "email", "broker", "accountType", "exchanges", "products", "orderTypes"])
             })
             let requests = await transport.requests
             #expect(requests.map(\.url.path) == ["/session/token", "/user/profile", "/user/profile"])

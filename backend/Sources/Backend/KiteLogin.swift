@@ -164,7 +164,12 @@ actor KiteLogin {
                   url.query == nil, url.fragment == nil else { return nil }
             return url
         }
-        return AccountProfile(name: profile.userName, userID: profile.userID, avatarURL: safe)
+        return AccountProfile(
+            name: profile.userName, userID: profile.userID, avatarURL: safe,
+            email: profile.email, broker: profile.broker, accountType: profile.userType,
+            exchanges: profile.exchanges.map(\.rawValue), products: profile.products.map(\.rawValue),
+            orderTypes: profile.orderTypes.map(\.rawValue),
+        )
     }
 
     /// In-memory attempt data, discarded on restart or replacement.

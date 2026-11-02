@@ -10,7 +10,7 @@ import XCTest
 final class unaruUITests: XCTestCase {
     #if os(macOS)
         @MainActor
-        func testKiteBrowserCompletionShowsNoninteractiveIdentity() throws {
+        func testKiteBrowserCompletionShowsAccountButton() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
             let app = launch(backend: backend)
@@ -25,7 +25,7 @@ final class unaruUITests: XCTestCase {
             XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
             XCTAssertTrue(app.staticTexts["AB1234"].exists)
             XCTAssertTrue(app.staticTexts["AR"].exists)
-            XCTAssertFalse(app.buttons["Asha Rao"].exists)
+            XCTAssertTrue(app.buttons["Open Kite account"].exists)
             XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
             XCTAssertFalse(app.buttons["Sign Out"].exists)
             let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())

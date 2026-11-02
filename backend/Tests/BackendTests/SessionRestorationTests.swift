@@ -34,7 +34,7 @@ extension KiteLoginTests {
             await transport.setProfileResponse(status: 200)
             let recovered = try await app.testing().sendRequest(.GET, "profile", headers: authorization)
             #expect(recovered.status == .ok)
-            #expect(try recovered.content.decode(AccountProfile.self) == AccountProfile(name: "Asha Rao", userID: "AB1234"))
+            #expect(try recovered.content.decode(AccountProfile.self) == AccountProfile(name: "Asha Rao", userID: "AB1234", email: "asha@example.invalid", broker: "ZERODHA", accountType: "individual", exchanges: ["NSE"], products: ["CNC"], orderTypes: ["LIMIT"]))
             #expect(recovered.headers["Cache-Control"] == ["no-store"])
             #expect(await transport.requests.filter { $0.url.path == "/session/token" }.count == 1)
         }
