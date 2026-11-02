@@ -1,0 +1,27 @@
+name: Swift build cache
+description: Reuse SwiftPM dependencies and build products without skipping checks
+runs:
+  using: composite
+  steps:
+    - name: Identify build environment
+      id: environment
+      shell: bash
+      run: |
+        identity=$(
+          {
+            swift --version
+            if [[ "$RUNNER_OS" == macOS ]]; then xcodebuild -version; fi
+            printf '%s\n' "${ImageOS:-}" "${ImageVersion:-}"
+          } | shasum -a 256 | cut -d ' ' -f 1
+        )
+        echo "identity=$identity" >> "$GITHUB_OUTPUT"
+    - name: Restore Swift build products
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          backend/.build
+          packages/Shared/.build
+          .build/bundled-backend
+        key: swift-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.environment.outputs.identity }}-${{ hashFiles('backend/Package.resolved', '**/Package.swift') }}-${{ github.sha }}
+        restore-keys: |
+          swift-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.environment.outputs.identity }}-${{ hashFiles('backend/Package.resolved', '**/Package.swift') }}-

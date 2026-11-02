@@ -45,6 +45,7 @@ jobs:
       - uses: swift-actions/setup-swift@364295d9c23900ce04d4e5cc708387921b4e50f9 # v3
         with:
           swift-version: '6.4.2'
+      - uses: ./.github/actions/swift-build-cache
       - name: Test Shared and Backend on Linux
         run: |
           mkdir -p .test-results
@@ -59,7 +60,7 @@ jobs:
           path: .test-results/
           include-hidden-files: true
 
-  apple:
+  apple-build:
     runs-on: xcode-27
     timeout-minutes: 45
     env:
@@ -88,6 +89,7 @@ jobs:
           python3 .githooks/pre-commit --base "$base"
           python3 -m unittest discover -s Tests/Hooks -p 'test_*.py'
           python3 -m unittest discover -s Tests/Documentation -p 'test_*.py'
+      - uses: ./.github/actions/swift-build-cache
       - name: Check documentation examples and test packages
         run: |
           mkdir -p .test-results
@@ -107,8 +109,26 @@ jobs:
             -destination 'generic/platform=visionOS Simulator' \
             -derivedDataPath .build/visionos CODE_SIGNING_ALLOWED=NO \
             2>&1 | tee .test-results/visionos-build.log
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: apple-build-results
+          path: .test-results/
+          include-hidden-files: true
+
+  apple-ui:
+    runs-on: xcode-27
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/swift-build-cache
       - name: Run deterministic macOS UI acceptance tests
         run: |
+          mkdir -p .test-results
           xcodebuild test -project apps/unaru/unaru.xcodeproj -scheme unaru \
             -destination 'platform=macOS' -derivedDataPath .build/macos \
             -only-testing:unaruUITests CODE_SIGN_IDENTITY=- \
@@ -118,6 +138,23 @@ jobs:
             2>&1 | tee .test-results/macos-ui.log
           xcrun xcresulttool export attachments --path .test-results/macos-ui.xcresult \
             --output-path .test-results/screenshots --filter '*.png'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: apple-ui-results
+          path: .test-results/
+          include-hidden-files: true
+
+  apple-docs:
+    runs-on: xcode-27
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/swift-build-cache
       - name: Build and verify full DocC site
         run: python3 Scripts/build-documentation.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -129,12 +166,23 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           path: .build/documentation/site
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        if: always()
-        with:
-          name: apple-test-results
-          path: .test-results/
-          include-hidden-files: true
+
+  # Preserve the required check name and reject failed, cancelled, or skipped jobs.
+  apple:
+    needs: [apple-build, apple-ui, apple-docs]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every Apple check to succeed
+        env:
+          BUILD_RESULT: ${{ needs.apple-build.result }}
+          UI_RESULT: ${{ needs.apple-ui.result }}
+          DOCS_RESULT: ${{ needs.apple-docs.result }}
+        run: |
+          test "$BUILD_RESULT" = success
+          test "$UI_RESULT" = success
+          test "$DOCS_RESULT" = success
 
   deploy:
     needs: [apple, ubuntu, workflow-lint]
