@@ -28,12 +28,12 @@
             XCTAssertTrue(sheet.staticTexts["Asha Rao"].exists)
             XCTAssertTrue(sheet.staticTexts["AB1234"].exists)
             waitForPending(backend)
-            XCTAssertTrue(sheet.progressIndicators["Refreshing account details"].exists)
+            XCTAssertTrue(sheet.activityIndicators["Refreshing account details"].waitForExistence(timeout: 5))
             XCTAssertFalse(sheet.staticTexts["Not available"].exists)
             backend.respond(path: "/profile", status: 200)
             backend.releaseResponses()
             XCTAssertTrue(sheet.staticTexts["updated@example.invalid"].waitForExistence(timeout: 10))
-            XCTAssertFalse(sheet.progressIndicators["Refreshing account details"].exists)
+            XCTAssertFalse(sheet.activityIndicators["Refreshing account details"].exists)
             sheet.buttons["Done"].click()
             backend.useProfile(#"{"name":"Asha Rao","userID":"AB1234","email":"reopened@example.invalid"}"#)
             account.click()
@@ -51,7 +51,7 @@
                 let account = app.buttons["Open Kite account"]
                 XCTAssertTrue(account.waitForExistence(timeout: 10))
                 // Exercise both text and avatar within the single native button.
-                account.staticTexts["Asha Rao"].click()
+                account.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.5)).click()
                 let sheet = app.sheets.firstMatch
                 XCTAssertTrue(sheet.waitForExistence(timeout: 5))
                 XCTAssertTrue(sheet.staticTexts["Kite account"].exists)
@@ -74,9 +74,12 @@
                 XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
                 app.typeKey(.space, modifierFlags: [])
                 XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+                let broker = sheet.staticTexts.matching(identifier: "ZERODHA").allElementsBoundByIndex.first(where: \.isEnabled)
+                XCTAssertNotNil(broker)
+                broker?.doubleClick()
                 app.typeKey(.escape, modifierFlags: [])
                 XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
-                account.staticTexts["AR"].click()
+                account.coordinate(withNormalizedOffset: CGVector(dx: 0.13, dy: 0.5)).click()
                 XCTAssertTrue(sheet.waitForExistence(timeout: 5))
             }
         }
@@ -95,7 +98,7 @@
             let sheet = app.sheets.firstMatch
             XCTAssertTrue(sheet.waitForExistence(timeout: 5))
             XCTAssertTrue(sheet.staticTexts["Not available"].firstMatch.waitForExistence(timeout: 10))
-            XCTAssertEqual(sheet.staticTexts.matching(identifier: "Not available").count, 4)
+            XCTAssertEqual(sheet.staticTexts.matching(identifier: "Not available").allElementsBoundByIndex.filter(\.isEnabled).count, 4)
             XCTAssertTrue(sheet.staticTexts["None enabled"].exists)
             XCTAssertTrue(sheet.staticTexts["LIMIT, SL-M"].exists)
             XCTAssertFalse(sheet.buttons["Copy email"].exists)

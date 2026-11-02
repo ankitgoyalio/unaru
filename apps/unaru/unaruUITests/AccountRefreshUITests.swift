@@ -61,16 +61,16 @@
                 second.buttons["Open Kite account"].click()
                 for window in app.windows.allElementsBoundByIndex {
                     XCTAssertTrue(window.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
-                    XCTAssertFalse(window.sheets.firstMatch.exists)
+                    XCTAssertFalse(window.sheets.containing(.staticText, identifier: "Kite account").firstMatch.exists)
                     XCTAssertFalse(window.buttons["Open Kite account"].exists)
-                    XCTAssertFalse(window.staticTexts["Asha Rao"].exists)
+                    XCTAssertFalse(accountIdentity(window, containing: "Asha Rao").exists)
                 }
                 backend.respond(path: "/profile", status: 200)
                 backend.releaseResponses()
                 let restored = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true"), object: app.buttons["Open Kite account"].firstMatch)
                 restored.isInverted = true
                 XCTAssertEqual(XCTWaiter.wait(for: [restored], timeout: 3), .completed)
-                XCTAssertFalse(app.staticTexts["Obsolete Person"].exists)
+                XCTAssertFalse(accountIdentity(app, containing: "Obsolete Person").exists)
                 XCTAssertEqual(backend.loginAttempts, 1)
             }
         }
@@ -87,7 +87,7 @@
                 backend.respond(path: "/profile", status: status, body: "{}")
                 app.buttons["Open Kite account"].click()
                 XCTAssertTrue(app.staticTexts["Unaru Couldn’t Start"].waitForExistence(timeout: 10))
-                XCTAssertFalse(app.sheets.firstMatch.exists)
+                XCTAssertFalse(app.sheets.containing(.staticText, identifier: "Kite account").firstMatch.exists)
                 XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
             }
         }

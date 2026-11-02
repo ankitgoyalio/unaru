@@ -16,11 +16,11 @@
             defer { cleanUp(app) }
             beginLogin(app, backend: backend)
             backend.completeLogin()
-            XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
+            XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").waitForExistence(timeout: 10))
             backend.respond(path: "/profile", status: 401, body: "{\"code\":\"kiteSignInRequired\"}")
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
             assertConnectionSheet(app)
-            XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
+            XCTAssertFalse(accountIdentity(app, containing: "Asha Rao").exists)
             XCTAssertFalse(app.buttons["Retry"].exists)
             XCTAssertEqual(backend.loginAttempts, 1)
             XCTAssertEqual(backend.browserHandoffs, 1)
@@ -33,12 +33,12 @@
             defer { cleanUp(app) }
             beginLogin(app, backend: backend)
             backend.completeLogin()
-            XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
+            XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").waitForExistence(timeout: 10))
             app.buttons["Hide Sidebar"].click()
             backend.loseSession()
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
             assertConnectionSheet(app)
-            XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
+            XCTAssertFalse(accountIdentity(app, containing: "Asha Rao").exists)
             let requests = backend.requests
             assertNoRequests(backend, after: requests)
             app.buttons["Sign in with Kite"].click()
@@ -46,7 +46,7 @@
             backend.completeLogin()
             XCTAssertTrue(app.buttons["Show Sidebar"].waitForExistence(timeout: 10))
             app.buttons["Show Sidebar"].click()
-            XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
+            XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").waitForExistence(timeout: 10))
             XCTAssertEqual(backend.loginAttempts, 2)
         }
 
@@ -58,7 +58,7 @@
                 defer { cleanUp(app) }
                 beginLogin(app, backend: backend)
                 backend.completeLogin()
-                XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
+                XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").waitForExistence(timeout: 10))
                 let completed = backend.completedResponses
                 backend.respond(path: path, status: status)
                 let validation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.completedResponses > completed }, object: nil)
@@ -67,7 +67,7 @@
                 lostIdentity.isInverted = true
                 XCTAssertEqual(XCTWaiter.wait(for: [lostIdentity], timeout: 3), .completed)
                 XCTAssertTrue(app.buttons["Open Kite account"].exists)
-                XCTAssertTrue(app.staticTexts["Asha Rao"].exists)
+                XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").exists)
                 XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
                 app.buttons["Open Kite account"].click()
                 let sheet = app.sheets.firstMatch

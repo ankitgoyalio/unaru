@@ -35,7 +35,12 @@
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .focusable()
             .focused($accountFocused)
+            .onKeyPress(.space) {
+                showingAccount = true
+                return .handled
+            }
             .accessibilityLabel("Open Kite account")
             .accessibilityValue("\(profile.name), \(profile.userID)")
             .sheet(isPresented: $showingAccount, onDismiss: { accountFocused = true }) {

@@ -100,6 +100,7 @@
                 .padding()
             }
             .frame(minWidth: 320, idealWidth: 440, maxWidth: 520, minHeight: 250, idealHeight: 480, maxHeight: 600)
+            .background { SheetEscapeKey { dismiss() }.frame(width: 0, height: 0).accessibilityHidden(true) }
             .onExitCommand { dismiss() }
         }
 
@@ -134,6 +135,60 @@
             }
             guard codes.allSatisfy({ available($0) != nil }) else { return nil }
             return codes.joined(separator: ", ")
+        }
+    }
+
+    /// Selectable AppKit text consumes Escape before SwiftUI's exit command.
+    /// Intercept it only in this sheet, including while its text has focus.
+    private struct SheetEscapeKey: NSViewRepresentable {
+        var dismiss: () -> Void
+
+        func makeNSView(context _: Context) -> EscapeView {
+            EscapeView(dismiss: dismiss)
+        }
+
+        func updateNSView(_ view: EscapeView, context _: Context) {
+            view.dismiss = dismiss
+        }
+
+        static func dismantleNSView(_ view: EscapeView, coordinator _: ()) {
+            view.stopMonitoring()
+        }
+
+        final class EscapeView: NSView {
+            var dismiss: () -> Void
+            private var monitor: Any?
+
+            init(dismiss: @escaping () -> Void) {
+                self.dismiss = dismiss
+                super.init(frame: .zero)
+            }
+
+            required init?(coder _: NSCoder) {
+                nil
+            }
+
+            override func viewDidMoveToWindow() {
+                super.viewDidMoveToWindow()
+                stopMonitoring()
+                guard window != nil else { return }
+                monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                    let handled = MainActor.assumeIsolated {
+                        guard let self, event.window === self.window, event.keyCode == 53,
+                              event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty else { return false }
+                        self.dismiss()
+                        return true
+                    }
+                    return handled ? nil : event
+                }
+            }
+
+            func stopMonitoring() {
+                if let monitor {
+                    NSEvent.removeMonitor(monitor)
+                    self.monitor = nil
+                }
+            }
         }
     }
 

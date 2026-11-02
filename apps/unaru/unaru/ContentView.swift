@@ -26,7 +26,6 @@ struct ContentView: View {
                     }
                 }
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 360)
-                .accessibilityLabel("Sidebar")
             } detail: {
                 Color.clear
             }

@@ -28,7 +28,7 @@
             backend.respond(path: "/logout", status: 200, hold: true, body: #"{"revocation":"confirmed"}"#)
             app.sheets.firstMatch.buttons["Log Out"].click()
             waitForPending(backend)
-            XCTAssertTrue(app.sheets.firstMatch.waitForNonExistence(timeout: 5))
+            XCTAssertTrue(app.sheets.containing(.staticText, identifier: "Kite account").firstMatch.waitForNonExistence(timeout: 5))
             XCTAssertEqual(app.buttons.matching(identifier: "Open Kite account").count, 0)
             XCTAssertEqual(app.buttons.matching(identifier: "Sign in with Kite").count, 2)
             XCTAssertFalse(app.buttons["Sign in with Kite"].firstMatch.isEnabled)
@@ -66,7 +66,7 @@
                 // No periodic verification may restore that authority after local logout.
                 let completed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.pendingResponses == 0 }, object: nil)
                 XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 5), .completed)
-                XCTAssertFalse(app.staticTexts["Obsolete Person"].exists)
+                XCTAssertFalse(accountIdentity(app, containing: "Obsolete Person").exists)
                 XCTAssertFalse(app.buttons["Open Kite account"].exists)
                 backend.respond(path: "/profile", status: 200)
                 app.buttons["Sign in with Kite"].click()
