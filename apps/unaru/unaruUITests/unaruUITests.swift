@@ -96,8 +96,9 @@ final class unaruUITests: XCTestCase {
             beginLogin(app, backend: backend)
             backend.respond(status: 200, hold: true, body: "{\"state\":\"signedIn\",\"profile\":{\"name\":\"Obsolete Person\",\"userID\":\"OLD123\"}}")
             waitForPending(backend)
-            app.buttons["Cancel Sign-In"].click()
+            app.typeKey(.escape, modifierFlags: [])
             XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 5))
+            assertConnectionSheet(app)
             backend.respond(status: 200)
             backend.releaseResponses()
             XCTAssertFalse(app.staticTexts["Obsolete Person"].exists)
@@ -147,7 +148,7 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        func testDedicatedSignInTransitionsToReadableSidebarInBothAppearances() throws {
+        func testSignInSheetTransitionsToReadableSidebarInBothAppearances() throws {
             for appearance in ["Light", "Dark"] {
                 let backend = try ControlledBackend()
                 defer { backend.stop() }
@@ -155,19 +156,22 @@ final class unaruUITests: XCTestCase {
                 let app = launch(backend: backend, appearance: appearance)
                 defer { cleanUp(app) }
                 XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
-                assertConnectionScreen(app)
-                capture(app, name: "Dedicated sign-in - \(appearance)")
+                assertConnectionSheet(app)
+                capture(app, name: "Sign-in sheet - \(appearance)")
+                app.typeKey(.escape, modifierFlags: [])
+                assertConnectionSheet(app)
                 XCTAssertTrue(app.buttons["Sign in with Kite"].isHittable)
                 app.typeKey(.return, modifierFlags: [])
                 XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForExistence(timeout: 5))
-                assertConnectionScreen(app)
+                assertConnectionSheet(app)
                 capture(app, name: "Browser sign-in pending - \(appearance)")
                 waitForHandoff(backend, count: 1)
                 backend.completeLogin()
                 XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForNonExistence(timeout: 10))
                 XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 5))
                 XCTAssertTrue(app.buttons["Hide Sidebar"].exists)
-                XCTAssertFalse(app.descendants(matching: .any)["Connection screen"].exists)
+                XCTAssertTrue(app.sheets.firstMatch.waitForNonExistence(timeout: 5))
+                XCTAssertFalse(app.descendants(matching: .any)["Connection sheet"].exists)
                 XCTAssertTrue(app.staticTexts["AR"].waitForExistence(timeout: 5))
                 let splitter = app.splitters.firstMatch
                 let start = splitter.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
@@ -180,10 +184,13 @@ final class unaruUITests: XCTestCase {
         }
 
         @MainActor
-        func assertConnectionScreen(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
-            XCTAssertTrue(app.descendants(matching: .any)["Connection screen"].firstMatch.exists, file: file, line: line)
-            XCTAssertFalse(app.splitters.firstMatch.exists, file: file, line: line)
-            XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch.exists, file: file, line: line)
+        func assertConnectionSheet(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+            XCTAssertTrue(app.descendants(matching: .any)["Connection sheet"].firstMatch.exists, file: file, line: line)
+            let sheet = app.sheets.firstMatch
+            XCTAssertTrue(sheet.waitForExistence(timeout: 5), file: file, line: line)
+            XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch.exists, file: file, line: line)
+            XCTAssertLessThan(sheet.frame.width, app.windows.firstMatch.frame.width, file: file, line: line)
+            XCTAssertLessThan(sheet.frame.height, app.windows.firstMatch.frame.height, file: file, line: line)
         }
 
         @MainActor

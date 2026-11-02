@@ -7,7 +7,7 @@
 #if os(macOS)
     import SwiftUI
 
-    /// Sign-in and recovery for the app-managed backend, outside the authenticated shell.
+    /// Sign-in and recovery presented in a modal sheet over the main window.
     struct ConnectionStatusView: View {
         /// The bundled backend and its verified Kite session.
         @EnvironmentObject private var connection: BackendConnection
@@ -65,7 +65,7 @@
             }
             .defaultScrollAnchor(.center, for: .alignment)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityIdentifier("Connection screen")
+            .accessibilityIdentifier("Connection sheet")
         }
 
         /// Retries verification or restarts a failed local service.

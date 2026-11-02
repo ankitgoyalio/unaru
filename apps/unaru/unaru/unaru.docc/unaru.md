@@ -17,11 +17,12 @@ Set Up Kite with Open Configuration Folder and Retry. Register
 the Kite access token in memory. Closing and reopening a window retains that session;
 quitting the app discards it.
 
-Startup, sign-in, and recovery use a dedicated screen without a sidebar. Sign in with
-Kite opens the default browser. The app polls an authorized attempt with a five-minute
-deadline and cancellation. Successful login opens the native split view with a
-resizable sidebar and informational ``AccountFooter``. It shows the avatar or initials,
-full name, and Kite user ID. The signed-in main area stays empty.
+Startup, sign-in, and recovery use a fixed-size, window-modal sheet over the native
+split view. The sheet closes after the account is verified. Sign in with Kite opens
+the default browser. The app polls an authorized attempt with a five-minute deadline
+and cancellation. Cancelling sign-in returns to the sign-in action within the sheet.
+The resizable sidebar shows an informational ``AccountFooter`` only while signed in.
+It shows the avatar or initials, full name, and Kite user ID. The main area stays empty.
 
 ``BackendConnection`` rejects obsolete verification and cancelled login responses.
 Temporary login-status or profile errors offer Retry Sign-In for the same attempt.
