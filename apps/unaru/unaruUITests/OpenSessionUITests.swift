@@ -12,7 +12,7 @@
         func testOpenAppRequestsLoginWhenProviderRejectsSession() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
-            let app = launch(revalidationInterval: "2")
+            let app = launch(backend: backend, revalidationInterval: "2")
             defer { cleanUp(app) }
             beginLogin(app, backend: backend)
             backend.completeLogin()
@@ -29,7 +29,7 @@
         func testOpenAppRequestsLoginAfterBackendLosesSession() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
-            let app = launch(revalidationInterval: "2")
+            let app = launch(backend: backend, revalidationInterval: "2")
             defer { cleanUp(app) }
             beginLogin(app, backend: backend)
             backend.completeLogin()
@@ -54,7 +54,7 @@
             for (path, status) in [("/session", 0), ("/profile", 503)] {
                 let backend = try ControlledBackend()
                 defer { backend.stop() }
-                let app = launch(revalidationInterval: "2")
+                let app = launch(backend: backend, revalidationInterval: "2")
                 defer { cleanUp(app) }
                 beginLogin(app, backend: backend)
                 backend.completeLogin()
@@ -74,35 +74,6 @@
                 XCTAssertEqual(backend.loginAttempts, 1)
                 XCTAssertEqual(backend.browserHandoffs, 1)
             }
-        }
-
-        func testChangingConnectionRejectsDelayedBackgroundValidation() throws {
-            let previous = try ControlledBackend()
-            let current = try ControlledBackend()
-            defer { previous.stop(); current.stop() }
-            let app = launch(revalidationInterval: "2")
-            defer { cleanUp(app) }
-            beginLogin(app, backend: previous)
-            previous.completeLogin()
-            XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
-            previous.respond(path: "/profile", status: 200, hold: true,
-                             body: "{\"name\":\"Obsolete Person\",\"userID\":\"OLD123\"}")
-            waitForPending(previous)
-            // A slow check preserves the footer and cannot spawn overlapping checks.
-            XCTAssertTrue(app.staticTexts["Asha Rao"].exists)
-            assertNoRequests(previous, after: previous.requests)
-            app.typeKey(",", modifierFlags: .command)
-            connect(app, address: current.address)
-            XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
-            previous.releaseResponses()
-            let obsolete = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                MainActor.assumeIsolated { app.staticTexts["Obsolete Person"].exists }
-            }, object: nil)
-            obsolete.isInverted = true
-            XCTAssertEqual(XCTWaiter.wait(for: [obsolete], timeout: 3), .completed)
-            XCTAssertTrue(app.buttons["Sign in with Kite"].exists)
-            XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
-            assertNoRequests(previous, after: previous.requests)
         }
 
         private func assertNoRequests(_ backend: ControlledBackend, after count: Int) {

@@ -27,7 +27,12 @@ func routes(
     protected.post("login") { _ async throws -> Response in
         let response = Response(status: .ok)
         // Match the Mac client's Foundation date representation.
-        try await response.content.encode(login.start(), using: JSONEncoder())
+        do {
+            try await response.content.encode(login.start(), using: JSONEncoder())
+        } catch let error as any AbortError where error.status == .serviceUnavailable {
+            response.status = .serviceUnavailable
+            try response.content.encode(ConnectionProblem(code: .backendNotConfigured), as: .json)
+        }
         return response
     }
     protected.get("login", ":id") { request async throws -> Response in

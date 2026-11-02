@@ -112,9 +112,12 @@ jobs:
           xcodebuild test -project apps/unaru/unaru.xcodeproj -scheme unaru \
             -destination 'platform=macOS' -derivedDataPath .build/macos \
             -only-testing:unaruUITests CODE_SIGN_IDENTITY=- \
+            -resultBundlePath .test-results/macos-ui.xcresult \
             -test-timeouts-enabled YES -default-test-execution-time-allowance 120 \
             -maximum-test-execution-time-allowance 180 \
             2>&1 | tee .test-results/macos-ui.log
+          xcrun xcresulttool export attachments --path .test-results/macos-ui.xcresult \
+            --output-path .test-results/screenshots --filter '*.png'
       - name: Build and verify full DocC site
         run: python3 Scripts/build-documentation.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

@@ -4,7 +4,13 @@ The Vapor backend for Unaru.
 
 ## Overview
 
-The backend exposes health and greeting routes plus an authorized `GET /session`
+The Mac app embeds this executable, starts it on loopback with `UNARU_BUNDLED=1`,
+and passes a launch-scoped `UNARU_CONNECTION_TOKEN`. This mode disables the pairing
+registry and Keychain bootstrap. The app owns the stdin pipe; EOF terminates the helper
+even after an abrupt parent exit. Kite configuration comes from the app's private
+Application Support folder. The app does not connect to standalone servers.
+
+For standalone development, the backend exposes health and greeting routes plus an authorized `GET /session`
 operation. ``PairingStore`` approves app-generated credentials and persists their public keys
 in an owner-only data directory. ``ConnectionAuthorization`` protects app operations
 with fresh, signed requests using the app’s private key. Existing
@@ -48,10 +54,11 @@ file loading. File changes take effect on restart.
 | `KITE_API_SECRET` | Backend-only request-token exchange secret | Required for login |
 | `LOG_LEVEL` | Logging threshold, overridden by `--log` | `info` in development, `notice` in production |
 | `UNARU_DATA_DIRECTORY` | Native persistent pairing state directory | Backend user's `~/.unaru` |
-| `UNARU_CONNECTION_TOKEN` | Optional authorization for legacy clients | Unset; new clients use pairing |
+| `UNARU_CONNECTION_TOKEN` | App-generated authorization in bundled mode; optional standalone token | Unset |
+| `UNARU_BUNDLED` | App-managed helper with stdin lifetime and no pairing | Unset |
 
 Missing Kite credentials leave pairing and session status available, but login
-initiation returns HTTP 503. Startup logs a warning without credential values. The
+initiation returns HTTP 503 with `{"code":"backendNotConfigured"}`. Startup logs a warning without credential values. The
 hostname and port remain `serve` command options. The example configuration and local,
 Xcode, and Compose launch procedures are in the repository's backend setup guide.
 

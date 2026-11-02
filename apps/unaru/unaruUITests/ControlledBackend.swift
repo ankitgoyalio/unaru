@@ -15,9 +15,6 @@
         private let lock = NSLock()
         private var responses: [String: (status: Int, hold: Bool, body: String?)] = [:]
         private var authenticated = false
-        private var credential = ""
-        private var pairingApproved = true
-        private var pairingCancelled = false
         private var profileRequests = 0
         private var responseStatus = 200
         private var holdResponses = false
@@ -31,18 +28,6 @@
         private var attemptNumber = 0
         private var avatar: String?
         private var handoffURL: String?
-
-        func requireApproval() {
-            lock.withLock { pairingApproved = false }
-        }
-
-        func approvePairing() {
-            lock.withLock { pairingApproved = true }
-        }
-
-        var wasPairingCancelled: Bool {
-            lock.withLock { pairingCancelled }
-        }
 
         var browserURL: String? {
             lock.withLock { handoffURL }
@@ -188,24 +173,10 @@
                     return (override?.status ?? responseStatus, override?.hold ?? holdResponses,
                             override?.body ?? responseBody, responseLocation, authenticated)
                 }
-                let authorized = lines.contains {
-                    $0.lowercased().hasPrefix("x-unaru-key:") &&
-                        $0.dropFirst("x-unaru-key:".count).trimmingCharacters(in: .whitespaces) == lock.withLock { credential }
-                }
-                let isPairing = path == "/pairing" || path.hasPrefix("/pairing/")
-                let status = isPairing ? 200 : (authorized ? configuredStatus : 401)
+                let authorized = lines.contains { $0.lowercased() == "authorization: bearer ui-test-token" }
+                let status = authorized ? configuredStatus : 401
                 let body: String
-                if isPairing {
-                    if path == "/pairing", text.hasPrefix("POST") {
-                        let payload = try? JSONSerialization.jsonObject(with: requestBody) as? [String: String]
-                        lock.withLock { credential = payload?["publicKey"] ?? "" }
-                    }
-                    if text.hasPrefix("DELETE") {
-                        lock.withLock { pairingCancelled = true }
-                    }
-                    let approved = lock.withLock { pairingApproved }
-                    body = "{\"id\":\"00000000-0000-0000-0000-000000000001\",\"code\":\"12345678\",\"expiresAt\":2000000000,\"approved\":\(approved)}"
-                } else if path == "/login", text.hasPrefix("POST") {
+                if path == "/login", text.hasPrefix("POST") {
                     let number = lock.withLock {
                         loginResult = "pending"
                         authenticated = false
@@ -252,7 +223,7 @@
                     }
                     connection.send(content: Data(response.utf8), completion: .contentProcessed { _ in connection.cancel() })
                 }
-                if hold, !isPairing {
+                if hold {
                     lock.withLock { heldResponses.append(send) }
                 } else {
                     send()

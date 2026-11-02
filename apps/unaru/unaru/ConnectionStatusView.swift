@@ -7,68 +7,55 @@
 #if os(macOS)
     import SwiftUI
 
-    /// A dedicated setup, sign-in, and recovery screen outside the authenticated shell.
+    /// Sign-in and recovery for the app-managed backend, outside the authenticated shell.
     struct ConnectionStatusView: View {
-        /// The currently selected backend and its verified state.
+        /// The bundled backend and its verified Kite session.
         @EnvironmentObject private var connection: BackendConnection
 
-        /// The action appropriate to the current connection state.
+        /// The action appropriate to startup, sign-in, or recovery.
         var body: some View {
             ScrollView {
                 VStack(spacing: 16) {
                     switch connection.phase {
-                    case .setup:
-                        Text("Connect to Your Backend").font(.title2)
-                        Text("Configure your self-hosted backend to get started.")
-                        settingsLink
-                    case let .pairing(code):
-                        PairingInstructions(code: code)
-                        Button("Cancel Connection") { connection.cancelLogin() }
-                        settingsLink
+                    case .starting:
+                        ProgressView("Starting Unaru…")
+                    case .startupFailed:
+                        Text("Unaru Couldn’t Start").font(.title2)
+                        Text("Unaru couldn’t start its local service. Close any other running copy of Unaru or service using port 8080, then retry.")
+                        retryButton
                     case .checking:
                         ProgressView("Verifying Connection…")
-                        settingsLink
                     case .signedOut:
                         Text("Kite Sign-In Required").font(.title2)
-                        Text("Your backend connection is verified. No Kite account is signed in.")
                         Button("Sign in with Kite") { connection.signIn() }
                             .buttonStyle(.borderedProminent)
                             .keyboardShortcut(.defaultAction)
-                        settingsLink
                     case .loggingIn:
                         ProgressView("Complete Sign-In in Your Browser")
                         Text("Return here after signing in. This attempt expires after five minutes.")
                         Button("Cancel Sign-In") { connection.cancelLogin() }
                             .keyboardShortcut(.cancelAction)
-                        settingsLink
                     case .loginUnavailable:
                         Text("Sign-In Temporarily Unavailable").font(.title2)
                         Text("Check your connection, then retry to finish signing in.")
                         Button("Retry Sign-In") { connection.retryLogin() }
                         Button("Cancel Sign-In") { connection.cancelLogin() }
-                        settingsLink
                     case .loginFailed:
                         Text("Sign-In Not Completed").font(.title2)
                         Text("The login was cancelled, rejected, or expired. You can try again.")
                         Button("Sign in with Kite") { connection.signIn() }
                             .buttonStyle(.borderedProminent)
-                        settingsLink
                     case .signedIn:
                         Color.clear
-                    case let .configurationError(message):
-                        Text("Check Connection Settings").font(.title2)
-                        Text(message)
-                        settingsLink
                     case .backendError:
-                        Text("Configure Your Backend").font(.title2)
-                        Text("The server has no valid connection token. Set UNARU_CONNECTION_TOKEN on the backend, then retry.")
+                        Text("Set Up Kite").font(.title2)
+                        Text("Add your Kite API key and secret to the .env file in Unaru’s configuration folder, then choose Retry.")
+                        Button("Open Configuration Folder") { connection.openConfiguration() }
                         retryButton
-                        settingsLink
                     case .unavailable:
                         Text("Connection Unavailable").font(.title2)
-                        Text("Check your network and backend, then retry. A temporary backend or Kite failure does not require another sign-in.")
+                        Text("Check your internet connection, then retry. Your Kite session may still be available.")
                         retryButton
-                        settingsLink
                     }
                 }
                 .multilineTextAlignment(.center)
@@ -81,17 +68,9 @@
             .accessibilityIdentifier("Connection screen")
         }
 
-        /// Opens native Settings through the same destination as the app menu command.
-        private var settingsLink: some View {
-            SettingsLink {
-                Text("Configure Connection")
-            }
-            .buttonStyle(.borderedProminent)
-        }
-
-        /// Repeats verification without altering the stored address or token.
+        /// Retries verification or restarts a failed local service.
         private var retryButton: some View {
-            Button("Retry") { connection.verify() }
+            Button("Retry") { connection.retry() }
                 .keyboardShortcut(.defaultAction)
         }
     }

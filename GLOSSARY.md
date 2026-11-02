@@ -1,6 +1,6 @@
 # Unaru
 
-Unaru is a self-hosted app for personal use with Kite Connect.
+Unaru is an app for personal use with Kite Connect.
 
 ## Language
 
@@ -9,4 +9,4 @@ The Zerodha trading account whose identity and data the user accesses through Un
 _Avoid_: Unaru account
 
 **Connection pairing**:
-Approval that permits a particular Unaru installation to access a self-hosted backend. It is separate from signing in to a Kite account.
+Approval that permits a client to access an independently running backend. It is separate from signing in to a Kite account.
