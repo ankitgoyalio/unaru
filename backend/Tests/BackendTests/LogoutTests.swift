@@ -82,6 +82,7 @@ struct LogoutTests {
                 let result = try await pending.value
                 #expect(result.body.string == #"{"revocation":"unconfirmed"}"#)
             }
+            await transport.setAccessToken("new-test-access")
             _ = try await signIn(app)
             await transport.release()
             if !timeout {
@@ -92,6 +93,11 @@ struct LogoutTests {
             #expect(try session.content.decode(SessionStatus.self).state == .signedIn)
             let profile = try await app.testing().sendRequest(.GET, "profile", headers: authorization)
             #expect(profile.status == .ok)
+            let requests = await transport.requests
+            let revoked = try #require(requests.first { $0.method == .delete })
+            let query = URLComponents(url: revoked.url, resolvingAgainstBaseURL: false)?.queryItems
+            #expect(query?.first { $0.name == "access_token" }?.value == "test-access")
+            #expect(requests.last?.headers["Authorization"] == "token test-key:new-test-access")
         }
     }
 

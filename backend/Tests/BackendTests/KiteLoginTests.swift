@@ -259,6 +259,7 @@ struct KiteLoginTests {
 /// Substitutes only Kite's outbound HTTP responses, leaving SDK encoding and decoding intact.
 actor KiteResponses: KiteHTTPTransport {
     var requests: [KiteHTTPRequest] = []
+    private var accessToken = "test-access"
     var exchangeStatus = 200
     var profileStatus = 200
     private var profileErrorType: String?
@@ -290,6 +291,10 @@ actor KiteResponses: KiteHTTPTransport {
     func setInvalidation(body: String, disconnect: Bool = false) {
         invalidationBody = body
         invalidationDisconnect = disconnect
+    }
+
+    func setAccessToken(_ value: String) {
+        accessToken = value
     }
 
     func setExchangeStatus(_ code: Int) {
@@ -333,7 +338,7 @@ actor KiteResponses: KiteHTTPTransport {
         let status = exchange ? exchangeStatus : profileStatus
         let body: String
         if status == 200 {
-            let credentials = exchange ? ",\"api_key\":\"test-key\",\"access_token\":\"test-access\",\"public_token\":\"test-public\",\"refresh_token\":\"\",\"login_time\":\"2026-11-01 10:00:00\"" : ""
+            let credentials = exchange ? ",\"api_key\":\"test-key\",\"access_token\":\"\(accessToken)\",\"public_token\":\"test-public\",\"refresh_token\":\"\",\"login_time\":\"2026-11-01 10:00:00\"" : ""
             body = "{\"status\":\"success\",\"data\":{\"user_id\":\"AB1234\",\"user_name\":\"Asha Rao\",\"user_shortname\":\"Asha\",\"user_type\":\"individual\",\"email\":\"asha@example.invalid\",\"broker\":\"ZERODHA\",\"exchanges\":[\"NSE\"],\"products\":[\"CNC\"],\"order_types\":[\"LIMIT\"],\"avatar_url\":null,\"meta\":{\"demat_consent\":\"physical\"}\(credentials)}}"
         } else {
             body = "{\"status\":\"error\",\"error_type\":\"\(profileErrorType ?? (status == 403 ? "TokenException" : "NetworkException"))\",\"message\":\"Controlled failure\"}"

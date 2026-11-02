@@ -13,6 +13,7 @@ actor BoundedRevocation {
     private var request: Task<Void, Never>?
     private var deadline: Task<Void, Never>?
 
+    /// Returns the positive provider result, or false when the deadline wins.
     func run(client: KiteClient, timeout: Duration) async -> Bool {
         await withCheckedContinuation { continuation in
             self.continuation = continuation
