@@ -9,8 +9,23 @@
     import Shared
     import SwiftUI
 
-    /// Read-only details already obtained through the bundled backend.
+    /// Observes shared identity so every open sheet reflects refreshes and session expiry.
     struct AccountSheet: View {
+        @EnvironmentObject private var connection: BackendConnection
+
+        var body: some View {
+            Group {
+                if case let .signedIn(profile) = connection.phase {
+                    AccountDetails(profile: profile)
+                }
+            }
+            .onAppear { connection.refreshAccount() }
+        }
+    }
+
+    /// Read-only details already obtained through the bundled backend.
+    private struct AccountDetails: View {
+        @EnvironmentObject private var connection: BackendConnection
         /// The current in-memory Kite account profile.
         let profile: AccountProfile
         @EnvironmentObject private var connection: BackendConnection
@@ -18,10 +33,28 @@
 
         var body: some View {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Kite account")
-                    .font(.title2.bold())
-                    .accessibilityAddTraits(.isHeader)
-                    .padding()
+                HStack {
+                    Text("Kite account")
+                        .font(.title2.bold())
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer()
+                    if connection.isRefreshingAccount {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityLabel("Refreshing account details")
+                    }
+                }
+                .padding()
+                if connection.accountRefreshFailed {
+                    HStack {
+                        Text("Couldn't refresh account details")
+                        Spacer()
+                        Button("Retry") { connection.refreshAccount() }
+                            .disabled(connection.isRefreshingAccount)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         HStack(alignment: .top, spacing: 12) {
@@ -75,7 +108,7 @@
             VStack(alignment: .leading, spacing: 4) {
                 Text(label).font(.subheadline).foregroundStyle(.secondary)
                 HStack(alignment: .top) {
-                    Text(available(value) ?? "Not available")
+                    Text(available(value) ?? (connection.isRefreshingAccount ? "Loading…" : "Not available"))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)

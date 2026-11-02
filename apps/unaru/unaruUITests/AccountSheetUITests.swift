@@ -10,6 +10,36 @@
 
     @MainActor
     extension unaruUITests {
+        func testOpeningAccountShowsKnownIdentityWhileRefreshingMissingDetails() throws {
+            let backend = try ControlledBackend()
+            defer { backend.stop() }
+            backend.useProfile(#"{"name":"Asha Rao","userID":"AB1234"}"#)
+            let app = launch(backend: backend)
+            defer { cleanUp(app) }
+            beginLogin(app, backend: backend)
+            backend.completeLogin()
+            let account = app.buttons["Open Kite account"]
+            XCTAssertTrue(account.waitForExistence(timeout: 10))
+            backend.respond(path: "/profile", status: 200, hold: true,
+                            body: #"{"name":"Asha Rao","userID":"AB1234","email":"updated@example.invalid"}"#)
+            account.click()
+            let sheet = app.sheets.firstMatch
+            XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+            XCTAssertTrue(sheet.staticTexts["Asha Rao"].exists)
+            XCTAssertTrue(sheet.staticTexts["AB1234"].exists)
+            waitForPending(backend)
+            XCTAssertTrue(sheet.progressIndicators["Refreshing account details"].exists)
+            XCTAssertFalse(sheet.staticTexts["Not available"].exists)
+            backend.respond(path: "/profile", status: 200)
+            backend.releaseResponses()
+            XCTAssertTrue(sheet.staticTexts["updated@example.invalid"].waitForExistence(timeout: 10))
+            XCTAssertFalse(sheet.progressIndicators["Refreshing account details"].exists)
+            sheet.buttons["Done"].click()
+            backend.useProfile(#"{"name":"Asha Rao","userID":"AB1234","email":"reopened@example.invalid"}"#)
+            account.click()
+            XCTAssertTrue(sheet.staticTexts["reopened@example.invalid"].waitForExistence(timeout: 10))
+        }
+
         func testAccountRowOpensSheetAndRestoresKeyboardFocus() throws {
             for appearance in ["Light", "Dark"] {
                 let backend = try ControlledBackend()
@@ -64,6 +94,7 @@
             account.click()
             let sheet = app.sheets.firstMatch
             XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+            XCTAssertTrue(sheet.staticTexts["Not available"].firstMatch.waitForExistence(timeout: 10))
             XCTAssertEqual(sheet.staticTexts.matching(identifier: "Not available").count, 4)
             XCTAssertTrue(sheet.staticTexts["None enabled"].exists)
             XCTAssertTrue(sheet.staticTexts["LIMIT, SL-M"].exists)

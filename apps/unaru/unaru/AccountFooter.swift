@@ -10,6 +10,7 @@
 
     /// One native account action pinned to the bottom of the sidebar.
     struct AccountFooter: View {
+        @EnvironmentObject private var connection: BackendConnection
         /// The identity obtained after exchange and profile validation.
         let profile: AccountProfile
 
@@ -38,7 +39,12 @@
             .accessibilityLabel("Open Kite account")
             .accessibilityValue("\(profile.name), \(profile.userID)")
             .sheet(isPresented: $showingAccount, onDismiss: { accountFocused = true }) {
-                AccountSheet(profile: profile)
+                AccountSheet()
+            }
+            .onReceive(connection.$phase) { phase in
+                if case .signedIn = phase {} else {
+                    showingAccount = false
+                }
             }
         }
     }

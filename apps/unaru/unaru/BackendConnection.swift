@@ -39,7 +39,13 @@
 
         /// The state presented by every main window.
         @Published private(set) var phase: Phase = .starting {
-            didSet { scheduleRevalidation() }
+            didSet {
+                if case .signedIn = phase {} else {
+                    isRefreshingAccount = false
+                    accountRefreshFailed = false
+                }
+                scheduleRevalidation()
+            }
         }
 
         /// Local identity is already cleared while remote logout is being bounded.
@@ -48,6 +54,10 @@
         @Published private(set) var logoutUnconfirmed = false
         /// Verification cannot reattach old backend authority after local logout.
         private var requiresSignIn = false
+        /// Refresh activity shared by sheets in every window.
+        @Published private(set) var isRefreshingAccount = false
+        /// A retryable failure never removes an already validated identity.
+        @Published private(set) var accountRefreshFailed = false
 
         /// Launches and stops the backend bundled inside this application.
         private let backend = BundledBackend()
@@ -143,6 +153,12 @@
             verify(preservingIdentity: false)
         }
 
+        /// Refreshes the shared profile whenever a window opens its account sheet or retries.
+        func refreshAccount() {
+            guard case .signedIn = phase else { return }
+            verify(preservingIdentity: true)
+        }
+
         /// Keeps a validated footer stable during a background read, then applies the same error policy.
         private func verify(preservingIdentity: Bool) {
             guard !requiresSignIn, !isLoggingOut, let configuration else { return }
@@ -151,10 +167,16 @@
             revision += 1
             let currentRevision = revision
             task?.cancel()
+            isRefreshingAccount = preservingIdentity
             if !preservingIdentity {
                 phase = .checking
             }
             task = Task {
+                defer {
+                    if currentRevision == revision {
+                        isRefreshingAccount = false
+                    }
+                }
                 do {
                     let data = try await transport.send("session", configuration: configuration)
                     guard !Task.isCancelled, currentRevision == revision else { return }
@@ -166,6 +188,7 @@
                         let profileData = try await transport.send("profile", configuration: configuration)
                         let profile = try JSONDecoder().decode(AccountProfile.self, from: profileData)
                         guard !Task.isCancelled, currentRevision == revision else { return }
+                        accountRefreshFailed = false
                         phase = .signedIn(profile)
                     }
                 } catch {
@@ -175,7 +198,13 @@
                     case BackendTransport.Failure.configuration:
                         phase = .startupFailed
                     case BackendTransport.Failure.backendConfiguration: phase = .backendError
-                    default: phase = .unavailable
+                    default:
+                        if preservingIdentity, case .signedIn = phase {
+                            accountRefreshFailed = true
+                            scheduleRevalidation()
+                        } else {
+                            phase = .unavailable
+                        }
                     }
                 }
             }
