@@ -23,7 +23,7 @@
             app.launch()
             waitForPending(backend)
             XCTAssertTrue(app.descendants(matching: .any)["Verifying Connection…"].firstMatch.exists)
-            assertConnectionScreen(app)
+            assertConnectionSheet(app)
             XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
             XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
             backend.releaseResponses()
@@ -56,7 +56,7 @@
             XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
         }
 
-        func testRestorationRetriesNetworkAndProviderFailuresOnDedicatedScreen() throws {
+        func testRestorationRetriesNetworkAndProviderFailuresInSheet() throws {
             for (path, code, appearance) in [("/session", 0, "Light"), ("/profile", 503, "Dark")] {
                 let backend = try ControlledBackend()
                 defer { backend.stop() }
@@ -71,7 +71,7 @@
                 XCTAssertTrue(app.staticTexts["Connection Unavailable"].waitForExistence(timeout: 20))
                 XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
                 XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
-                assertConnectionScreen(app)
+                assertConnectionSheet(app)
                 capture(app, name: "Session recovery - \(appearance)")
                 XCTAssertTrue(app.buttons["Retry"].isHittable)
                 backend.respond(path: path, status: 200)

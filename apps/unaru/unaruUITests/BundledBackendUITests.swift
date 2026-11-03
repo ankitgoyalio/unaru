@@ -31,7 +31,7 @@
             XCTAssertFalse(app.buttons["Connect"].exists)
             XCTAssertFalse(app.textFields["Backend address"].exists)
             XCTAssertFalse(app.staticTexts["Approve This Connection"].exists)
-            assertConnectionScreen(app)
+            assertConnectionSheet(app)
             capture(app, name: "Automatic bundled startup")
             // Force termination must close the lifetime pipe and release the callback port.
             app.terminate()

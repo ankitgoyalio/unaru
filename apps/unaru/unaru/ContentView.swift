@@ -18,23 +18,25 @@ struct ContentView: View {
     /// The current platform's initial content.
     var body: some View {
         #if os(macOS)
-            Group {
-                if case let .signedIn(profile) = connection.phase {
-                    NavigationSplitView(columnVisibility: $visibility) {
-                        VStack {
-                            Spacer(minLength: 0)
-                            AccountFooter(profile: profile)
-                        }
-                        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 360)
-                        .accessibilityLabel("Sidebar")
-                    } detail: {
-                        Color.clear
+            NavigationSplitView(columnVisibility: $visibility) {
+                VStack {
+                    Spacer(minLength: 0)
+                    if case let .signedIn(profile) = connection.phase {
+                        AccountFooter(profile: profile)
                     }
-                } else {
-                    ConnectionStatusView()
                 }
+                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 360)
+                .accessibilityLabel("Sidebar")
+            } detail: {
+                Color.clear
             }
-            .frame(minWidth: 600, minHeight: 400)
+            .frame(minWidth: 600, minHeight: 520)
+            .sheet(isPresented: .constant(needsConnection)) {
+                ConnectionStatusView()
+                    .frame(width: 360, height: 450)
+                    .presentationSizing(.fitted)
+                    .interactiveDismissDisabled()
+            }
         #else
             VStack {
                 Image(systemName: "globe")
@@ -45,4 +47,14 @@ struct ContentView: View {
             .padding()
         #endif
     }
+
+    #if os(macOS)
+        /// Connection work stays modal until the account has been verified.
+        private var needsConnection: Bool {
+            if case .signedIn = connection.phase {
+                return false
+            }
+            return true
+        }
+    #endif
 }
