@@ -99,7 +99,7 @@
                 }
                 .padding()
             }
-            .frame(minWidth: 320, idealWidth: 440, maxWidth: 520, minHeight: 250, idealHeight: 480, maxHeight: 600)
+            .frame(width: 520, height: 640)
             .background { SheetEscapeKey { dismiss() }.frame(width: 0, height: 0).accessibilityHidden(true) }
             .onExitCommand { dismiss() }
         }
