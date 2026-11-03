@@ -36,6 +36,7 @@
             }
             .buttonStyle(.plain)
             .focusable()
+            .focusEffectDisabled()
             .focused($accountFocused)
             .onKeyPress(.space) {
                 showingAccount = true

@@ -29,7 +29,7 @@ struct ContentView: View {
             } detail: {
                 Color.clear
             }
-            .frame(minWidth: 600, minHeight: 520)
+            .frame(minWidth: 1024, minHeight: 794)
             .sheet(isPresented: .constant(needsConnection)) {
                 ConnectionStatusView()
                     .frame(width: 360, height: 450)
