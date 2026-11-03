@@ -29,6 +29,8 @@
         /// The current in-memory Kite account profile.
         let profile: AccountProfile
         @Environment(\.dismiss) private var dismiss
+        @State private var showingAvatar = false
+        @State private var confirmingLogout = false
 
         var body: some View {
             VStack(alignment: .leading, spacing: 0) {
@@ -57,7 +59,22 @@
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         HStack(alignment: .top, spacing: 12) {
-                            AccountAvatar(profile: profile)
+                            Button { showingAvatar = true } label: {
+                                AccountAvatar(profile: profile)
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Enlarge account avatar")
+                            .help("Enlarge account avatar")
+                            .popover(isPresented: $showingAvatar, arrowEdge: .leading) {
+                                AccountAvatar(profile: profile, size: 240)
+                                    .accessibilityElement(children: .ignore)
+                                    .accessibilityLabel("Avatar for \(profile.name)")
+                                    .padding(24)
+                                    .background {
+                                        SheetEscapeKey { showingAvatar = false }
+                                            .frame(width: 0, height: 0).accessibilityHidden(true)
+                                    }
+                            }
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(available(profile.name) ?? "Not available")
                                     .font(.title3.bold())
@@ -91,7 +108,8 @@
                 }
                 Divider()
                 HStack {
-                    Button("Log Out", role: .destructive) { connection.logOut() }
+                    Button("Log Out", role: .destructive) { confirmingLogout = true }
+                        .foregroundStyle(.red)
                         .disabled(connection.isLoggingOut)
                     Spacer()
                     Button("Done") { dismiss() }
@@ -100,8 +118,23 @@
                 .padding()
             }
             .frame(width: 520, height: 640)
-            .background { SheetEscapeKey { dismiss() }.frame(width: 0, height: 0).accessibilityHidden(true) }
-            .onExitCommand { dismiss() }
+            .background {
+                if !confirmingLogout {
+                    SheetEscapeKey {
+                        if showingAvatar {
+                            showingAvatar = false
+                        } else {
+                            dismiss()
+                        }
+                    }.frame(width: 0, height: 0).accessibilityHidden(true)
+                }
+            }
+            .alert("Log out of your Kite account?", isPresented: $confirmingLogout) {
+                Button("Cancel", role: .cancel) {}
+                Button("Log Out", role: .destructive) { connection.logOut() }
+            } message: {
+                Text("You'll need to sign in again to access your account in Unaru.")
+            }
         }
 
         private func detail(_ label: String, value: String?, copyLabel: String? = nil) -> some View {

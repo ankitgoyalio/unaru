@@ -60,16 +60,19 @@
         /// The identity whose avatar or initials appear.
         let profile: AccountProfile
 
+        /// The diameter of the image and its initials fallback.
+        var size: CGFloat = 36
+
         var body: some View {
             AsyncImage(url: profile.avatarURL) { image in
                 image.resizable().scaledToFill().accessibilityHidden(true)
             } placeholder: {
                 Text(initials)
-                    .font(.headline)
+                    .font(.system(size: size * 0.36, weight: .semibold))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(.quaternary)
             }
-            .frame(width: 36, height: 36)
+            .frame(width: size, height: size)
             .clipShape(Circle())
         }
 
