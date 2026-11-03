@@ -65,7 +65,7 @@
                             .buttonStyle(.borderless)
                             .accessibilityLabel("Enlarge account avatar")
                             .help("Enlarge account avatar")
-                            .popover(isPresented: $showingAvatar, arrowEdge: .leading) {
+                            .popover(isPresented: $showingAvatar, arrowEdge: .trailing) {
                                 AccountAvatar(profile: profile, size: 240)
                                     .accessibilityElement(children: .ignore)
                                     .accessibilityLabel("Avatar for \(profile.name)")
