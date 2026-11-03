@@ -32,7 +32,7 @@ struct ContentView: View {
             .frame(minWidth: 1024, minHeight: 794)
             .sheet(isPresented: .constant(needsConnection)) {
                 ConnectionStatusView()
-                    .frame(width: 360, height: 450)
+                    .frame(width: 400, height: 400)
                     .presentationSizing(.fitted)
                     .interactiveDismissDisabled()
             }
