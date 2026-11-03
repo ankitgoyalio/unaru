@@ -66,14 +66,19 @@
                             .accessibilityLabel("Enlarge account avatar")
                             .help("Enlarge account avatar")
                             .popover(isPresented: $showingAvatar, arrowEdge: .trailing) {
-                                AccountAvatar(profile: profile, size: 240)
-                                    .accessibilityElement(children: .ignore)
-                                    .accessibilityLabel("Avatar for \(profile.name)")
-                                    .padding(24)
-                                    .background {
-                                        SheetEscapeKey { showingAvatar = false }
-                                            .frame(width: 0, height: 0).accessibilityHidden(true)
-                                    }
+                                AsyncImage(url: profile.avatarURL) { image in
+                                    image.resizable().scaledToFit()
+                                } placeholder: {
+                                    AccountAvatar(profile: profile, size: 240)
+                                }
+                                .frame(width: 240, height: 240)
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel("Avatar for \(profile.name)")
+                                .padding(24)
+                                .background {
+                                    SheetEscapeKey { showingAvatar = false }
+                                        .frame(width: 0, height: 0).accessibilityHidden(true)
+                                }
                             }
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(available(profile.name) ?? "Not available")
