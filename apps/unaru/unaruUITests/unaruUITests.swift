@@ -10,7 +10,7 @@ import XCTest
 final class unaruUITests: XCTestCase {
     #if os(macOS)
         @MainActor
-        func testKiteBrowserCompletionShowsNoninteractiveIdentity() throws {
+        func testKiteBrowserCompletionShowsAccountButton() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
             let app = launch(backend: backend)
@@ -22,10 +22,9 @@ final class unaruUITests: XCTestCase {
             XCTAssertEqual(XCTWaiter.wait(for: [handoff], timeout: 5), .completed)
             XCTAssertEqual(backend.browserURL, "https://kite.zerodha.com/connect/login?v=3&api_key=test-key&redirect_params=state%3Dtest-state")
             backend.completeLogin()
-            XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.staticTexts["AB1234"].exists)
-            XCTAssertTrue(app.staticTexts["AR"].exists)
-            XCTAssertFalse(app.buttons["Asha Rao"].exists)
+            XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").waitForExistence(timeout: 10))
+            XCTAssertTrue(accountIdentity(app, containing: "AB1234").exists)
+            XCTAssertTrue(app.buttons["Open Kite account"].exists)
             XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
             XCTAssertFalse(app.buttons["Sign Out"].exists)
             let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
@@ -101,13 +100,13 @@ final class unaruUITests: XCTestCase {
             assertConnectionSheet(app)
             backend.respond(status: 200)
             backend.releaseResponses()
-            XCTAssertFalse(app.staticTexts["Obsolete Person"].exists)
+            XCTAssertFalse(accountIdentity(app, containing: "Obsolete Person").exists)
             app.buttons["Sign in with Kite"].click()
             XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForExistence(timeout: 5))
             waitForHandoff(backend, count: 2)
             backend.completeLogin()
-            XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
-            XCTAssertFalse(app.staticTexts["Obsolete Person"].exists)
+            XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").waitForExistence(timeout: 10))
+            XCTAssertFalse(accountIdentity(app, containing: "Obsolete Person").exists)
         }
 
         @MainActor
@@ -121,12 +120,12 @@ final class unaruUITests: XCTestCase {
                 backend.finishLogin(state: outcome)
                 XCTAssertTrue(app.staticTexts["Sign-In Not Completed"].waitForExistence(timeout: 10))
                 XCTAssertTrue(app.buttons["Sign in with Kite"].isHittable)
-                XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
+                XCTAssertFalse(accountIdentity(app, containing: "Asha Rao").exists)
                 app.buttons["Sign in with Kite"].click()
                 XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForExistence(timeout: 5))
                 waitForHandoff(backend, count: 2)
                 backend.completeLogin()
-                XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
+                XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").waitForExistence(timeout: 10))
             }
         }
 
@@ -139,11 +138,11 @@ final class unaruUITests: XCTestCase {
             beginLogin(app, backend: backend)
             backend.respond(status: 503)
             XCTAssertTrue(app.buttons["Retry Sign-In"].waitForExistence(timeout: 10))
-            XCTAssertFalse(app.staticTexts["Asha Rao"].exists)
+            XCTAssertFalse(accountIdentity(app, containing: "Asha Rao").exists)
             backend.respond(status: 200)
             backend.completeLogin()
             app.buttons["Retry Sign-In"].click()
-            XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 10))
+            XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").waitForExistence(timeout: 10))
             XCTAssertEqual(backend.browserHandoffs, 1)
         }
 
@@ -168,17 +167,16 @@ final class unaruUITests: XCTestCase {
                 waitForHandoff(backend, count: 1)
                 backend.completeLogin()
                 XCTAssertTrue(app.buttons["Cancel Sign-In"].waitForNonExistence(timeout: 10))
-                XCTAssertTrue(app.staticTexts["Asha Rao"].waitForExistence(timeout: 5))
+                XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").waitForExistence(timeout: 5))
                 XCTAssertTrue(app.buttons["Hide Sidebar"].exists)
                 XCTAssertTrue(app.sheets.firstMatch.waitForNonExistence(timeout: 5))
                 XCTAssertFalse(app.descendants(matching: .any)["Connection sheet"].exists)
-                XCTAssertTrue(app.staticTexts["AR"].waitForExistence(timeout: 5))
                 let splitter = app.splitters.firstMatch
                 let start = splitter.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
                 start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: -30, dy: 0)))
-                XCTAssertTrue(app.staticTexts["Asha Rao"].isHittable)
-                XCTAssertTrue(app.staticTexts["AB1234"].isHittable)
-                XCTAssertGreaterThan(app.staticTexts["Asha Rao"].frame.minY, app.windows.firstMatch.frame.midY)
+                XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").isHittable)
+                XCTAssertTrue(accountIdentity(app, containing: "AB1234").isHittable)
+                XCTAssertGreaterThan(accountIdentity(app, containing: "Asha Rao").frame.minY, app.windows.firstMatch.frame.midY)
                 capture(app, name: "Authenticated sidebar - \(appearance)")
             }
         }
@@ -191,6 +189,12 @@ final class unaruUITests: XCTestCase {
             XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch.exists, file: file, line: line)
             XCTAssertLessThan(sheet.frame.width, app.windows.firstMatch.frame.width, file: file, line: line)
             XCTAssertLessThan(sheet.frame.height, app.windows.firstMatch.frame.height, file: file, line: line)
+        }
+
+        /// The native account button exposes identity as its accessibility value.
+        @MainActor
+        func accountIdentity(_ root: XCUIElement, containing value: String) -> XCUIElement {
+            root.buttons.matching(NSPredicate(format: "label == %@ AND value CONTAINS %@", "Open Kite account", value)).firstMatch
         }
 
         @MainActor

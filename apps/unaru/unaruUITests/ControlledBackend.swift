@@ -25,8 +25,21 @@
         private var completedCount = 0
         private var loginResult = "pending"
         private var handoffs = 0
+        private var logoutRequests = 0
         private var attemptNumber = 0
+        private var profileJSON: String?
         private var avatar: String?
+
+        func useProfile(_ json: String) {
+            lock.withLock { profileJSON = json }
+        }
+
+        private func accountProfile(avatarField: String) -> String {
+            lock.withLock {
+                profileJSON ?? "{\"name\":\"Asha Rao\",\"userID\":\"AB1234\",\"email\":\"asha@example.invalid\",\"broker\":\"ZERODHA\",\"accountType\":\"individual\",\"exchanges\":[\"NSE\",\"BSE\"],\"products\":[\"CNC\",\"MIS\"],\"orderTypes\":[\"LIMIT\",\"SL-M\"]\(avatarField)}"
+            }
+        }
+
         private var handoffURL: String?
 
         var browserURL: String? {
@@ -58,6 +71,10 @@
 
         var validations: Int {
             lock.withLock { profileRequests }
+        }
+
+        var logouts: Int {
+            lock.withLock { logoutRequests }
         }
 
         var loginAttempts: Int {
@@ -176,7 +193,16 @@
                 let authorized = lines.contains { $0.lowercased() == "authorization: bearer ui-test-token" }
                 let status = authorized ? configuredStatus : 401
                 let body: String
-                if path == "/login", text.hasPrefix("POST") {
+                if path == "/logout", text.hasPrefix("POST") {
+                    lock.withLock {
+                        logoutRequests += 1
+                        if status == 200 {
+                            authenticated = false
+                            loginResult = "failed"
+                        }
+                    }
+                    body = configuredBody ?? #"{"revocation":"confirmed"}"#
+                } else if path == "/login", text.hasPrefix("POST") {
                     let number = lock.withLock {
                         loginResult = "pending"
                         authenticated = false
@@ -205,11 +231,11 @@
                     }
                     let avatarField = avatar.map { ",\"avatarURL\":\"\($0)\"" } ?? ""
                     body = configuredBody ?? (result == "signedIn"
-                        ? "{\"state\":\"signedIn\",\"profile\":{\"name\":\"Asha Rao\",\"userID\":\"AB1234\"\(avatarField)}}"
+                        ? "{\"state\":\"signedIn\",\"profile\":\(accountProfile(avatarField: avatarField))}"
                         : "{\"state\":\"\(result)\"}")
                 } else if path == "/profile" {
                     let avatarField = lock.withLock { avatar.map { ",\"avatarURL\":\"\($0)\"" } ?? "" }
-                    body = configuredBody ?? "{\"name\":\"Asha Rao\",\"userID\":\"AB1234\"\(avatarField)}"
+                    body = configuredBody ?? accountProfile(avatarField: avatarField)
                 } else {
                     body = configuredBody ?? (status == 200 ? "{\"state\":\"\(signedIn ? "signedIn" : "signedOut")\"}" : "{}")
                 }

@@ -45,12 +45,15 @@ struct KiteLoginTests {
             try await app.testing().test(.GET, "login/\(attempt.id)", headers: authorization, afterResponse: { response async in
                 let status = try? response.content.decode(LoginStatus.self)
                 #expect(status?.state == .signedIn)
-                #expect(status?.profile == AccountProfile(name: "Asha Rao", userID: "AB1234"))
+                #expect(status?.profile == AccountProfile(name: "Asha Rao", userID: "AB1234", email: "asha@example.invalid", broker: "ZERODHA", accountType: "individual", exchanges: ["NSE"], products: ["CNC"], orderTypes: ["LIMIT"]))
                 #expect(!response.body.string.contains("test-access"))
                 #expect(!response.body.string.contains("test-secret"))
             })
             try await app.testing().test(.GET, "profile", headers: authorization, afterResponse: { response async in
-                #expect((try? response.content.decode(AccountProfile.self))?.userID == "AB1234")
+                let profile = try? response.content.decode(AccountProfile.self)
+                #expect(profile == AccountProfile(name: "Asha Rao", userID: "AB1234", email: "asha@example.invalid", broker: "ZERODHA", accountType: "individual", exchanges: ["NSE"], products: ["CNC"], orderTypes: ["LIMIT"]))
+                let object = try? JSONSerialization.jsonObject(with: Data(response.body.string.utf8)) as? [String: Any]
+                #expect(Set(object?.keys.map(\.self) ?? []) == ["name", "userID", "email", "broker", "accountType", "exchanges", "products", "orderTypes"])
             })
             let requests = await transport.requests
             #expect(requests.map(\.url.path) == ["/session/token", "/user/profile", "/user/profile"])
@@ -256,11 +259,14 @@ struct KiteLoginTests {
 /// Substitutes only Kite's outbound HTTP responses, leaving SDK encoding and decoding intact.
 actor KiteResponses: KiteHTTPTransport {
     var requests: [KiteHTTPRequest] = []
+    private var accessToken = "test-access"
     var exchangeStatus = 200
     var profileStatus = 200
     private var profileErrorType: String?
     private var profileBody: String?
     private var disconnectProfile = false
+    private var invalidationBody = #"{"status":"success","data":true}"#
+    private var invalidationDisconnect = false
     private var heldPath: String?
     private var heldRequest: CheckedContinuation<Void, Never>?
     private var observer: CheckedContinuation<Void, Never>?
@@ -280,6 +286,15 @@ actor KiteResponses: KiteHTTPTransport {
         heldPath = nil
         heldRequest?.resume()
         heldRequest = nil
+    }
+
+    func setInvalidation(body: String, disconnect: Bool = false) {
+        invalidationBody = body
+        invalidationDisconnect = disconnect
+    }
+
+    func setAccessToken(_ value: String) {
+        accessToken = value
     }
 
     func setExchangeStatus(_ code: Int) {
@@ -307,6 +322,12 @@ actor KiteResponses: KiteHTTPTransport {
                 observer = nil
             }
         }
+        if request.method == .delete {
+            if invalidationDisconnect {
+                throw URLError(.networkConnectionLost)
+            }
+            return KiteHTTPResponse(statusCode: 200, body: Data(invalidationBody.utf8))
+        }
         let exchange = request.url.path == "/session/token"
         if !exchange, disconnectProfile {
             throw URLError(.networkConnectionLost)
@@ -317,7 +338,7 @@ actor KiteResponses: KiteHTTPTransport {
         let status = exchange ? exchangeStatus : profileStatus
         let body: String
         if status == 200 {
-            let credentials = exchange ? ",\"api_key\":\"test-key\",\"access_token\":\"test-access\",\"public_token\":\"test-public\",\"refresh_token\":\"\",\"login_time\":\"2026-11-01 10:00:00\"" : ""
+            let credentials = exchange ? ",\"api_key\":\"test-key\",\"access_token\":\"\(accessToken)\",\"public_token\":\"test-public\",\"refresh_token\":\"\",\"login_time\":\"2026-11-01 10:00:00\"" : ""
             body = "{\"status\":\"success\",\"data\":{\"user_id\":\"AB1234\",\"user_name\":\"Asha Rao\",\"user_shortname\":\"Asha\",\"user_type\":\"individual\",\"email\":\"asha@example.invalid\",\"broker\":\"ZERODHA\",\"exchanges\":[\"NSE\"],\"products\":[\"CNC\"],\"order_types\":[\"LIMIT\"],\"avatar_url\":null,\"meta\":{\"demat_consent\":\"physical\"}\(credentials)}}"
         } else {
             body = "{\"status\":\"error\",\"error_type\":\"\(profileErrorType ?? (status == 403 ? "TokenException" : "NetworkException"))\",\"message\":\"Controlled failure\"}"

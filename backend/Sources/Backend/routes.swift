@@ -24,6 +24,11 @@ func routes(
         try await response.content.encode(login.session(), as: .json)
         return response
     }
+    protected.post("logout") { _ async throws -> Response in
+        let response = Response(status: .ok)
+        try await response.content.encode(login.logout(), as: .json)
+        return response
+    }
     protected.post("login") { _ async throws -> Response in
         let response = Response(status: .ok)
         // Match the Mac client's Foundation date representation.

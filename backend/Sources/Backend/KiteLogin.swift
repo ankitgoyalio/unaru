@@ -21,10 +21,14 @@ actor KiteLogin {
     private let now: @Sendable () -> Date
     /// The lifetime of an authorized browser attempt.
     private let lifetime: TimeInterval
+    /// Maximum time to wait for provider revocation.
+    private let revocationTimeout: Duration
     /// The newest attempt, replacing all previous callback authority.
     private var attempt: Attempt?
     /// The client whose exchange and profile retrieval have succeeded.
     private var authenticated: KiteClient?
+    /// Only the latest authenticated profile read may publish identity or reject the session.
+    private var profileRequestID: UUID?
 
     /// Creates an installation with production transport unless tests supply HTTP responses.
     init(
@@ -32,12 +36,14 @@ actor KiteLogin {
         apiSecret: String? = Environment.get("KITE_API_SECRET"),
         transport: any KiteHTTPTransport = URLSessionKiteTransport(),
         lifetime: TimeInterval = 300,
+        revocationTimeout: Duration = .seconds(5),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.apiKey = apiKey
         self.apiSecret = apiSecret
         self.transport = transport
         self.lifetime = lifetime
+        self.revocationTimeout = revocationTimeout
         self.now = now
     }
 
@@ -117,25 +123,41 @@ actor KiteLogin {
         }
     }
 
+    /// Detaches all old authority before remote work; completion cannot mutate a newer session.
+    func logout() async -> LogoutResult {
+        let client = authenticated ?? attempt?.client
+        authenticated = nil
+        attempt = nil
+        guard let client else { return LogoutResult(revocation: .unconfirmed) }
+        let confirmed = await BoundedRevocation().run(client: client, timeout: revocationTimeout)
+        return LogoutResult(revocation: confirmed ? .confirmed : .unconfirmed)
+    }
+
     /// Reads an authenticated profile without exposing the SDK's token-bearing session.
     func profile() async throws -> AccountProfile {
         guard let client = authenticated else { throw Abort(.unauthorized, reason: "Kite sign-in required.") }
+        let requestID = UUID()
+        profileRequestID = requestID
+        let profile: KiteUserProfile
         do {
-            let profile = try await client.profile()
-            guard authenticated === client else { throw Abort(.conflict) }
-            return Self.identity(profile)
+            profile = try await client.profile()
         } catch {
+            guard authenticated === client, profileRequestID == requestID else {
+                throw Abort(.serviceUnavailable, reason: "Kite profile request was superseded.")
+            }
             if Self.isAuthenticationRejection(error) {
-                if authenticated === client {
-                    authenticated = nil
-                    if attempt?.client === client {
-                        attempt = nil
-                    }
+                authenticated = nil
+                if attempt?.client === client {
+                    attempt = nil
                 }
                 throw Abort(.unauthorized, reason: "Kite sign-in required.")
             }
             throw Abort(.serviceUnavailable, reason: "Kite profile is temporarily unavailable.")
         }
+        guard authenticated === client, profileRequestID == requestID else {
+            throw Abort(.serviceUnavailable, reason: "Kite profile request was superseded.")
+        }
+        return Self.identity(profile)
     }
 
     /// Reports only whether a completed backend-held session exists.
@@ -164,7 +186,12 @@ actor KiteLogin {
                   url.query == nil, url.fragment == nil else { return nil }
             return url
         }
-        return AccountProfile(name: profile.userName, userID: profile.userID, avatarURL: safe)
+        return AccountProfile(
+            name: profile.userName, userID: profile.userID, avatarURL: safe,
+            email: profile.email, broker: profile.broker, accountType: profile.userType,
+            exchanges: profile.exchanges.map(\.rawValue), products: profile.products.map(\.rawValue),
+            orderTypes: profile.orderTypes.map(\.rawValue),
+        )
     }
 
     /// In-memory attempt data, discarded on restart or replacement.

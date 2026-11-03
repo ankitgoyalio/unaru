@@ -15,11 +15,34 @@ public struct AccountProfile: Codable, Sendable, Equatable {
     /// An optional public HTTPS avatar address.
     public let avatarURL: URL?
 
+    /// Registered contact address, when supplied by Kite.
+    public let email: String?
+    /// Broker code reported by Kite.
+    public let broker: String?
+    /// Account type reported by Kite.
+    public let accountType: String?
+    /// Enabled exchange codes; nil means the provider omitted the field.
+    public let exchanges: [String]?
+    /// Enabled product codes, preserving provider meaning.
+    public let products: [String]?
+    /// Enabled order type codes; an empty list differs from an omitted field.
+    public let orderTypes: [String]?
+
     /// Creates the app-visible subset of a Kite profile.
-    public init(name: String, userID: String, avatarURL: URL? = nil) {
+    public init(
+        name: String, userID: String, avatarURL: URL? = nil,
+        email: String? = nil, broker: String? = nil, accountType: String? = nil,
+        exchanges: [String]? = nil, products: [String]? = nil, orderTypes: [String]? = nil,
+    ) {
         self.name = name
         self.userID = userID
         self.avatarURL = avatarURL
+        self.email = email
+        self.broker = broker
+        self.accountType = accountType
+        self.exchanges = exchanges
+        self.products = products
+        self.orderTypes = orderTypes
     }
 }
 

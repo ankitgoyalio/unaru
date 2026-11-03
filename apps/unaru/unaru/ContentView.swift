@@ -26,14 +26,13 @@ struct ContentView: View {
                     }
                 }
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 360)
-                .accessibilityLabel("Sidebar")
             } detail: {
                 Color.clear
             }
-            .frame(minWidth: 600, minHeight: 520)
+            .frame(minWidth: 1024, minHeight: 794)
             .sheet(isPresented: .constant(needsConnection)) {
                 ConnectionStatusView()
-                    .frame(width: 360, height: 450)
+                    .frame(width: 400, height: 400)
                     .presentationSizing(.fitted)
                     .interactiveDismissDisabled()
             }
