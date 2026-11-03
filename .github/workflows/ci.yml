@@ -126,6 +126,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/swift-build-cache
+      - name: Prepare display for minimum app window
+        run: swift Scripts/prepare-ui-display.swift
       - name: Run deterministic macOS UI acceptance tests
         run: |
           mkdir -p .test-results

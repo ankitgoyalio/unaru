@@ -84,6 +84,8 @@ browser cookies. The subprocess suite checks bundled authorization, missing Kite
 configuration, disabled pairing, and helper exit after its parent pipe closes.
 
 Run UI tests in an unlocked Mac login session with Xcode UI automation authorization.
+CI prepares a display of at least 1280 × 1024 points before UI tests so the
+1024 × 846 minimum app window and system chrome remain visible.
 An initialization or system-authentication failure means the tests did not run.
 For manual accessibility verification, use VoiceOver and keyboard navigation through
 startup, sign-in, cancellation, configuration recovery, and Retry. Confirm there is no
