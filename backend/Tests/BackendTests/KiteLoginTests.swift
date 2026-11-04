@@ -265,6 +265,7 @@ actor KiteResponses: KiteHTTPTransport {
     private var profileErrorType: String?
     private var profileBody: String?
     private var disconnectProfile = false
+    private var profileTimeout = false
     private var invalidationBody = #"{"status":"success","data":true}"#
     private var invalidationDisconnect = false
     private var heldPath: String?
@@ -301,6 +302,10 @@ actor KiteResponses: KiteHTTPTransport {
         exchangeStatus = code
     }
 
+    func setProfileTimeout(_ value: Bool) {
+        profileTimeout = value
+    }
+
     func setProfileStatus(_ code: Int) {
         profileStatus = code
     }
@@ -329,6 +334,9 @@ actor KiteResponses: KiteHTTPTransport {
             return KiteHTTPResponse(statusCode: 200, body: Data(invalidationBody.utf8))
         }
         let exchange = request.url.path == "/session/token"
+        if !exchange, profileTimeout {
+            throw URLError(.timedOut)
+        }
         if !exchange, disconnectProfile {
             throw URLError(.networkConnectionLost)
         }

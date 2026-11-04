@@ -65,6 +65,14 @@
                         Text("Unaru couldn’t confirm removal of your saved sign-in. Retry to finish logging out before signing in again.")
                         Button("Retry Log Out") { connection.retry() }
                             .keyboardShortcut(.defaultAction)
+                    case .sessionUnavailable:
+                        Text("Can’t Verify Kite Session").font(.title2)
+                        Text("Unaru couldn’t verify your saved Kite session. Check your internet connection, then retry.")
+                        retryButton
+                    case .storageUnavailable:
+                        Text("Saved Session Unavailable").font(.title2)
+                        Text("Unaru couldn’t read your saved Kite session from Keychain. Retry to check it again.")
+                        retryButton
                     case .unavailable:
                         Text("Connection Unavailable").font(.title2)
                         Text("Check your internet connection, then retry. Your Kite session may still be available.")

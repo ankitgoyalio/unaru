@@ -85,7 +85,12 @@ replaces only its external HTTP transport during tests.
   without discarding the Kite session.
 - `GET /session` restores saved bundled-helper authorization and validates its account
   before returning `signedIn`. Missing or confirmed invalid authorization returns
-  `signedOut`. Temporary read or provider failures return HTTP 503 and preserve the item.
+  `signedOut`. Temporary provider failures return HTTP 503 with
+  `{"code":"kiteSessionUnavailable"}`. Secure-storage read failures return HTTP 503 with
+  `{"code":"sessionStorageUnavailable"}`. Both preserve the item and permit retrying the
+  same request without browser login or token exchange, including after helper restart.
+  Neither response contains account identity. `GET /profile` uses the same codes when
+  restoration fails before a validated session exists.
   The optional `persistence` field is `saved`, `saveFailed`, or `memoryOnly` for signed-in
   sessions. The app follows `signedIn` with a fresh `GET /profile` before showing identity.
 - `POST /session/save` retries saving the current validated session and returns
@@ -108,7 +113,8 @@ A restart discards browser authority. Only a bundled Mac helper selects the narr
 ``KiteSessionStore`` boundary's Keychain implementation, ``KeychainKiteSessionStore``.
 The store scopes authorization to the API key and validated account. Synchronous storage
 operations cannot complete after newer actor authority; restored provider requests must
-still pass a generation check. Standalone and test coordinators default to no storage.
+still pass generation and request-order checks. An older restore response cannot clear
+or replace a newer validated session. Standalone and test coordinators default to no storage.
 
 The following example compiles as a Swift Testing test body without a network request:
 

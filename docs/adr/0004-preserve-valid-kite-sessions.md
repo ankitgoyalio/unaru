@@ -36,6 +36,11 @@ an isolated Keychain namespace. It verifies replacement with a different helper 
 hash under the same Apple Development identity, normal quit, parent crash, and
 sign-out followed by restart. Ad hoc CI signing alone does not prove this continuity.
 
+Credential-free recovery codes distinguish temporary provider validation failure from
+Keychain read failure. Both preserve saved authorization and keep identity hidden until
+Retry succeeds. Generation and request-order checks reject stale restore responses,
+including a rejection that arrives after a newer successful validation.
+
 Credential-free save status is included in session status and successful login
 completion. The app keeps the account usable while displaying Sign-In Not Saved.
 Retry Saving uses the validated helper-held session and clears the notice on success.
@@ -50,3 +55,6 @@ separate from local deletion failure.
 Synchronous store operations remain serialized with coordinator authority, including
 blocked saves and deletions. No old store completion can resume after a newer actor
 generation. Delayed provider responses still require generation and client checks.
+
+Signed lifecycle acceptance also stops the helper during a provider outage, then
+verifies recovery from Keychain without another exchange.

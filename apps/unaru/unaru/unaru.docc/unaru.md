@@ -33,8 +33,11 @@ saving clears the notice. Older helper responses can omit persistence status.
 Temporary login-status or profile errors offer Retry Sign-In for the same attempt.
 Session verification fetches a fresh profile before displaying identity. Periodic
 verification detects Kite authentication rejection and session loss. Temporary network
-failures offer Retry without repeating browser login. Credential rejection offers a
-local service restart. The app caches no profile or Kite credential. Redirects are
+failures offer Retry without repeating browser login. Saved-session validation failures
+show Can’t Verify Kite Session. Keychain read failures show Saved Session Unavailable.
+Both keep identity hidden and retry existing authorization. Failed retries retain the
+same recovery action, and successful validation closes the sheet. Credential rejection
+offers a local service restart without discarding the saved Kite token. The app caches no profile or Kite credential. Redirects are
 refused before credentials can be forwarded. Logout clears visible identity immediately,
 but failed durable removal shows Couldn’t Finish Logging Out with Retry Log Out.
 Sign-in stays blocked until the helper acknowledges deletion. A credential-free marker

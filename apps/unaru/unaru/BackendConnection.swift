@@ -10,10 +10,10 @@
     import Foundation
     import Shared
 
-    /// Owns the bundled backend and its currently verified Kite session.
+    /// Owns the helper and verified Kite session.
     @MainActor
     final class BackendConnection: ObservableObject {
-        /// The app-visible state of the current connection, never a cached identity.
+        /// Current connection state without cached identity.
         enum Phase: Equatable {
             /// The app is launching its embedded helper.
             case starting
@@ -21,7 +21,7 @@
             case startupFailed
             /// The app is making an authorized session-status request.
             case checking
-            /// The backend is reachable and requires Kite authentication.
+            /// The helper requires Kite authentication.
             case signedOut
             /// An authorized browser attempt is pending.
             case loggingIn
@@ -29,17 +29,21 @@
             case loginUnavailable
             /// The browser attempt failed and can be started again.
             case loginFailed
-            /// Exchange and profile retrieval have both completed.
+            /// Exchange and profile retrieval succeeded.
             case signedIn(AccountProfile)
-            /// The server configuration needs repair, rather than Kite reauthentication.
+            /// Kite configuration needs repair.
             case backendError
-            /// A temporary connection or server failure permits retry.
+            /// A temporary connection failure permits retry.
             case unavailable
             /// Saved authorization has not yet been durably removed.
             case logoutFailed
+            /// Saved authorization awaits a successful provider validation.
+            case sessionUnavailable
+            /// Secure storage could not be read and remains available for retry.
+            case storageUnavailable
         }
 
-        /// The state presented by every main window.
+        /// State shared by all windows.
         @Published private(set) var phase: Phase = .starting {
             didSet {
                 if case .signedIn = phase {} else {
@@ -88,7 +92,7 @@
         private var configuration: (url: URL, token: String)?
         /// The app's current attempt, retained only for retrying profile/status reads.
         private var activeAttempt: LoginAttempt?
-        /// An ephemeral transport that refuses redirects carrying credentials.
+        /// Ephemeral transport with redirects disabled.
         private let transport = BackendTransport()
 
         /// Starts the helper automatically without restoring external connection settings.
@@ -236,7 +240,11 @@
                             accountRefreshFailed = true
                             scheduleRevalidation()
                         } else {
-                            phase = .unavailable
+                            switch error {
+                            case BackendTransport.Failure.sessionUnavailable: phase = .sessionUnavailable
+                            case BackendTransport.Failure.storageUnavailable: phase = .storageUnavailable
+                            default: phase = .unavailable
+                            }
                         }
                     }
                 }

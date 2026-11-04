@@ -111,13 +111,22 @@ extension KiteLoginTests {
         default: await transport.setProfileResponse(status: 200, body: "invalid")
         }
         try await durableApp(storage, transport: transport) { app in
-            let failed = try await app.testing().sendRequest(.GET, "session", headers: authorization)
-            #expect(failed.status == .serviceUnavailable)
-            #expect(!failed.body.string.contains("Asha"))
-            storage.fail(nil)
-            await transport.setProfileResponse(status: 200)
+            for path in ["session", "profile", "session"] {
+                let failed = try await app.testing().sendRequest(.GET, path, headers: authorization)
+                #expect(failed.status == .serviceUnavailable)
+                let problem = try #require(JSONSerialization.jsonObject(with: Data(failed.body.readableBytesView)) as? [String: String])
+                #expect(problem == ["code": failure == "load" ? "sessionStorageUnavailable" : "kiteSessionUnavailable"])
+                #expect(failed.headers["Cache-Control"] == ["no-store"])
+            }
+        }
+        // Destroy the failed coordinator before recovery: authority must remain durable.
+        storage.fail(nil)
+        await transport.setProfileResponse(status: 200)
+        try await durableApp(storage, transport: transport) { app in
             let retry = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try retry.content.decode(SessionStatus.self).state == .signedIn)
+            let profile = try await app.testing().sendRequest(.GET, "profile", headers: authorization)
+            #expect(try profile.content.decode(AccountProfile.self).userID == "AB1234")
             #expect(await transport.requests.filter { $0.url.path == "/session/token" }.count == 1)
         }
     }

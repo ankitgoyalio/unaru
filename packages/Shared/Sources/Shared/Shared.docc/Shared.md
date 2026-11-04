@@ -18,7 +18,10 @@ and its resulting public identity. Dates use Foundation Codable's default second
 2001. These payloads contain no broker tokens or API secret. `ConnectionProblem`
 distinguishes `backendNotConfigured` from `kiteSignInRequired`. The latter accompanies
 an authorized profile request when no valid Kite session remains. A generic HTTP 401
-without that code indicates rejected app connection credentials. Session status reports
+without that code indicates rejected app connection credentials. HTTP 503 with
+`kiteSessionUnavailable` permits retrying validation of saved authorization.
+`sessionStorageUnavailable` permits retrying secure-storage access without claiming that
+the token is absent or invalid. Both preserve saved authorization. Session status reports
 a backend-held session; a fresh profile request validates it before the app displays
 identity. Optional `SessionStatus.persistence` reports `saved`, `saveFailed`, or
 `memoryOnly` for usable sessions without disclosing credentials. Older payloads without

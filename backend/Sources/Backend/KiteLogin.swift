@@ -17,6 +17,12 @@ actor KiteLogin {
         case missingCredentials
     }
 
+    /// A credential-free failure that permits retrying existing saved authorization.
+    struct RecoveryFailure: Error {
+        /// The recovery action shared with the app, without storage or provider diagnostics.
+        let code: ConnectionProblem.Code
+    }
+
     /// Credentials configured only in the backend environment.
     private let apiKey: String?
     /// The provider secret, never encoded in a response.
@@ -37,6 +43,8 @@ actor KiteLogin {
     private var generation = UUID()
     /// Initial restoration remains retryable after temporary failures.
     private var restoreNeeded = true
+    /// Only the newest restore validation may publish or invalidate saved authority.
+    private var restoreRequestID: UUID?
     /// Confirmed invalidation must finish durable removal before any restoration.
     private var removalPending = false
     /// The validated credential retained for saving without another exchange.
@@ -276,23 +284,31 @@ actor KiteLogin {
             return
         }
         let revision = generation
+        let requestID = UUID()
+        restoreRequestID = requestID
+        let stored: SavedKiteSession?
         do {
-            guard let session = try store.load(apiKey: apiKey) else {
-                restoreNeeded = false
-                return
-            }
+            stored = try store.load(apiKey: apiKey)
+        } catch {
+            throw RecoveryFailure(code: .sessionStorageUnavailable)
+        }
+        guard let session = stored else {
+            restoreNeeded = false
+            return
+        }
+        do {
             let client = try KiteClient(apiKey: apiKey, accessToken: session.accessToken, configuration: kiteConfiguration, transport: transport)
             let profile: KiteUserProfile
             do { profile = try await client.profile() }
             catch {
-                guard generation == revision else { throw CancellationError() }
+                guard generation == revision, restoreRequestID == requestID else { throw CancellationError() }
                 if Self.isAuthenticationRejection(error) {
                     try invalidate()
                     return
                 }
                 throw error
             }
-            guard generation == revision else { throw CancellationError() }
+            guard generation == revision, restoreRequestID == requestID else { throw CancellationError() }
             try Task.checkCancellation()
             guard profile.userID == session.userID else {
                 try invalidate()
@@ -302,8 +318,10 @@ actor KiteLogin {
             savedSession = session
             persistence = .saved
             restoreNeeded = false
+        } catch let error as any AbortError {
+            throw error
         } catch {
-            throw Abort(.serviceUnavailable, reason: "Saved Kite session is temporarily unavailable. Retry in Unaru.")
+            throw RecoveryFailure(code: .kiteSessionUnavailable)
         }
     }
 

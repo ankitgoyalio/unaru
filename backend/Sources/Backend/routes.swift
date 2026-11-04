@@ -21,7 +21,12 @@ func routes(
     let protected = app.grouped(ConnectionAuthorization(token: connectionToken, pairing: pairing))
     protected.get("session") { _ async throws -> Response in
         let response = Response(status: .ok)
-        try await response.content.encode(login.session(), as: .json)
+        do {
+            try await response.content.encode(login.session(), as: .json)
+        } catch let error as KiteLogin.RecoveryFailure {
+            response.status = .serviceUnavailable
+            try response.content.encode(ConnectionProblem(code: error.code), as: .json)
+        }
         return response
     }
     protected.post("session", "save") { _ async throws -> Response in
@@ -58,6 +63,9 @@ func routes(
         let response = Response(status: .ok)
         do {
             try await response.content.encode(login.profile(), as: .json)
+        } catch let error as KiteLogin.RecoveryFailure {
+            response.status = .serviceUnavailable
+            try response.content.encode(ConnectionProblem(code: error.code), as: .json)
         } catch let error as any AbortError where error.status == .unauthorized {
             response.status = .unauthorized
             try response.content.encode(ConnectionProblem(code: .kiteSignInRequired), as: .json)

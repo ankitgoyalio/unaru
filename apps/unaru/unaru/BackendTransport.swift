@@ -37,10 +37,12 @@
                 throw Failure.configuration
             case 503:
                 let problem = try? JSONDecoder().decode(ConnectionProblem.self, from: data)
-                if problem?.code == .backendNotConfigured {
-                    throw Failure.backendConfiguration
+                switch problem?.code {
+                case .backendNotConfigured: throw Failure.backendConfiguration
+                case .kiteSessionUnavailable: throw Failure.sessionUnavailable
+                case .sessionStorageUnavailable: throw Failure.storageUnavailable
+                default: throw Failure.unavailable
                 }
-                throw Failure.unavailable
             default: throw Failure.unavailable
             }
         }
@@ -51,6 +53,10 @@
             case configuration
             /// The authorized backend has no valid Kite session.
             case signedOut
+            /// Existing authorization can be retried after provider recovery.
+            case sessionUnavailable
+            /// Saved authorization could not be read from secure storage.
+            case storageUnavailable
             /// Kite credentials have not been configured.
             case backendConfiguration
             /// Browser handoff could not begin.
