@@ -19,6 +19,14 @@ references. A failed check stops publication.
 The default hosting prefix is `/unaru`. Pass `--base-path /` when building for
 a dedicated domain. Use the same prefix when checking the resulting site.
 
+CI builds Shared and Backend documentation beside their package tests with
+`--modules Shared Backend`. A separate Mac runner builds the app documentation
+with `--modules unaru`, including both Mac helper architectures. Each job uploads
+its module archives, inventories, and diagnostics. Linux assembly uses
+`--assemble-only --inputs <directory>` to combine those artifacts and verify the
+complete site. Missing module output fails assembly. The default local command
+still builds and validates all three modules.
+
 Outputs live in ignored `.build/documentation/`:
 
 - `Shared.doccarchive`, `Backend.doccarchive`, and `unaru.doccarchive` contain module archives.

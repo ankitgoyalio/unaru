@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / ".build/documentation"
@@ -20,7 +21,12 @@ MODULES = {
 
 
 def run(*args, cwd=ROOT):
-    subprocess.run(args, cwd=cwd, check=True)
+    started = time.monotonic()
+    print("Running: " + " ".join(map(str, args)), flush=True)
+    try:
+        subprocess.run(args, cwd=cwd, check=True)
+    finally:
+        print(f"Elapsed: {time.monotonic() - started:.1f}s", flush=True)
 
 
 def audit_coverage(module, graphs):
@@ -63,22 +69,53 @@ def audit_coverage(module, graphs):
     return inventory
 
 
+def extract_modules(bundle, output):
+    """Extract regular documentation files safely on Python 3.9 and later."""
+    for member in bundle:
+        destination = (output / member.name).resolve()
+        if not destination.is_relative_to(output.resolve()):
+            raise ValueError(f"Archive path escapes documentation output: {member.name}")
+        if member.isdir():
+            destination.mkdir(parents=True, exist_ok=True)
+        elif member.isfile():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with bundle.extractfile(member) as source, destination.open("wb") as target:
+                shutil.copyfileobj(source, target)
+        else:
+            raise ValueError(f"Unexpected documentation archive entry: {member.name}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-path", default="/unaru", help="Pages project path, or / for a custom domain")
+    parser.add_argument("--modules", nargs="+", choices=MODULES, default=list(MODULES))
+    parser.add_argument("--assemble-only", action="store_true", help="Verify and combine previously built modules")
+    parser.add_argument("--inputs", type=Path, help="Directory containing module validation tar files")
     args = parser.parse_args()
     base = "/" + args.base_path.strip("/") if args.base_path.strip("/") else ""
     run(sys.executable, "Scripts/check-documentation.py")
     run(sys.executable, "Scripts/check-documentation-examples.py")
-    docc = shutil.which("docc")
-    if not docc:
+    if args.inputs and args.assemble_only and OUTPUT.exists():
+        if OUTPUT.resolve() in args.inputs.resolve().parents:
+            parser.error("Module inputs must be outside the assembly output directory")
+        shutil.rmtree(OUTPUT)
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    if args.inputs:
+        if not args.assemble_only:
+            parser.error("--inputs requires --assemble-only")
+        for archive in sorted(args.inputs.rglob("docc-validation.tar")):
+            with tarfile.open(archive) as bundle:
+                extract_modules(bundle, OUTPUT)
+    docc = shutil.which("docc") if not args.assemble_only else None
+    if not docc and not args.assemble_only:
         docc = subprocess.check_output(["xcrun", "--find", "docc"], text=True).strip()
     site = OUTPUT / "site"
     if site.exists():
         shutil.rmtree(site)
     site.mkdir(parents=True)
     inventories = {}
-    for module, (package, catalog, access) in MODULES.items():
+    for module in ([] if args.assemble_only else args.modules):
+        package, catalog, access = MODULES[module]
         package = ROOT / package
         graphs = OUTPUT / "symbols" / module
         if graphs.exists():
@@ -88,7 +125,7 @@ def main():
             run("xcodebuild", "build", "-project", "apps/unaru/unaru.xcodeproj",
                 "-scheme", "unaru", "-destination", "generic/platform=macOS",
                 "-derivedDataPath", str(ROOT / ".build/docc-app"),
-                "CODE_SIGNING_ALLOWED=NO", "ONLY_ACTIVE_ARCH=YES")
+                "CODE_SIGNING_ALLOWED=NO", "ONLY_ACTIVE_ARCH=YES", "-showBuildTimingSummary")
             sdk = subprocess.check_output(["xcrun", "--show-sdk-path"], text=True).strip()
             run("xcrun", "swift-symbolgraph-extract", "-module-name", "unaru",
                 "-I", str(ROOT / ".build/docc-app/Build/Products/Debug"),
@@ -101,6 +138,7 @@ def main():
             for graph in (package / ".build/out/symbolgraph").glob(f"{module}*.symbols.json"):
                 shutil.copy2(graph, graphs / graph.name)
         inventories[module] = audit_coverage(module, graphs)
+        (OUTPUT / f"{module}-inventory.json").write_text(json.dumps(inventories[module], indent=2) + "\n")
         archive = OUTPUT / f"{module}.doccarchive"
         if archive.exists():
             shutil.rmtree(archive)
@@ -111,7 +149,22 @@ def main():
             "--experimental-documentation-coverage", "--coverage-summary-level", "detailed",
             "--transform-for-static-hosting", "--hosting-base-path", f"{base}/{module.lower()}",
             "--diagnostics-file", str(OUTPUT / f"{module}-diagnostics.json"))
-        shutil.copytree(archive, site / module.lower())
+    # Partial builds package only their own modules. Assembly fails on any missing
+    # module instead of publishing a partial site or a previous build's output.
+    complete = args.assemble_only or set(args.modules) == set(MODULES)
+    if not complete:
+        with tarfile.open(OUTPUT / "docc-validation.tar", "w") as bundle:
+            for module in args.modules:
+                for name in (f"{module}.doccarchive", f"{module}-inventory.json", f"{module}-diagnostics.json"):
+                    bundle.add(OUTPUT / name, arcname=name)
+        return
+    for module in MODULES:
+        inventory = json.loads((OUTPUT / f"{module}-inventory.json").read_text())
+        json.loads((OUTPUT / f"{module}-diagnostics.json").read_text())
+        if not inventory:
+            sys.exit(f"Missing {module} API inventory")
+        inventories[module] = inventory
+        shutil.copytree(OUTPUT / f"{module}.doccarchive", site / module.lower())
     (OUTPUT / "api-inventory.json").write_text(json.dumps(inventories, indent=2) + "\n")
     links = "\n".join(
         f'<li><a href="{base}/{module.lower()}/documentation/{module.lower()}/">{module}</a></li>'

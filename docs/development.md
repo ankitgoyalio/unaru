@@ -29,6 +29,7 @@ incompatible compiler, Xcode version, or formatter.
 swiftformat . --lint --config .swiftformat
 python3 -m unittest discover -s Tests/Hooks -p 'test_*.py'
 python3 -m unittest discover -s Tests/Documentation -p 'test_*.py'
+python3 -m unittest discover -s Tests/CI -p 'test_*.py'
 python3 Scripts/check-documentation.py
 python3 Scripts/check-documentation-examples.py
 swift test --package-path packages/Shared
@@ -52,17 +53,29 @@ compiles the app and its tests for iOS and visionOS simulators, runs macOS UI te
 builds the macOS app for DocC, and validates the static documentation. Workflow timeouts bound builds and tests.
 Logs and result artifacts belong in ignored `.test-results/`.
 
-Apple package checks and simulator builds, macOS UI tests, and DocC validation run
-in three parallel jobs. The required `apple` check succeeds only when all three
-jobs succeed. Linux package tests run independently. Every pull request still runs
-the full set of checks.
+Apple package checks and simulator builds, three macOS UI shards, and app DocC
+validation run on five independent Mac runners. Package documentation reuses the
+package test builds. A Linux job combines all three DocC modules and verifies the
+complete site. The required `apple` check requires every Apple job and site assembly
+to succeed. Linux package tests run independently. Every pull request runs the full
+set of checks.
+
+`.github/ui-test-shards.json` assigns each UI method to one runner. The runner
+script rejects missing or duplicated methods and requires every selected test to
+pass without skips. When adding or renaming a UI method, update its shard entry.
+Run `python3 -m unittest discover -s Tests/CI -p 'test_*.py'` to check the partition.
+Keep slow methods on separate shards. UI workers use independent desktops to avoid
+interference with keyboard focus and windows.
 
 CI caches SwiftPM dependencies and build products for each job, operating system,
-architecture, runner image, toolchain, and dependency manifest. A new commit can
-restore the previous compatible build and saves its own cache after success.
-Main-branch runs populate caches that new pull requests can restore. Restoring a
-cache never skips a build, test, or documentation check. Xcode DerivedData, result
-bundles, and generated documentation sites are not cached.
+architecture, runner image, toolchain, and dependency manifest. Caches contain
+weekly build seeds. SwiftPM checks the current source and incrementally rebuilds
+after every restore. Main and dispatched runs refresh a seed once per week. PRs
+save only when no compatible seed exists, and only the first UI shard saves the
+shared UI seed. This avoids saving large caches for every source commit.
+Main-branch caches remain available to new PRs within GitHub's cache retention
+limits. Restoring a cache never skips a build, test, or documentation check.
+Xcode DerivedData, result bundles, and generated documentation sites are not cached.
 
 The Mac app build runs `Scripts/bundle-backend.sh` to compile Backend for each requested
 architecture, combine the slices, and sign the helper with sandbox inheritance. The app
@@ -117,6 +130,8 @@ GitHub Actions references use full commit SHAs. Repository policy requires these
 pins and allows only the action repositories used by the workflows. Keep the
 allowlist synchronized when introducing an action. Every checkout disables
 persisted Git credentials. Workflow runs from outside contributors require approval.
+The cache allowlist includes `actions/cache@*` and `actions/cache/*@*` for separate
+restore and save actions. All workflow references still use full commit SHAs.
 
 CI runs actionlint with a checksum-verified binary. The Security workflow scans
 Actions and Python with CodeQL. Swift scanning awaits support for the Swift 6.4
@@ -132,6 +147,10 @@ that restores those caches. Report elapsed workflow time separately from the sum
 of runner time, because parallel jobs can reduce latency while consuming more compute.
 Keep raw API responses, logs, and timing reports in ignored `.test-results/` or CI
 artifacts. A failed or cancelled run is not a successful performance measurement.
+The CI dispatch input `cache_namespace` defaults to `swift-build-v2`. Use a unique
+value to measure empty optimization caches, then dispatch the same revision with
+the same value to measure restored caches. Each independent run starts fresh
+runners and executes all checks. Record each run separately.
 
 ## Update dependencies
 

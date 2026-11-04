@@ -1,0 +1,47 @@
+[
+  {
+    "shard": 1,
+    "tests": [
+      "testAccountRowOpensSheetAndRestoresKeyboardFocus",
+      "testRestorationRetriesNetworkAndProviderFailuresInSheet",
+      "testLogoutClearsEveryWindowBeforeRemoteCompletionAndAllowsSignIn",
+      "testOpeningAccountShowsKnownIdentityWhileRefreshingMissingDetails",
+      "testBackendRestartRequestsLoginWithoutShowingCachedIdentity",
+      "testRejectedInternalAuthorizationCanRetryWithoutSettings",
+      "testBundledBackendStartsWithoutConnectionSetupAndRelaunches",
+      "testBackendConfigurationFailureDoesNotAskForKiteSignIn",
+      "testTemporaryServerFailureOffersRetry"
+    ],
+    "measured_case_seconds": 182.594
+  },
+  {
+    "shard": 2,
+    "tests": [
+      "testUnconfirmedLogoutAndLateProfileCannotRestoreIdentity",
+      "testOpenAppRetriesTransientFailuresWithoutAnotherLogin",
+      "testOccupiedPortDoesNotReceiveCredentialsAndRetryStartsOwnHelper",
+      "testOpenAppRequestsLoginAfterBackendLosesSession",
+      "testNewSheetRefreshSupersedesHeldBackgroundProfile",
+      "testRelaunchValidatesBeforeRestoringIdentityWithoutBrowserLogin",
+      "testOpenAppRequestsLoginWhenProviderRejectsSession",
+      "testConnectionFailureCanRetryWithoutRepeatingSetup",
+      "testRedirectDoesNotForwardConnectionCredentials"
+    ],
+    "measured_case_seconds": 181.687
+  },
+  {
+    "shard": 3,
+    "tests": [
+      "testExpiryClearsEveryWindowAndRejectsHeldRefresh",
+      "testSignInSheetTransitionsToReadableSidebarInBothAppearances",
+      "testLoginDenialAndExpiryAllowAnotherAttempt",
+      "testSheetRefreshDoesNotTreatInternalAuthorizationAsKiteExpiry",
+      "testRevokedSessionOnLaunchOffersKiteLoginInsteadOfConnectionSettings",
+      "testCancellingLoginRejectsDelayedCompletionAndAllowsNewLogin",
+      "testAccountSheetDistinguishesMissingAndEmptyDetails",
+      "testKiteBrowserCompletionShowsAccountButton",
+      "testTemporaryLoginFailureRetriesCompletionWithoutAnotherBrowserHandoff"
+    ],
+    "measured_case_seconds": 179.792
+  }
+]
