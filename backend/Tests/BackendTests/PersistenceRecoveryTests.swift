@@ -64,6 +64,13 @@ extension KiteLoginTests {
             #expect(await transport.requests.filter { $0.url.path == "/session/token" }.count == 1)
         }
     }
+}
+
+/// Each paused synchronous operation occupies an executor thread until its async driver resumes.
+/// Run these cases one at a time so small runners retain a thread for that driver.
+@Suite("Synchronous session storage races", .serialized)
+struct SynchronousSessionStoreTests {
+    let authorization: HTTPHeaders = ["Authorization": "Bearer test-connection-token"]
 
     @Test("A delayed secure save cannot survive logout or overwrite newer authorization", arguments: [true, false])
     func delayedSaveSuperseded(logout: Bool) async throws {
@@ -161,14 +168,18 @@ private final class PausedSessionStore: KiteSessionStore, @unchecked Sendable {
         return paused
     }
 
-    private func wait(_ operation: String) {
+    private func wait(_ operation: String) throws {
         condition.lock()
         defer { condition.unlock() }
         guard self.operation == operation else { return }
         paused = true
         condition.broadcast()
+        let deadline = Date().addingTimeInterval(5)
         while self.operation == operation {
-            condition.wait()
+            guard condition.wait(until: deadline) else {
+                self.operation = nil
+                throw CocoaError(.featureUnsupported)
+            }
         }
     }
 
@@ -177,12 +188,12 @@ private final class PausedSessionStore: KiteSessionStore, @unchecked Sendable {
     }
 
     func save(_ session: SavedKiteSession, apiKey: String) throws {
-        wait("save")
+        try wait("save")
         try storage.save(session, apiKey: apiKey)
     }
 
     func delete(apiKey: String) throws {
-        wait("delete")
+        try wait("delete")
         try storage.delete(apiKey: apiKey)
     }
 }
