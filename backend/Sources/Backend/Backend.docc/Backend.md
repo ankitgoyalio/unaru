@@ -91,6 +91,8 @@ replaces only its external HTTP transport during tests.
 - `POST /session/save` retries saving the current validated session and returns
   `SessionStatus`. A failed save returns `saveFailed` while retaining usable identity.
   It performs no browser handoff or exchange. Connection authorization is required.
+- Signed-in `LoginStatus` responses also include optional credential-free `persistence`
+  status so clients can present save failures immediately after browser completion.
 - `POST /logout` detaches old authority and removes saved authorization before returning
   `LogoutResult`. Failed secure deletion returns HTTP 503 and permits another logout
   request. Remote revocation remains bounded and may be `unconfirmed` after local success.

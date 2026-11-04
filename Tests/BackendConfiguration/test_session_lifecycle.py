@@ -76,6 +76,16 @@ class SessionLifecycleTests(unittest.TestCase):
                 CFBundleIdentifier=host_id, CFBundleExecutable="SessionHost", CFBundlePackageType="APPL")))
             source = directory / "Host.swift"
             source.write_text('''import Foundation
+if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--test-storage-failure" {
+    let url = URL(fileURLWithPath: CommandLine.arguments[2])
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    if CommandLine.arguments.count == 4 {
+        try Data(CommandLine.arguments[3].utf8).write(to: url, options: .atomic)
+    } else if FileManager.default.fileExists(atPath: url.path) {
+        try FileManager.default.removeItem(at: url)
+    }
+    exit(0)
+}
 let child = Process()
 let executable = URL(fileURLWithPath: CommandLine.arguments[0])
 child.executableURL = executable.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Helpers/Backend")
@@ -116,6 +126,9 @@ exit(child.terminationStatus)
             environment = dict(PATH=os.environ["PATH"], UNARU_BUNDLED="1", KITE_API_KEY=api_key,
                 KITE_API_SECRET="fake20-secret-" + secrets.token_hex(16), LOG_LEVEL="error",
                 UNARU_TEST_STORAGE=namespace, UNARU_TEST_KITE_URL=f"http://127.0.0.1:{provider.server_port}")
+            failure_file = Path.home() / "Library/Containers" / host_id / "Data/Library/Application Support/session-store-failure"
+            environment["UNARU_TEST_SESSION_FAILURE_FILE"] = str(failure_file)
+            self.set_failure(host, failure_file, "save")
             try:
                 self.launch(host, port, directory, environment)
                 self.assertEqual(self.request("session")["state"], "signedOut")
@@ -125,7 +138,12 @@ exit(child.terminationStatus)
                 with urlopen(self.address + "/kite/callback?status=success&request_token=fake20-request&state=" + state) as response:
                     self.assertEqual(response.status, 200)
                 self.assertEqual(self.request("login/" + attempt["id"])["state"], "signedIn")
-                self.assertEqual(self.request("session").get("persistence"), "saved")
+                self.assertEqual(self.request("session").get("persistence"), "saveFailed")
+                self.assertEqual(self.request("profile")["userID"], "FAKE20")
+                self.assertEqual(self.request("session/save", "POST").get("persistence"), "saveFailed")
+                self.set_failure(host, failure_file)
+                self.assertEqual(self.request("session/save", "POST").get("persistence"), "saved")
+                self.assertEqual(provider.exchanges, 1)
                 old_token = self.token
                 # Normal app quit closes its private child lifetime pipe.
                 self.stop()
@@ -152,11 +170,25 @@ exit(child.terminationStatus)
                 self.launch(host, port, directory, environment)
                 self.assertEqual(self.request("session")["state"], "signedIn")
                 self.assertEqual(provider.exchanges, 1)
-                self.assertEqual(self.request("logout", "POST")["revocation"], "confirmed")
+                self.set_failure(host, failure_file, "delete")
+                with self.assertRaises(HTTPError) as deletion:
+                    self.request("logout", "POST")
+                self.assertEqual(deletion.exception.code, 503)
+                # No completed local logout claim while secure removal is failing.
+                with self.assertRaises(HTTPError) as hidden:
+                    self.request("session")
+                self.assertEqual(hidden.exception.code, 503)
+                self.stop()
+                self.launch(host, port, directory, environment)
+                # A client retaining logout intent retries removal before restoration.
+                with self.assertRaises(HTTPError):
+                    self.request("logout", "POST")
+                self.set_failure(host, failure_file)
+                self.assertEqual(self.request("logout", "POST")["revocation"], "unconfirmed")
                 self.stop()
                 self.launch(host, port, directory, environment)
                 self.assertEqual(self.request("session")["state"], "signedOut")
-                print("Signed sandbox helper: changed code hash, quit/crash restoration, fresh launch credential, logout deletion passed")
+                print("Signed sandbox helper: changed code hash, quit/crash restoration, fresh launch credential, save failure/retry, delete failure/restart/retry passed")
             finally:
                 if self.process is not None and self.process.poll() is None:
                     # Cleanup is scoped to this UUID and fake API key, even after assertion failure.
@@ -171,6 +203,12 @@ exit(child.terminationStatus)
                 subprocess.run(["security", "delete-generic-password", "-s", service,
                     "-a", hashlib.sha256(api_key.encode()).hexdigest()], capture_output=True)
                 shutil.rmtree(Path.home() / "Library/Containers" / host_id, ignore_errors=True)
+
+    def set_failure(self, host, path, operation=None):
+        arguments = [str(host), "--test-storage-failure", str(path)]
+        if operation:
+            arguments.append(operation)
+        subprocess.run(arguments, check=True, capture_output=True, env={"PATH": os.environ["PATH"]})
 
     def sign(self, path, entitlements, identifier):
         subprocess.run(["codesign", "--force", "--sign", IDENTITY, "--identifier", identifier,

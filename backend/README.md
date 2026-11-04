@@ -35,9 +35,15 @@ inheritance. Keychain items belong to the helper, use a hash of the configured A
 and contain the validated account ID with its token. The store never synchronizes items.
 
 Temporary validation or Keychain read failures preserve saved authorization. A failed
-save leaves the current session usable. Sign-out reports success only after durable
-removal; failed removal requires retry. Persistence notices and dedicated recovery UI
-are tracked in #21 and #22.
+save leaves the current session usable. **Sign-In Not Saved** explains that quitting
+requires another sign-in. Choose **Retry Saving** to save the current session without
+opening the browser again. The notice clears after a successful save.
+
+Sign-out reports local completion only after durable removal. **Couldn’t Finish Logging
+Out** offers **Retry Log Out** and keeps sign-in blocked until removal succeeds. The app
+retains this unfinished action across helper restarts and app relaunches, so it finishes
+removal before checking for a saved session. A separate notice reports unconfirmed Kite
+API revocation after local removal succeeds.
 
 ## Run a standalone backend for development
 
@@ -140,6 +146,11 @@ browser cookies.
 - For **Set Up Kite**, edit the app-owned `.env` and choose **Retry** to reload it.
 - For a temporary network or Kite failure, restore connectivity and choose **Retry**.
   The app validates an existing Kite session before displaying identity.
+- For **Sign-In Not Saved**, choose **Retry Saving**. You can keep using the account
+  while storage is unavailable. Quitting before saving requires another browser sign-in.
+- For **Couldn’t Finish Logging Out**, choose **Retry Log Out**. The app retries durable
+  removal before allowing another sign-in, including after relaunch. Local completion
+  does not imply that Kite confirmed provider revocation.
 - For **Retry Sign-In**, retry the pending read without another token exchange or
   browser handoff. Cancelled, denied, or expired attempts need a new sign-in.
 

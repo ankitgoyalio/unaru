@@ -27,7 +27,26 @@ struct ContentView: View {
                 }
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 360)
             } detail: {
-                Color.clear
+                VStack(alignment: .leading, spacing: 0) {
+                    if connection.sessionSaveFailed {
+                        GroupBox {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Sign-In Not Saved").font(.headline)
+                                Text("You can keep using your Kite account. If you quit Unaru, you’ll need to sign in again.")
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Button("Retry Saving") { connection.retrySavingSession() }
+                                    .disabled(connection.isSavingSession)
+                                if connection.isSavingSession {
+                                    ProgressView("Saving Sign-In…")
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                        }
+                        .padding()
+                    }
+                    Spacer(minLength: 0)
+                }
             }
             .frame(minWidth: 1024, minHeight: 794)
             .sheet(isPresented: .constant(needsConnection)) {

@@ -67,11 +67,11 @@
                     XCTAssertTrue(app.staticTexts["Logout uncertainty"].waitForExistence(timeout: 20))
                     XCTAssertTrue(app.buttons["Sign in with Kite"].isEnabled)
                 } else {
-                    XCTAssertTrue(app.staticTexts["Connection Unavailable"].waitForExistence(timeout: 20))
+                    XCTAssertTrue(app.staticTexts["Couldn’t Finish Logging Out"].waitForExistence(timeout: 20))
                     XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
                     XCTAssertFalse(app.staticTexts["Logout uncertainty"].exists)
                     backend.respond(path: "/logout", status: 200, body: #"{"revocation":"unconfirmed"}"#)
-                    app.buttons["Retry"].click()
+                    app.buttons["Retry Log Out"].click()
                     XCTAssertTrue(app.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
                 }
                 backend.releaseResponses()

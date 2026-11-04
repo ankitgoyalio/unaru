@@ -11,6 +11,12 @@ import Vapor
 
 /// Serializes the single installation's login and rejects obsolete async results.
 actor KiteLogin {
+    /// Missing configuration is distinct from recoverable secure-storage failure.
+    enum ConfigurationError: Error {
+        /// The helper has no complete Kite API configuration.
+        case missingCredentials
+    }
+
     /// Credentials configured only in the backend environment.
     private let apiKey: String?
     /// The provider secret, never encoded in a response.
@@ -67,8 +73,11 @@ actor KiteLogin {
 
     /// Starts a new attempt using Kite's documented redirect_params query passthrough.
     func start() throws -> LoginAttempt {
+        if removalPending {
+            try finishRemoval()
+        }
         guard let apiKey, !apiKey.isEmpty, let apiSecret, !apiSecret.isEmpty else {
-            throw Abort(.serviceUnavailable, reason: "Configure Kite credentials on the backend.")
+            throw ConfigurationError.missingCredentials
         }
         let client = try KiteClient(apiKey: apiKey, configuration: kiteConfiguration, transport: transport)
         let id = UUID().uuidString
@@ -116,7 +125,7 @@ actor KiteLogin {
             return LoginStatus(state: .expired)
         }
         if let profile = current.profile {
-            return LoginStatus(state: .signedIn, profile: profile)
+            return LoginStatus(state: .signedIn, profile: profile, persistence: persistence)
         }
         guard current.result == .pending, current.exchanged else { return LoginStatus(state: current.result) }
         do {
@@ -131,7 +140,7 @@ actor KiteLogin {
             }
             attempt?.profile = identity
             authenticated = current.client
-            return LoginStatus(state: .signedIn, profile: identity)
+            return LoginStatus(state: .signedIn, profile: identity, persistence: persistence)
         } catch {
             guard isCurrent(id) else { return LoginStatus(state: .failed) }
             if Self.isAuthenticationRejection(error) {

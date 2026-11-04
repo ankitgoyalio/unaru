@@ -39,7 +39,7 @@ func routes(
         // Match the Mac client's Foundation date representation.
         do {
             try await response.content.encode(login.start(), using: JSONEncoder())
-        } catch let error as any AbortError where error.status == .serviceUnavailable {
+        } catch KiteLogin.ConfigurationError.missingCredentials {
             response.status = .serviceUnavailable
             try response.content.encode(ConnectionProblem(code: .backendNotConfigured), as: .json)
         }

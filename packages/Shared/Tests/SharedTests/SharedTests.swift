@@ -39,3 +39,14 @@ import Testing
     let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: String])
     #expect(object == ["state": "signedIn", "persistence": "saveFailed"])
 }
+
+@Test func loginPersistenceIsOptionalAndCredentialFree() throws {
+    let old = try JSONDecoder().decode(LoginStatus.self, from: Data(#"{"state":"signedIn","profile":{"name":"Asha Rao","userID":"AB1234"}}"#.utf8))
+    #expect(old.persistence == nil)
+    let result = LoginStatus(state: .signedIn, profile: old.profile, persistence: .saveFailed)
+    let data = try JSONEncoder().encode(result)
+    let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(Set(object.keys) == ["state", "profile", "persistence"])
+    #expect(object["persistence"] as? String == "saveFailed")
+    #expect(try JSONDecoder().decode(LoginStatus.self, from: data).persistence == .saveFailed)
+}

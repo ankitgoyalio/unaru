@@ -36,7 +36,17 @@ an isolated Keychain namespace. It verifies replacement with a different helper 
 hash under the same Apple Development identity, normal quit, parent crash, and
 sign-out followed by restart. Ad hoc CI signing alone does not prove this continuity.
 
-Credential-free save status and a save retry endpoint provide the foundation for
-recovery. Dedicated persistence notices and storage recovery UX remain in issues
-#21 and #22. Failed logout stays in the existing retry flow until durable deletion
-succeeds.
+Credential-free save status is included in session status and successful login
+completion. The app keeps the account usable while displaying Sign-In Not Saved.
+Retry Saving uses the validated helper-held session and clears the notice on success.
+
+Failed logout shows a distinct recovery state and blocks another sign-in until secure
+deletion succeeds. A credential-free file in the app's configuration directory records
+unfinished logout before the helper request. After helper or app restart, the app
+retries deletion before requesting any restorable session. It removes the marker only
+after the helper acknowledges durable removal. Provider revocation uncertainty remains
+separate from local deletion failure.
+
+Synchronous store operations remain serialized with coordinator authority, including
+blocked saves and deletions. No old store completion can resume after a newer actor
+generation. Delayed provider responses still require generation and client checks.

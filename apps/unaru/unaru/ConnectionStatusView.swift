@@ -26,7 +26,7 @@
                     case .checking:
                         ProgressView("Verifying Connection…")
                     case .signedOut:
-                        Text("Kite Sign-In Required").font(.title2)
+                        Text(connection.isLoggingOut ? "Logging Out…" : "Kite Sign-In Required").font(.title2)
                         if connection.isLoggingOut {
                             ProgressView("Ending Kite API Session…")
                         }
@@ -60,6 +60,11 @@
                         Text("Add your Kite API key and secret to the .env file in Unaru’s configuration folder, then choose Retry.")
                         Button("Open Configuration Folder") { connection.openConfiguration() }
                         retryButton
+                    case .logoutFailed:
+                        Text("Couldn’t Finish Logging Out").font(.title2)
+                        Text("Unaru couldn’t confirm removal of your saved sign-in. Retry to finish logging out before signing in again.")
+                        Button("Retry Log Out") { connection.retry() }
+                            .keyboardShortcut(.defaultAction)
                     case .unavailable:
                         Text("Connection Unavailable").font(.title2)
                         Text("Check your internet connection, then retry. Your Kite session may still be available.")

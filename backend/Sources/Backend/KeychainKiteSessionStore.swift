@@ -15,10 +15,20 @@
         /// Fixed production service or an explicitly isolated Debug test namespace.
         let service: String
 
+        #if DEBUG
+            /// Dynamic failure injection is available only with an isolated test namespace.
+            private let testFailureFile: URL?
+        #endif
+
         /// Creates the helper's store; tests must supply a unique service namespace.
         init(testNamespace: UUID? = nil) {
             service = testNamespace.map { "io.ankitgoyal.unaru.kite-session.test.\($0.uuidString)" }
                 ?? "io.ankitgoyal.unaru.kite-session"
+            #if DEBUG
+                testFailureFile = testNamespace.flatMap { _ in
+                    ProcessInfo.processInfo.environment["UNARU_TEST_SESSION_FAILURE_FILE"].map { URL(fileURLWithPath: $0) }
+                }
+            #endif
         }
 
         /// Returns nil only for item absence; denies interactive prompts in a background helper.
@@ -38,6 +48,7 @@
 
         /// Replaces an existing item atomically; the helper's designated requirement owns its ACL.
         func save(_ session: SavedKiteSession, apiKey: String) throws {
+            try checkTestFailure("save")
             let query = query(apiKey)
             let data = try JSONEncoder().encode(session)
             var status = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
@@ -52,10 +63,23 @@
 
         /// Absence is already signed out; access failures remain failures.
         func delete(apiKey: String) throws {
+            try checkTestFailure("delete")
             let status = SecItemDelete(query(apiKey) as CFDictionary)
             if status != errSecItemNotFound {
                 try check(status)
             }
+        }
+
+        /// Deterministic lifecycle failures never apply to production or Release storage.
+        private func checkTestFailure(_ operation: String) throws {
+            #if DEBUG
+                if let testFailureFile,
+                   let failure = try? String(contentsOf: testFailureFile, encoding: .utf8),
+                   failure.trimmingCharacters(in: .whitespacesAndNewlines) == operation
+                {
+                    throw CocoaError(.fileWriteNoPermission)
+                }
+            #endif
         }
 
         /// Hashes the configuration key and leaves the validated account inside the protected value.

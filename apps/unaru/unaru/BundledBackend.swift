@@ -61,6 +61,26 @@
             return root.appendingPathComponent("Unaru", isDirectory: true)
         }
 
+        /// Credential-free intent survives helper failure and application relaunch.
+        private static var logoutMarker: URL {
+            configurationDirectory.appendingPathComponent(".pending-kite-logout")
+        }
+
+        /// Startup must finish removal before requesting any restorable session.
+        static var hasPendingLogout: Bool {
+            FileManager.default.fileExists(atPath: logoutMarker.path)
+        }
+
+        /// A completed logout requires both helper deletion and clearing its local intent.
+        static func setLogoutPending(_ pending: Bool) throws {
+            if pending {
+                try FileManager.default.createDirectory(at: configurationDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+                try Data("pending\n".utf8).write(to: logoutMarker, options: .atomic)
+            } else if hasPendingLogout {
+                try FileManager.default.removeItem(at: logoutMarker)
+            }
+        }
+
         /// Connects lifetime cleanup to the application's termination notification.
         init() {
             terminationObserver = NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in

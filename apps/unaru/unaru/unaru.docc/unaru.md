@@ -24,7 +24,10 @@ split view. The sheet closes after the account is verified. Sign in with Kite op
 the default browser. The app polls an authorized attempt with a five-minute deadline
 and cancellation. Cancelling sign-in returns to the sign-in action within the sheet.
 The resizable sidebar shows an informational ``AccountFooter`` only while signed in.
-It shows the avatar or initials, full name, and Kite user ID. The main area stays empty.
+It shows the avatar or initials, full name, and Kite user ID. A nonmodal Sign-In Not
+Saved notice in the main area leaves the account usable and offers Retry Saving.
+Saving uses the current helper-held session without another browser handoff. Successful
+saving clears the notice. Older helper responses can omit persistence status.
 
 ``BackendConnection`` rejects obsolete verification and cancelled login responses.
 Temporary login-status or profile errors offer Retry Sign-In for the same attempt.
@@ -33,9 +36,12 @@ verification detects Kite authentication rejection and session loss. Temporary n
 failures offer Retry without repeating browser login. Credential rejection offers a
 local service restart. The app caches no profile or Kite credential. Redirects are
 refused before credentials can be forwarded. Logout clears visible identity immediately,
-but failed durable removal stays in the existing Retry flow and cannot re-enable sign-in
-until the helper acknowledges deletion. Dedicated storage recovery UX remains in the
-sibling persistence tickets.
+but failed durable removal shows Couldn’t Finish Logging Out with Retry Log Out.
+Sign-in stays blocked until the helper acknowledges deletion. A credential-free marker
+in the app's configuration directory retains unfinished logout across app relaunches.
+Startup retries deletion before any session-status or profile request. The marker is
+removed only after durable deletion succeeds. A separate notice reports unconfirmed
+provider revocation after successful local removal.
 
 iOS and visionOS retain their initial content and deployment targets.
 

@@ -22,7 +22,9 @@ without that code indicates rejected app connection credentials. Session status 
 a backend-held session; a fresh profile request validates it before the app displays
 identity. Optional `SessionStatus.persistence` reports `saved`, `saveFailed`, or
 `memoryOnly` for usable sessions without disclosing credentials. Older payloads without
-this field remain decodable. The scaffold greeting remains available for the existing examples.
+this field remain decodable. `LoginStatus.persistence` provides the same status at
+browser completion so a save failure can appear immediately. Neither payload exposes
+the access token. The scaffold greeting remains available for the existing examples.
 
 The following example compiles as a Swift Testing test body:
 

@@ -109,6 +109,10 @@ use `UNARU_TEST_BACKEND_PORT` to avoid occupying the owner's callback port.
 The app forwards the isolated UUID to the helper so it cannot select production session
 storage. `UNARU_TEST_KITE_URL` accepts only an HTTP loopback origin with an explicit
 port, only in a Debug helper with that UUID. Release builds ignore both overrides.
+An isolated Debug helper also accepts `UNARU_TEST_SESSION_FAILURE_FILE`. Its contents
+select `save` or `delete` failure injection for lifecycle tests; removing it restores
+normal Keychain behavior. It requires the UUID namespace and has no Release effect.
+The signed test host edits this file inside its own sandbox container.
 `UNARU_TEST_APPEARANCE=Light` or `Dark` fixes appearance, and
 `UNARU_TEST_REVALIDATION_SECONDS` accelerates session checks. Every override requires the
 isolated UUID and is ignored by Release builds. No test uses real Kite credentials or
@@ -124,7 +128,7 @@ env UNARU_SIGNING_IDENTITY='<identity hash from security find-identity -v -p cod
 Build the Debug backend first with `swift build --package-path backend`. The opt-in test
 compiles a sandboxed parent, signs two helper variants with different code hashes under
 the stable helper identifier, and exercises normal quit, parent crash, restoration,
-launch-credential rotation, and logout/restart against fake loopback Kite responses.
+launch-credential rotation, save failure/retry, and failed deletion/retry across restart against fake loopback Kite responses.
 It uses unique fake credentials and a UUID Keychain service with cleanup. Without the
 identity variable, this test is explicitly skipped. CI's ad hoc signatures cannot replace
 this signing-aware evidence. Tests never access the owner's Kite session.

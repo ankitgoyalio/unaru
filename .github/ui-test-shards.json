@@ -8,7 +8,8 @@
       "testBackendRestartRequestsLoginWithoutShowingCachedIdentity",
       "testRelaunchValidatesBeforeRestoringIdentityWithoutBrowserLogin",
       "testBundledBackendStartsWithoutConnectionSetupAndRelaunches",
-      "testBackendConfigurationFailureDoesNotAskForKiteSignIn"
+      "testBackendConfigurationFailureDoesNotAskForKiteSignIn",
+      "testSaveFailureKeepsAccountUsableAndRetryClearsWarning"
     ],
     "measured_case_seconds": 148.635
   },
@@ -35,7 +36,8 @@
       "testCancellingLoginRejectsDelayedCompletionAndAllowsNewLogin",
       "testConnectionFailureCanRetryWithoutRepeatingSetup",
       "testTemporaryLoginFailureRetriesCompletionWithoutAnotherBrowserHandoff",
-      "testTemporaryServerFailureOffersRetry"
+      "testTemporaryServerFailureOffersRetry",
+      "testLateSaveResponseCannotClearNewLoginWarning"
     ],
     "measured_case_seconds": 150.032
   },
@@ -46,7 +48,8 @@
       "testOpenAppRequestsLoginAfterBackendLosesSession",
       "testOccupiedPortDoesNotReceiveCredentialsAndRetryStartsOwnHelper",
       "testOpenAppRequestsLoginWhenProviderRejectsSession",
-      "testRedirectDoesNotForwardConnectionCredentials"
+      "testRedirectDoesNotForwardConnectionCredentials",
+      "testUnfinishedLogoutSurvivesRelaunchBeforeAnySessionRestore"
     ],
     "measured_case_seconds": 87.204
   }

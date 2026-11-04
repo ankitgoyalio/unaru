@@ -35,6 +35,8 @@
             case backendError
             /// A temporary connection or server failure permits retry.
             case unavailable
+            /// Saved authorization has not yet been durably removed.
+            case logoutFailed
         }
 
         /// The state presented by every main window.
@@ -43,6 +45,10 @@
                 if case .signedIn = phase {} else {
                     isRefreshingAccount = false
                     accountRefreshFailed = false
+                    saveRevision += 1
+                    saveTask?.cancel()
+                    isSavingSession = false
+                    sessionSaveFailed = false
                 }
                 scheduleRevalidation()
             }
@@ -55,11 +61,20 @@
         /// Verification cannot reattach old backend authority after local logout.
         private var requiresSignIn = false
         /// Durable logout is incomplete until the helper acknowledges secure removal.
-        private var pendingLogout = false
+        private var pendingLogout = BundledBackend.hasPendingLogout
         /// Refresh activity shared by sheets in every window.
         @Published private(set) var isRefreshingAccount = false
         /// A retryable failure never removes an already validated identity.
         @Published private(set) var accountRefreshFailed = false
+
+        /// A storage failure does not remove the usable account.
+        @Published private(set) var sessionSaveFailed = false
+        /// Prevents duplicate save requests while keeping the account usable.
+        @Published private(set) var isSavingSession = false
+        /// Save completion cannot update a different login.
+        private var saveRevision = 0
+        /// Save recovery runs independently of profile refreshes.
+        private var saveTask: Task<Void, Never>?
 
         /// Launches and stops the backend bundled inside this application.
         private let backend = BundledBackend()
@@ -135,6 +150,7 @@
         deinit {
             task?.cancel()
             revalidationTask?.cancel()
+            saveTask?.cancel()
         }
 
         /// Rechecks provider authentication while the app remains open, including after sleep.
@@ -184,6 +200,7 @@
             if !preservingIdentity {
                 phase = .checking
             }
+            let currentSaveRevision = saveRevision
             task = Task {
                 defer {
                     if currentRevision == revision {
@@ -202,6 +219,9 @@
                         let profile = try JSONDecoder().decode(AccountProfile.self, from: profileData)
                         guard !Task.isCancelled, currentRevision == revision else { return }
                         accountRefreshFailed = false
+                        if saveRevision == currentSaveRevision, !isSavingSession {
+                            sessionSaveFailed = status.persistence == .saveFailed
+                        }
                         phase = .signedIn(profile)
                     }
                 } catch {
@@ -219,6 +239,30 @@
                             phase = .unavailable
                         }
                     }
+                }
+            }
+        }
+
+        /// Saves current helper-held authority without another browser handoff.
+        func retrySavingSession() {
+            guard case .signedIn = phase, let configuration, !isSavingSession else { return }
+            saveRevision += 1
+            let currentSaveRevision = saveRevision
+            isSavingSession = true
+            saveTask = Task {
+                defer {
+                    if saveRevision == currentSaveRevision {
+                        isSavingSession = false
+                    }
+                }
+                do {
+                    let data = try await transport.send("session/save", method: "POST", configuration: configuration)
+                    let status = try JSONDecoder().decode(SessionStatus.self, from: data)
+                    guard !Task.isCancelled, saveRevision == currentSaveRevision, case .signedIn = phase else { return }
+                    sessionSaveFailed = status.state != .signedIn || status.persistence != .saved
+                } catch {
+                    guard !Task.isCancelled, saveRevision == currentSaveRevision, case .signedIn = phase else { return }
+                    sessionSaveFailed = true
                 }
             }
         }
@@ -295,12 +339,20 @@
             logoutUnconfirmed = false
             phase = .signedOut
             let oldConfiguration = configuration
+            do {
+                try BundledBackend.setLogoutPending(true)
+            } catch {
+                isLoggingOut = false
+                phase = .logoutFailed
+                return
+            }
             task = Task {
                 do {
                     guard let oldConfiguration else { throw BackendTransport.Failure.unavailable }
                     let data = try await transport.send("logout", method: "POST", configuration: oldConfiguration)
                     let result = try JSONDecoder().decode(LogoutResult.self, from: data)
                     guard !Task.isCancelled, revision == currentRevision else { return }
+                    try BundledBackend.setLogoutPending(false)
                     pendingLogout = false
                     logoutUnconfirmed = result.revocation != .confirmed
                     isLoggingOut = false
@@ -311,7 +363,7 @@
                     configuration = nil
                     backend.stop()
                     isLoggingOut = false
-                    phase = .unavailable
+                    phase = .logoutFailed
                 }
             }
         }
@@ -342,6 +394,7 @@
                     guard let profile = result.profile else { throw BackendTransport.Failure.failed }
                     activeAttempt = nil
                     requiresSignIn = false
+                    sessionSaveFailed = result.persistence == .saveFailed
                     phase = .signedIn(profile)
                     return
                 case .failed, .expired:
