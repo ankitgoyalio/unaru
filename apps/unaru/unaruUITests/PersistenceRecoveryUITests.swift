@@ -21,6 +21,8 @@
             XCTAssertTrue(app.buttons["Open Kite account"].isEnabled)
             XCTAssertTrue(app.staticTexts["You can keep using your Kite account. If you quit Unaru, you’ll need to sign in again."].exists)
             backend.respond(path: "/session/save", status: 200, body: #"{"state":"signedIn","persistence":"saveFailed"}"#)
+            XCTAssertTrue(app.buttons["Retry Saving"].isHittable)
+            capture(app, name: "Sign-in save warning")
             app.buttons["Retry Saving"].click()
             let failed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
                 backend.requestedPaths.contains("/session/save") && app.buttons["Retry Saving"].isEnabled
@@ -54,6 +56,7 @@
             backend.completeLogin()
             XCTAssertTrue(app.buttons["Retry Saving"].waitForExistence(timeout: 10))
             backend.respond(path: "/session/save", status: 200, hold: true, body: #"{"state":"signedIn","persistence":"saved"}"#)
+            XCTAssertTrue(app.buttons["Retry Saving"].isHittable)
             app.buttons["Retry Saving"].click()
             waitForPending(backend)
             logOutFromAccount(app)

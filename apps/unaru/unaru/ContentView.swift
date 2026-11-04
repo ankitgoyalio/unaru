@@ -27,7 +27,7 @@ struct ContentView: View {
                 }
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 360)
             } detail: {
-                VStack(alignment: .leading, spacing: 0) {
+                ScrollView {
                     if connection.sessionSaveFailed {
                         GroupBox {
                             VStack(alignment: .leading, spacing: 8) {
@@ -45,8 +45,8 @@ struct ContentView: View {
                         }
                         .padding()
                     }
-                    Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .frame(minWidth: 1024, minHeight: 794)
             .sheet(isPresented: .constant(needsConnection)) {
