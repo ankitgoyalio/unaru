@@ -8,11 +8,11 @@ on:
     inputs:
       cache_namespace:
         description: Cache namespace (use a new value for a cold benchmark)
-        default: swift-build-v2
+        default: swift-build-v3
         type: string
 
 env:
-  CI_CACHE_NAMESPACE: ${{ inputs.cache_namespace || 'swift-build-v2' }}
+  CI_CACHE_NAMESPACE: ${{ inputs.cache_namespace || 'swift-build-v3' }}
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -134,12 +134,7 @@ jobs:
           if-no-files-found: error
       - uses: ./.github/actions/save-swift-build-cache
 
-  apple-ui:
-    name: apple-ui (${{ matrix.shard }})
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
+  apple-ui-build:
     runs-on: xcode-27
     timeout-minutes: 30
     env:
@@ -149,21 +144,63 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/swift-build-cache
+      - name: Build macOS UI tests once for every shard
+        run: |
+          mkdir -p .test-results
+          xcodebuild build-for-testing -project apps/unaru/unaru.xcodeproj -scheme unaru \
+            -destination 'platform=macOS' -derivedDataPath .build/macos CODE_SIGN_IDENTITY=- \
+            -showBuildTimingSummary 2>&1 | tee .test-results/macos-ui-build.log
+          COPYFILE_DISABLE=1 tar -cf .test-results/macos-ui-products.tar -C .build/macos/Build Products
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          save: ${{ matrix.shard == 1 && 'true' || 'false' }}
+          name: macos-ui-products
+          path: .test-results/macos-ui-products.tar
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: apple-ui-build-results
+          path: .test-results/macos-ui-build.log
+      - uses: ./.github/actions/save-swift-build-cache
+
+  apple-ui:
+    name: apple-ui (${{ matrix.shard }})
+    needs: apple-ui-build
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    runs-on: xcode-27
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Download this run's signed UI test products
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name macos-ui-products --dir .test-results/products
+          mkdir -p .build/macos/Build
+          tar -xf .test-results/products/macos-ui-products.tar -C .build/macos/Build
+          rm .test-results/products/macos-ui-products.tar
       - name: Prepare display for minimum app window
         run: swift Scripts/prepare-ui-display.swift
       - name: Run deterministic macOS UI acceptance tests
         run: |
           mkdir -p .test-results
-          python3 Scripts/run-ui-tests.py "${{ matrix.shard }}" 2>&1 | tee .test-results/macos-ui.log
+          python3 Scripts/run-ui-tests.py "${{ matrix.shard }}" --products .build/macos/Build/Products 2>&1 | tee .test-results/macos-ui.log
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
           name: apple-ui-results-${{ matrix.shard }}
           path: .test-results/
           include-hidden-files: true
-      - uses: ./.github/actions/save-swift-build-cache
 
   apple-docs:
     runs-on: xcode-27
@@ -215,7 +252,7 @@ jobs:
 
   # Preserve the required check name and reject failed, cancelled, or skipped jobs.
   apple:
-    needs: [apple-build, apple-ui, apple-docs, documentation]
+    needs: [apple-build, apple-ui-build, apple-ui, apple-docs, documentation]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -223,11 +260,13 @@ jobs:
       - name: Require every Apple check to succeed
         env:
           BUILD_RESULT: ${{ needs.apple-build.result }}
+          UI_BUILD_RESULT: ${{ needs.apple-ui-build.result }}
           UI_RESULT: ${{ needs.apple-ui.result }}
           DOCS_RESULT: ${{ needs.apple-docs.result }}
           SITE_RESULT: ${{ needs.documentation.result }}
         run: |
           test "$BUILD_RESULT" = success
+          test "$UI_BUILD_RESULT" = success
           test "$UI_RESULT" = success
           test "$DOCS_RESULT" = success
           test "$SITE_RESULT" = success

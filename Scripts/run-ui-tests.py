@@ -43,6 +43,7 @@ def verify_summary(summary, expected):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("shard", type=int, choices=(1, 2, 3))
+    parser.add_argument("--products", type=Path, help="Current run's Build/Products directory")
     args = parser.parse_args()
     shards = load_shards()
     selected = shards[args.shard - 1]["tests"]
@@ -50,10 +51,17 @@ def main():
     output.mkdir(exist_ok=True)
     (output / "ui-shards.json").write_text(json.dumps(shards, indent=2) + "\n")
     result = output / "macos-ui.xcresult"
+    if args.products:
+        test_runs = list(args.products.glob("*.xctestrun"))
+        if len(test_runs) != 1:
+            raise ValueError(f"Expected one test run specification, found {test_runs}")
+        build = ["test-without-building", "-xctestrun", str(test_runs[0])]
+    else:
+        build = ["test", "-project", "apps/unaru/unaru.xcodeproj", "-scheme", "unaru",
+                 "-derivedDataPath", ".build/macos", "CODE_SIGN_IDENTITY=-"]
     subprocess.run([
-        "xcodebuild", "test", "-project", "apps/unaru/unaru.xcodeproj", "-scheme", "unaru",
-        "-destination", "platform=macOS", "-derivedDataPath", ".build/macos",
-        "-parallel-testing-enabled", "NO", "CODE_SIGN_IDENTITY=-",
+        "xcodebuild", *build, "-destination", "platform=macOS",
+        "-parallel-testing-enabled", "NO",
         "-resultBundlePath", str(result), "-test-timeouts-enabled", "YES",
         "-default-test-execution-time-allowance", "120",
         "-maximum-test-execution-time-allowance", "180", "-showBuildTimingSummary",

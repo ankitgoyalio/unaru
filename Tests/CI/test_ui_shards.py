@@ -4,8 +4,10 @@ import importlib.util
 import json
 from pathlib import Path
 import shutil
+import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location("ui_runner", ROOT / "Scripts/run-ui-tests.py")
@@ -53,6 +55,29 @@ class UIShardsTests(unittest.TestCase):
                         dict(skippedTests=1, passedTests=8), dict(result="Failed")):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 runner.verify_summary(summary | changes, 9)
+
+    def test_shared_products_run_without_recompiling(self):
+        products = self.root / "Products"
+        products.mkdir()
+        test_run = products / "unaru.xctestrun"
+        test_run.touch()
+        summary = dict(result="Passed", totalTestCount=9, passedTests=9,
+                       failedTests=0, skippedTests=0, expectedFailures=0)
+        with patch.object(sys, "argv", ["run-ui-tests.py", "1", "--products", str(products)]), \
+                patch.object(runner, "ROOT", self.root), \
+                patch.object(runner.subprocess, "run") as execute, \
+                patch.object(runner.subprocess, "check_output", return_value=json.dumps(summary)):
+            runner.main()
+        command = execute.call_args_list[0].args[0]
+        self.assertEqual(command[:4], ["xcodebuild", "test-without-building", "-xctestrun", str(test_run)])
+        self.assertEqual(sum(arg.startswith("-only-testing:") for arg in command), 9)
+
+    def test_missing_shared_test_specification_fails_instead_of_rebuilding(self):
+        products = self.root / "Products"
+        products.mkdir()
+        with patch.object(sys, "argv", ["run-ui-tests.py", "1", "--products", str(products)]), \
+                patch.object(runner, "ROOT", self.root), self.assertRaisesRegex(ValueError, "one test run"):
+            runner.main()
 
 
 if __name__ == "__main__":

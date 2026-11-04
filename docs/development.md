@@ -53,12 +53,14 @@ compiles the app and its tests for iOS and visionOS simulators, runs macOS UI te
 builds the macOS app for DocC, and validates the static documentation. Workflow timeouts bound builds and tests.
 Logs and result artifacts belong in ignored `.test-results/`.
 
-Apple package checks and simulator builds, three macOS UI shards, and app DocC
-validation run on five independent Mac runners. Package documentation reuses the
-package test builds. A Linux job combines all three DocC modules and verifies the
-complete site. The required `apple` check requires every Apple job and site assembly
-to succeed. Linux package tests run independently. Every pull request runs the full
-set of checks.
+Apple package checks and simulator builds run alongside the macOS UI build and
+app DocC validation. The UI build produces signed test products for three shards
+on independent Mac desktops. Only products from the current run are used. These
+six Mac jobs use at most five runners concurrently. Package documentation reuses
+the package test builds. A Linux job combines all three DocC modules and verifies
+the complete site. The required `apple` check requires every Apple job and site
+assembly to succeed. Linux package tests run independently. Every pull request
+runs the full set of checks.
 
 `.github/ui-test-shards.json` assigns each UI method to one runner. The runner
 script rejects missing or duplicated methods and requires every selected test to
@@ -71,8 +73,9 @@ CI caches SwiftPM dependencies and build products for each job, operating system
 architecture, runner image, toolchain, and dependency manifest. Caches contain
 weekly build seeds. SwiftPM checks the current source and incrementally rebuilds
 after every restore. Main and dispatched runs refresh a seed once per week. PRs
-save only when no compatible seed exists, and only the first UI shard saves the
-shared UI seed. This avoids saving large caches for every source commit.
+save only when no compatible seed exists. UI shards consume the current run's
+build artifact and do not restore or save SwiftPM caches. This avoids saving
+large caches for every source commit.
 Main-branch caches remain available to new PRs within GitHub's cache retention
 limits. Restoring a cache never skips a build, test, or documentation check.
 Xcode DerivedData, result bundles, and generated documentation sites are not cached.
@@ -84,6 +87,8 @@ The helper lives in `Contents/Helpers`; iOS and visionOS builds skip this phase.
 builds use `.build/bundled-backend` and run outside Xcode's script sandbox. App Sandbox
 remains enabled. Distribution archives require the usual signing identity for both
 executables. No standalone backend needs to be launched for the Mac app.
+Helper builds disable the compiler index store. Neither the app nor the UI test
+runner reads the helper's development index.
 
 Mac UI tests use controlled loopback HTTP servers for browser completion and session
 recovery. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to isolate configuration,
@@ -147,7 +152,7 @@ that restores those caches. Report elapsed workflow time separately from the sum
 of runner time, because parallel jobs can reduce latency while consuming more compute.
 Keep raw API responses, logs, and timing reports in ignored `.test-results/` or CI
 artifacts. A failed or cancelled run is not a successful performance measurement.
-The CI dispatch input `cache_namespace` defaults to `swift-build-v2`. Use a unique
+The CI dispatch input `cache_namespace` defaults to `swift-build-v3`. Use a unique
 value to measure empty optimization caches, then dispatch the same revision with
 the same value to measure restored caches. Each independent run starts fresh
 runners and executes all checks. Record each run separately.

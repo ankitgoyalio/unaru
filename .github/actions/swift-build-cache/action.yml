@@ -1,9 +1,5 @@
 name: Swift build cache
 description: Reuse SwiftPM dependencies and build products without skipping checks
-inputs:
-  save:
-    description: Whether this job may write a cache (one writer per UI matrix)
-    default: 'true'
 runs:
   using: composite
   steps:
@@ -28,13 +24,13 @@ runs:
           backend/.build
           packages/Shared/.build
           .build/bundled-backend
-        key: ${{ env.CI_CACHE_NAMESPACE || 'swift-build-v2' }}-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.environment.outputs.identity }}-${{ hashFiles('backend/Package.resolved', '**/Package.swift') }}-${{ steps.environment.outputs.week }}
+        key: ${{ env.CI_CACHE_NAMESPACE || 'swift-build-v3' }}-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.environment.outputs.identity }}-${{ hashFiles('backend/Package.resolved', '**/Package.swift') }}-${{ steps.environment.outputs.week }}
         restore-keys: |
-          ${{ env.CI_CACHE_NAMESPACE || 'swift-build-v2' }}-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.environment.outputs.identity }}-${{ hashFiles('backend/Package.resolved', '**/Package.swift') }}-
+          ${{ env.CI_CACHE_NAMESPACE || 'swift-build-v3' }}-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.environment.outputs.identity }}-${{ hashFiles('backend/Package.resolved', '**/Package.swift') }}-
     # Save at the end of the job, after products are built. Main and dispatch
     # refresh weekly; PRs write only when no compatible seed is available.
     - name: Register cache writer
-      if: inputs.save == 'true' && steps.restore.outputs.cache-hit != 'true' && (github.event_name != 'pull_request' || steps.restore.outputs.cache-matched-key == '')
+      if: steps.restore.outputs.cache-hit != 'true' && (github.event_name != 'pull_request' || steps.restore.outputs.cache-matched-key == '')
       shell: bash
       env:
         CACHE_KEY: ${{ steps.restore.outputs.cache-primary-key }}
