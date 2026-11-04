@@ -8,11 +8,14 @@ runs:
   using: composite
   steps:
     - name: Download this run's signed UI test products
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: macos-ui-products
+        path: .test-results/products
+        digest-mismatch: error
+    - name: Unpack signed UI test products
       shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
       run: |
-        gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name macos-ui-products --dir .test-results/products
         mkdir -p .build/macos/Build
         tar -xf .test-results/products/macos-ui-products.tar -C .build/macos/Build
         rm .test-results/products/macos-ui-products.tar

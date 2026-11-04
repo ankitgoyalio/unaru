@@ -62,6 +62,9 @@ the package test builds. A Linux job combines all three DocC modules and verifie
 the complete site. The required `apple` check requires every Apple job and site
 assembly to succeed. Linux package tests run independently. Every pull request
 runs the full set of checks.
+Artifact downloads use the pinned `actions/download-artifact` action with its
+current-run runtime token and fail on a digest mismatch. Downloads do not accept
+a run ID, repository, or GitHub token override.
 
 `.github/ui-test-shards.json` assigns each UI method to one runner. The runner
 script rejects missing or duplicated methods and requires every selected test to
@@ -140,6 +143,7 @@ GitHub Actions references use full commit SHAs. Repository policy requires these
 pins and allows only the action repositories used by the workflows. Keep the
 allowlist synchronized when introducing an action. Every checkout disables
 persisted Git credentials. Workflow runs from outside contributors require approval.
+The allowlist includes `actions/download-artifact@*` for current-run transfers.
 The cache allowlist includes `actions/cache@*` and `actions/cache/*@*` for separate
 restore and save actions. All workflow references still use full commit SHAs.
 
