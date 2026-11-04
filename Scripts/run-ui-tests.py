@@ -26,9 +26,9 @@ def load_shards(root=ROOT):
     assigned = [name for shard in shards for name in shard["tests"]]
     if (not discovered or Counter(assigned) != Counter(discovered)
             or any(count != 1 for count in Counter(assigned).values())
-            or [shard["shard"] for shard in shards] != [1, 2, 3]
+            or [shard["shard"] for shard in shards] != [1, 2, 3, 4]
             or any(not shard["tests"] for shard in shards)):
-        raise ValueError("UI shards must contain every discovered test exactly once across three nonempty shards")
+        raise ValueError("UI shards must contain every discovered test exactly once across four nonempty shards")
     return shards
 
 
@@ -42,7 +42,7 @@ def verify_summary(summary, expected):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("shard", type=int, choices=(1, 2, 3))
+    parser.add_argument("shard", type=int, choices=(1, 2, 3, 4))
     parser.add_argument("--products", type=Path, help="Current run's Build/Products directory")
     args = parser.parse_args()
     shards = load_shards()

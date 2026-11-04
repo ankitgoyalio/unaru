@@ -3,45 +3,51 @@
     "shard": 1,
     "tests": [
       "testAccountRowOpensSheetAndRestoresKeyboardFocus",
-      "testRestorationRetriesNetworkAndProviderFailuresInSheet",
-      "testLogoutClearsEveryWindowBeforeRemoteCompletionAndAllowsSignIn",
-      "testOpeningAccountShowsKnownIdentityWhileRefreshingMissingDetails",
+      "testLoginDenialAndExpiryAllowAnotherAttempt",
+      "testSheetRefreshDoesNotTreatInternalAuthorizationAsKiteExpiry",
       "testBackendRestartRequestsLoginWithoutShowingCachedIdentity",
-      "testRejectedInternalAuthorizationCanRetryWithoutSettings",
+      "testRelaunchValidatesBeforeRestoringIdentityWithoutBrowserLogin",
       "testBundledBackendStartsWithoutConnectionSetupAndRelaunches",
-      "testBackendConfigurationFailureDoesNotAskForKiteSignIn",
-      "testTemporaryServerFailureOffersRetry"
+      "testBackendConfigurationFailureDoesNotAskForKiteSignIn"
     ],
-    "measured_case_seconds": 182.594
+    "measured_case_seconds": 148.635
   },
   {
     "shard": 2,
     "tests": [
       "testUnconfirmedLogoutAndLateProfileCannotRestoreIdentity",
-      "testOpenAppRetriesTransientFailuresWithoutAnotherLogin",
-      "testOccupiedPortDoesNotReceiveCredentialsAndRetryStartsOwnHelper",
-      "testOpenAppRequestsLoginAfterBackendLosesSession",
+      "testRestorationRetriesNetworkAndProviderFailuresInSheet",
       "testNewSheetRefreshSupersedesHeldBackgroundProfile",
-      "testRelaunchValidatesBeforeRestoringIdentityWithoutBrowserLogin",
-      "testOpenAppRequestsLoginWhenProviderRejectsSession",
-      "testConnectionFailureCanRetryWithoutRepeatingSetup",
-      "testRedirectDoesNotForwardConnectionCredentials"
+      "testRevokedSessionOnLaunchOffersKiteLoginInsteadOfConnectionSettings",
+      "testRejectedInternalAuthorizationCanRetryWithoutSettings",
+      "testAccountSheetDistinguishesMissingAndEmptyDetails",
+      "testKiteBrowserCompletionShowsAccountButton"
     ],
-    "measured_case_seconds": 181.687
+    "measured_case_seconds": 149.916
   },
   {
     "shard": 3,
     "tests": [
       "testExpiryClearsEveryWindowAndRejectsHeldRefresh",
       "testSignInSheetTransitionsToReadableSidebarInBothAppearances",
-      "testLoginDenialAndExpiryAllowAnotherAttempt",
-      "testSheetRefreshDoesNotTreatInternalAuthorizationAsKiteExpiry",
-      "testRevokedSessionOnLaunchOffersKiteLoginInsteadOfConnectionSettings",
+      "testLogoutClearsEveryWindowBeforeRemoteCompletionAndAllowsSignIn",
+      "testOpeningAccountShowsKnownIdentityWhileRefreshingMissingDetails",
       "testCancellingLoginRejectsDelayedCompletionAndAllowsNewLogin",
-      "testAccountSheetDistinguishesMissingAndEmptyDetails",
-      "testKiteBrowserCompletionShowsAccountButton",
-      "testTemporaryLoginFailureRetriesCompletionWithoutAnotherBrowserHandoff"
+      "testConnectionFailureCanRetryWithoutRepeatingSetup",
+      "testTemporaryLoginFailureRetriesCompletionWithoutAnotherBrowserHandoff",
+      "testTemporaryServerFailureOffersRetry"
     ],
-    "measured_case_seconds": 179.792
+    "measured_case_seconds": 150.032
+  },
+  {
+    "shard": 4,
+    "tests": [
+      "testOpenAppRetriesTransientFailuresWithoutAnotherLogin",
+      "testOpenAppRequestsLoginAfterBackendLosesSession",
+      "testOccupiedPortDoesNotReceiveCredentialsAndRetryStartsOwnHelper",
+      "testOpenAppRequestsLoginWhenProviderRejectsSession",
+      "testRedirectDoesNotForwardConnectionCredentials"
+    ],
+    "measured_case_seconds": 87.204
   }
 ]

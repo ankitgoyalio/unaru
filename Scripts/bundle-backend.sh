@@ -7,7 +7,19 @@ build_mode=$(printf '%s' "$CONFIGURATION" | tr '[:upper:]' '[:lower:]')
 helper_dir="$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers"
 mkdir -p "$helper_dir"
 set --
+if [ -n "${UNARU_PREBUILT_BACKENDS_DIR:-}" ]; then
+    [ "$build_mode" = debug ] && [ "${CI:-}" = true ] || {
+        echo 'Current-run helper artifacts require a Debug CI build.' >&2
+        exit 1
+    }
+fi
 for architecture in $ARCHS; do
+    if [ -n "${UNARU_PREBUILT_BACKENDS_DIR:-}" ]; then
+        binary="$UNARU_PREBUILT_BACKENDS_DIR/$architecture/Backend"
+        [ "$(xcrun lipo -archs "$binary")" = "$architecture" ]
+        set -- "$@" "$binary"
+        continue
+    fi
     scratch="$repo_root/.build/bundled-backend/$build_mode-$architecture"
     # Xcode exports SDKROOT for the app; SwiftPM must select the native macOS SDK.
     env -u SDKROOT -u SDK_DIR xcrun swift build --package-path "$repo_root/backend" \

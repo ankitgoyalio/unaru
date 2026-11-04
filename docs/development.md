@@ -54,9 +54,10 @@ builds the macOS app for DocC, and validates the static documentation. Workflow 
 Logs and result artifacts belong in ignored `.test-results/`.
 
 Apple package checks and simulator builds run alongside the macOS UI build and
-app DocC validation. The UI build produces signed test products for three shards
+an Intel helper build. The UI build produces signed test products for four shards
 on independent Mac desktops. Only products from the current run are used. These
-six Mac jobs use at most five runners concurrently. Package documentation reuses
+Mac jobs use at most five runners concurrently. The short fourth shard waits for
+the package and simulator job to release its runner. Package documentation reuses
 the package test builds. A Linux job combines all three DocC modules and verifies
 the complete site. The required `apple` check requires every Apple job and site
 assembly to succeed. Linux package tests run independently. Every pull request
@@ -89,6 +90,10 @@ remains enabled. Distribution archives require the usual signing identity for bo
 executables. No standalone backend needs to be launched for the Mac app.
 Helper builds disable the compiler index store. Neither the app nor the UI test
 runner reads the helper's development index.
+CI builds each helper architecture once for the app builds: the UI build supplies
+the native slice, and a separate job supplies the Intel slice. DocC builds both app
+architectures with those current-run artifacts. The bundle script checks each
+slice's architecture and accepts prebuilt helpers only in Debug CI builds.
 
 Mac UI tests use controlled loopback HTTP servers for browser completion and session
 recovery. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to isolate configuration,

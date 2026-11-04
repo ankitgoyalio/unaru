@@ -25,7 +25,7 @@ class UIShardsTests(unittest.TestCase):
         shutil.copy2(ROOT / ".github/ui-test-shards.json", self.root / ".github/ui-test-shards.json")
 
     def test_repository_partition_is_complete(self):
-        self.assertEqual(len(runner.load_shards(self.root)), 3)
+        self.assertEqual(len(runner.load_shards(self.root)), 4)
 
     def test_new_test_requires_partition_update(self):
         (self.root / "apps/unaru/unaruUITests/New.swift").write_text(
@@ -48,20 +48,22 @@ class UIShardsTests(unittest.TestCase):
             runner.load_shards(self.root)
 
     def test_zero_or_skipped_results_are_not_success(self):
-        summary = dict(result="Passed", totalTestCount=9, passedTests=9,
+        expected = len(runner.load_shards(self.root)[0]["tests"])
+        summary = dict(result="Passed", totalTestCount=expected, passedTests=expected,
                        failedTests=0, skippedTests=0, expectedFailures=0)
-        runner.verify_summary(summary, 9)
+        runner.verify_summary(summary, expected)
         for changes in (dict(totalTestCount=0, passedTests=0),
-                        dict(skippedTests=1, passedTests=8), dict(result="Failed")):
+                        dict(skippedTests=1, passedTests=expected - 1), dict(result="Failed")):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
-                runner.verify_summary(summary | changes, 9)
+                runner.verify_summary(summary | changes, expected)
 
     def test_shared_products_run_without_recompiling(self):
         products = self.root / "Products"
         products.mkdir()
         test_run = products / "unaru.xctestrun"
         test_run.touch()
-        summary = dict(result="Passed", totalTestCount=9, passedTests=9,
+        expected = len(runner.load_shards(self.root)[0]["tests"])
+        summary = dict(result="Passed", totalTestCount=expected, passedTests=expected,
                        failedTests=0, skippedTests=0, expectedFailures=0)
         with patch.object(sys, "argv", ["run-ui-tests.py", "1", "--products", str(products)]), \
                 patch.object(runner, "ROOT", self.root), \
@@ -70,7 +72,7 @@ class UIShardsTests(unittest.TestCase):
             runner.main()
         command = execute.call_args_list[0].args[0]
         self.assertEqual(command[:4], ["xcodebuild", "test-without-building", "-xctestrun", str(test_run)])
-        self.assertEqual(sum(arg.startswith("-only-testing:") for arg in command), 9)
+        self.assertEqual(sum(arg.startswith("-only-testing:") for arg in command), expected)
 
     def test_missing_shared_test_specification_fails_instead_of_rebuilding(self):
         products = self.root / "Products"
