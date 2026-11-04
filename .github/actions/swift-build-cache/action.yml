@@ -15,13 +15,24 @@ runs:
           } | shasum -a 256 | cut -d ' ' -f 1
         )
         echo "identity=$identity" >> "$GITHUB_OUTPUT"
+        echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
     - name: Restore Swift build products
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      id: restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           backend/.build
           packages/Shared/.build
           .build/bundled-backend
-        key: swift-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.environment.outputs.identity }}-${{ hashFiles('backend/Package.resolved', '**/Package.swift') }}-${{ github.sha }}
+        key: ${{ env.CI_CACHE_NAMESPACE || 'swift-build-v3' }}-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.environment.outputs.identity }}-${{ hashFiles('backend/Package.resolved', '**/Package.swift') }}-${{ steps.environment.outputs.week }}
         restore-keys: |
-          swift-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.environment.outputs.identity }}-${{ hashFiles('backend/Package.resolved', '**/Package.swift') }}-
+          ${{ env.CI_CACHE_NAMESPACE || 'swift-build-v3' }}-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.environment.outputs.identity }}-${{ hashFiles('backend/Package.resolved', '**/Package.swift') }}-
+    # Save at the end of the job, after products are built. Main and dispatch
+    # refresh weekly; PRs write only when no compatible seed is available.
+    - name: Register cache writer
+      if: steps.restore.outputs.cache-hit != 'true' && (github.event_name != 'pull_request' || steps.restore.outputs.cache-matched-key == '')
+      shell: bash
+      env:
+        CACHE_KEY: ${{ steps.restore.outputs.cache-primary-key }}
+      run: |
+        echo "CI_CACHE_SAVE_KEY=$CACHE_KEY" >> "$GITHUB_ENV"

@@ -1,0 +1,53 @@
+[
+  {
+    "shard": 1,
+    "tests": [
+      "testAccountRowOpensSheetAndRestoresKeyboardFocus",
+      "testLoginDenialAndExpiryAllowAnotherAttempt",
+      "testSheetRefreshDoesNotTreatInternalAuthorizationAsKiteExpiry",
+      "testBackendRestartRequestsLoginWithoutShowingCachedIdentity",
+      "testRelaunchValidatesBeforeRestoringIdentityWithoutBrowserLogin",
+      "testBundledBackendStartsWithoutConnectionSetupAndRelaunches",
+      "testBackendConfigurationFailureDoesNotAskForKiteSignIn"
+    ],
+    "measured_case_seconds": 148.635
+  },
+  {
+    "shard": 2,
+    "tests": [
+      "testUnconfirmedLogoutAndLateProfileCannotRestoreIdentity",
+      "testRestorationRetriesNetworkAndProviderFailuresInSheet",
+      "testNewSheetRefreshSupersedesHeldBackgroundProfile",
+      "testRevokedSessionOnLaunchOffersKiteLoginInsteadOfConnectionSettings",
+      "testRejectedInternalAuthorizationCanRetryWithoutSettings",
+      "testAccountSheetDistinguishesMissingAndEmptyDetails",
+      "testKiteBrowserCompletionShowsAccountButton"
+    ],
+    "measured_case_seconds": 149.916
+  },
+  {
+    "shard": 3,
+    "tests": [
+      "testExpiryClearsEveryWindowAndRejectsHeldRefresh",
+      "testSignInSheetTransitionsToReadableSidebarInBothAppearances",
+      "testLogoutClearsEveryWindowBeforeRemoteCompletionAndAllowsSignIn",
+      "testOpeningAccountShowsKnownIdentityWhileRefreshingMissingDetails",
+      "testCancellingLoginRejectsDelayedCompletionAndAllowsNewLogin",
+      "testConnectionFailureCanRetryWithoutRepeatingSetup",
+      "testTemporaryLoginFailureRetriesCompletionWithoutAnotherBrowserHandoff",
+      "testTemporaryServerFailureOffersRetry"
+    ],
+    "measured_case_seconds": 150.032
+  },
+  {
+    "shard": 4,
+    "tests": [
+      "testOpenAppRetriesTransientFailuresWithoutAnotherLogin",
+      "testOpenAppRequestsLoginAfterBackendLosesSession",
+      "testOccupiedPortDoesNotReceiveCredentialsAndRetryStartsOwnHelper",
+      "testOpenAppRequestsLoginWhenProviderRejectsSession",
+      "testRedirectDoesNotForwardConnectionCredentials"
+    ],
+    "measured_case_seconds": 87.204
+  }
+]

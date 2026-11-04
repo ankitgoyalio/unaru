@@ -29,6 +29,7 @@ incompatible compiler, Xcode version, or formatter.
 swiftformat . --lint --config .swiftformat
 python3 -m unittest discover -s Tests/Hooks -p 'test_*.py'
 python3 -m unittest discover -s Tests/Documentation -p 'test_*.py'
+python3 -m unittest discover -s Tests/CI -p 'test_*.py'
 python3 Scripts/check-documentation.py
 python3 Scripts/check-documentation-examples.py
 swift test --package-path packages/Shared
@@ -52,17 +53,36 @@ compiles the app and its tests for iOS and visionOS simulators, runs macOS UI te
 builds the macOS app for DocC, and validates the static documentation. Workflow timeouts bound builds and tests.
 Logs and result artifacts belong in ignored `.test-results/`.
 
-Apple package checks and simulator builds, macOS UI tests, and DocC validation run
-in three parallel jobs. The required `apple` check succeeds only when all three
-jobs succeed. Linux package tests run independently. Every pull request still runs
-the full set of checks.
+Apple package checks and simulator builds run alongside the macOS UI build and
+an Intel helper build. The UI build produces signed test products for four shards
+on independent Mac desktops. Only products from the current run are used. These
+Mac jobs use at most five runners concurrently. The short fourth shard waits for
+app DocC to release its runner. Package documentation reuses
+the package test builds. A Linux job combines all three DocC modules and verifies
+the complete site. The required `apple` check requires every Apple job and site
+assembly to succeed. Linux package tests run independently. Every pull request
+runs the full set of checks.
+Artifact downloads use the pinned `actions/download-artifact` action with its
+current-run runtime token and fail on a digest mismatch. Downloads do not accept
+a run ID, repository, or GitHub token override.
+
+`.github/ui-test-shards.json` assigns each UI method to one runner. The runner
+script rejects missing or duplicated methods and requires every selected test to
+pass without skips. When adding or renaming a UI method, update its shard entry.
+Run `python3 -m unittest discover -s Tests/CI -p 'test_*.py'` to check the partition.
+Keep slow methods on separate shards. UI workers use independent desktops to avoid
+interference with keyboard focus and windows.
 
 CI caches SwiftPM dependencies and build products for each job, operating system,
-architecture, runner image, toolchain, and dependency manifest. A new commit can
-restore the previous compatible build and saves its own cache after success.
-Main-branch runs populate caches that new pull requests can restore. Restoring a
-cache never skips a build, test, or documentation check. Xcode DerivedData, result
-bundles, and generated documentation sites are not cached.
+architecture, runner image, toolchain, and dependency manifest. Caches contain
+weekly build seeds. SwiftPM checks the current source and incrementally rebuilds
+after every restore. Main and dispatched runs refresh a seed once per week. PRs
+save only when no compatible seed exists. UI shards consume the current run's
+build artifact and do not restore or save SwiftPM caches. This avoids saving
+large caches for every source commit.
+Main-branch caches remain available to new PRs within GitHub's cache retention
+limits. Restoring a cache never skips a build, test, or documentation check.
+Xcode DerivedData, result bundles, and generated documentation sites are not cached.
 
 The Mac app build runs `Scripts/bundle-backend.sh` to compile Backend for each requested
 architecture, combine the slices, and sign the helper with sandbox inheritance. The app
@@ -71,6 +91,12 @@ The helper lives in `Contents/Helpers`; iOS and visionOS builds skip this phase.
 builds use `.build/bundled-backend` and run outside Xcode's script sandbox. App Sandbox
 remains enabled. Distribution archives require the usual signing identity for both
 executables. No standalone backend needs to be launched for the Mac app.
+Helper builds disable the compiler index store. Neither the app nor the UI test
+runner reads the helper's development index.
+CI builds each helper architecture once for the app builds: the UI build supplies
+the native slice, and a separate job supplies the Intel slice. DocC builds both app
+architectures with those current-run artifacts. The bundle script checks each
+slice's architecture and accepts prebuilt helpers only in Debug CI builds.
 
 Mac UI tests use controlled loopback HTTP servers for browser completion and session
 recovery. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to isolate configuration,
@@ -117,6 +143,9 @@ GitHub Actions references use full commit SHAs. Repository policy requires these
 pins and allows only the action repositories used by the workflows. Keep the
 allowlist synchronized when introducing an action. Every checkout disables
 persisted Git credentials. Workflow runs from outside contributors require approval.
+The allowlist includes `actions/download-artifact@*` for current-run transfers.
+The cache allowlist includes `actions/cache@*` and `actions/cache/*@*` for separate
+restore and save actions. All workflow references still use full commit SHAs.
 
 CI runs actionlint with a checksum-verified binary. The Security workflow scans
 Actions and Python with CodeQL. Swift scanning awaits support for the Swift 6.4
@@ -132,6 +161,10 @@ that restores those caches. Report elapsed workflow time separately from the sum
 of runner time, because parallel jobs can reduce latency while consuming more compute.
 Keep raw API responses, logs, and timing reports in ignored `.test-results/` or CI
 artifacts. A failed or cancelled run is not a successful performance measurement.
+The CI dispatch input `cache_namespace` defaults to `swift-build-v3`. Use a unique
+value to measure empty optimization caches, then dispatch the same revision with
+the same value to measure restored caches. Each independent run starts fresh
+runners and executes all checks. Record each run separately.
 
 ## Update dependencies
 
