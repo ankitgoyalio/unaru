@@ -57,7 +57,7 @@ Apple package checks and simulator builds run alongside the macOS UI build and
 an Intel helper build. The UI build produces signed test products for four shards
 on independent Mac desktops. Only products from the current run are used. These
 Mac jobs use at most five runners concurrently. The short fourth shard waits for
-the package and simulator job to release its runner. Package documentation reuses
+app DocC to release its runner. Package documentation reuses
 the package test builds. A Linux job combines all three DocC modules and verifies
 the complete site. The required `apple` check requires every Apple job and site
 assembly to succeed. Linux package tests run independently. Every pull request

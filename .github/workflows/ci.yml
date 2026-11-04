@@ -192,10 +192,10 @@ jobs:
         with:
           shard: ${{ matrix.shard }}
 
-  # The short fourth shard starts only after apple-build releases its Mac slot.
+  # App documentation releases its Mac slot before the short fourth shard starts.
   apple-ui-final:
     name: apple-ui (4)
-    needs: [apple-ui-build, apple-build]
+    needs: [apple-ui-build, apple-docs]
     runs-on: xcode-27
     timeout-minutes: 30
     permissions:
