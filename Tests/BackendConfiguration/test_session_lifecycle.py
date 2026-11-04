@@ -257,11 +257,9 @@ exit(child.terminationStatus)
                     except Exception:
                         pass
                 self.stop()
-                # Remove only this test's item if the helper failed before cleanup.
-                import hashlib
+                # This UUID service belongs only to this test, including fallback cleanup.
                 service = "io.ankitgoyal.unaru.kite-session.test." + namespace
-                subprocess.run(["security", "delete-generic-password", "-s", service,
-                    "-a", hashlib.sha256(api_key.encode()).hexdigest()], capture_output=True)
+                subprocess.run(["security", "delete-generic-password", "-s", service], capture_output=True)
                 shutil.rmtree(Path.home() / "Library/Containers" / host_id, ignore_errors=True)
 
     def set_failure(self, host, path, operation=None):
