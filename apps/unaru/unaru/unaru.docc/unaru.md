@@ -30,12 +30,15 @@ It shows the avatar or initials, full name, and Kite user ID. The main area stay
 Temporary login-status or profile errors offer Retry Sign-In for the same attempt.
 Session verification fetches a fresh profile before displaying identity. Periodic
 verification detects Kite authentication rejection and session loss. Temporary network
-failures offer Retry without repeating browser login. Credential rejection offers a
-local service restart. The app caches no profile or Kite credential. Redirects are
+failures offer Retry without repeating browser login. Saved-session validation failures
+show Can’t Verify Kite Session. Keychain read failures show Saved Session Unavailable.
+Both keep identity hidden and retry existing authorization. Failed retries retain the
+same recovery action, and successful validation closes the sheet. Credential rejection
+offers a local service restart without discarding the saved Kite token. The app caches no profile or Kite credential. Redirects are
 refused before credentials can be forwarded. Logout clears visible identity immediately,
 but failed durable removal stays in the existing Retry flow and cannot re-enable sign-in
-until the helper acknowledges deletion. Dedicated storage recovery UX remains in the
-sibling persistence tickets.
+until the helper acknowledges deletion. Save notices and deletion recovery remain in
+issue #22.
 
 iOS and visionOS retain their initial content and deployment targets.
 

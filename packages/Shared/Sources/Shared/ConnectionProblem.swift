@@ -6,6 +6,10 @@ public struct ConnectionProblem: Codable, Sendable {
         case backendNotConfigured
         /// The authorized backend has no valid Kite session.
         case kiteSignInRequired
+        /// Saved authorization is retained while provider validation is unavailable.
+        case kiteSessionUnavailable
+        /// Secure storage could not be read; absence or token invalidity is not established.
+        case sessionStorageUnavailable
     }
 
     /// The corrective category without credential values.

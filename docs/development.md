@@ -124,7 +124,8 @@ env UNARU_SIGNING_IDENTITY='<identity hash from security find-identity -v -p cod
 Build the Debug backend first with `swift build --package-path backend`. The opt-in test
 compiles a sandboxed parent, signs two helper variants with different code hashes under
 the stable helper identifier, and exercises normal quit, parent crash, restoration,
-launch-credential rotation, and logout/restart against fake loopback Kite responses.
+launch-credential rotation, failed validation followed by helper restart and Retry,
+and logout/restart against fake loopback Kite responses.
 It uses unique fake credentials and a UUID Keychain service with cleanup. Without the
 identity variable, this test is explicitly skipped. CI's ad hoc signatures cannot replace
 this signing-aware evidence. Tests never access the owner's Kite session.

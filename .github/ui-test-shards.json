@@ -46,7 +46,8 @@
       "testOpenAppRequestsLoginAfterBackendLosesSession",
       "testOccupiedPortDoesNotReceiveCredentialsAndRetryStartsOwnHelper",
       "testOpenAppRequestsLoginWhenProviderRejectsSession",
-      "testRedirectDoesNotForwardConnectionCredentials"
+      "testRedirectDoesNotForwardConnectionCredentials",
+      "testSavedSessionRecoveryRetriesWithoutRevealingIdentityOrOpeningBrowser"
     ],
     "measured_case_seconds": 87.204
   }

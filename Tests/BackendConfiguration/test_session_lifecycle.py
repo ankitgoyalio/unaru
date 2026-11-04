@@ -36,6 +36,11 @@ class FakeKite(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.server.profiles += 1
+        if self.server.profile_status != 200:
+            self.send_response(self.server.profile_status)
+            self.end_headers()
+            self.wfile.write(b'{"status":"error","error_type":"NetworkException","message":"Isolated temporary failure"}')
+            return
         self.reply(False)
 
     def reply(self, exchange):
@@ -60,6 +65,7 @@ class SessionLifecycleTests(unittest.TestCase):
         provider.api_key = api_key
         provider.access_token = "fake20-" + secrets.token_hex(24)
         provider.exchanges = provider.profiles = 0
+        provider.profile_status = 200
         thread = threading.Thread(target=provider.serve_forever, daemon=True)
         thread.start()
         self.addCleanup(provider.server_close)
@@ -135,10 +141,26 @@ exit(child.terminationStatus)
                 self.sign(helper, ROOT / "backend/BundledBackend.entitlements", "io.ankitgoyal.unaru.backend")
                 self.sign(app, entitlements, host_id)
                 self.assertNotEqual(first_hash, self.code_hash(helper))
+                provider.profile_status = 502
                 self.launch(host, port, directory, environment)
                 with self.assertRaises(HTTPError) as denied:
                     self.request("session", token=old_token)
                 self.assertEqual(denied.exception.code, 401)
+                self.assertNotIn("kiteSignInRequired", denied.exception.read().decode())
+                for path in ("session", "profile", "session"):
+                    with self.assertRaises(HTTPError) as failed:
+                        self.request(path)
+                    self.assertEqual(failed.exception.code, 503)
+                    self.assertEqual(json.load(failed.exception), {"code": "kiteSessionUnavailable"})
+                # Stop the actual helper while validation is still failing. In-memory retention
+                # cannot satisfy recovery after this second launch and Keychain read.
+                self.stop()
+                self.launch(host, port, directory, environment)
+                with self.assertRaises(HTTPError) as failed_again:
+                    self.request("session")
+                self.assertEqual(failed_again.exception.code, 503)
+                self.assertEqual(json.load(failed_again.exception), {"code": "kiteSessionUnavailable"})
+                provider.profile_status = 200
                 self.assertEqual(self.request("session")["state"], "signedIn")
                 self.assertEqual(self.request("profile")["userID"], "FAKE20")
                 self.assertGreaterEqual(provider.profiles, 3)
@@ -156,7 +178,7 @@ exit(child.terminationStatus)
                 self.stop()
                 self.launch(host, port, directory, environment)
                 self.assertEqual(self.request("session")["state"], "signedOut")
-                print("Signed sandbox helper: changed code hash, quit/crash restoration, fresh launch credential, logout deletion passed")
+                print("Signed sandbox helper: changed code hash, quit/crash restoration, fresh launch credential, transient validation/restart/retry, logout deletion passed")
             finally:
                 if self.process is not None and self.process.poll() is None:
                     # Cleanup is scoped to this UUID and fake API key, even after assertion failure.

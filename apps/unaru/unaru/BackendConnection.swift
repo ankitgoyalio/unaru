@@ -35,6 +35,10 @@
             case backendError
             /// A temporary connection or server failure permits retry.
             case unavailable
+            /// Saved authorization awaits a successful provider validation.
+            case sessionUnavailable
+            /// Secure storage could not be read and remains available for retry.
+            case storageUnavailable
         }
 
         /// The state presented by every main window.
@@ -216,7 +220,11 @@
                             accountRefreshFailed = true
                             scheduleRevalidation()
                         } else {
-                            phase = .unavailable
+                            switch error {
+                            case BackendTransport.Failure.sessionUnavailable: phase = .sessionUnavailable
+                            case BackendTransport.Failure.storageUnavailable: phase = .storageUnavailable
+                            default: phase = .unavailable
+                            }
                         }
                     }
                 }

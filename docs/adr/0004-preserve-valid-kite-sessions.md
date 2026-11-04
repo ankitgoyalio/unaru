@@ -36,7 +36,12 @@ an isolated Keychain namespace. It verifies replacement with a different helper 
 hash under the same Apple Development identity, normal quit, parent crash, and
 sign-out followed by restart. Ad hoc CI signing alone does not prove this continuity.
 
-Credential-free save status and a save retry endpoint provide the foundation for
-recovery. Dedicated persistence notices and storage recovery UX remain in issues
-#21 and #22. Failed logout stays in the existing retry flow until durable deletion
-succeeds.
+Credential-free recovery codes distinguish temporary provider validation failure from
+Keychain read failure. Both preserve saved authorization and keep identity hidden until
+Retry succeeds. Generation and request-order checks reject stale restore responses,
+including a rejection that arrives after a newer successful validation.
+
+Credential-free save status and a save retry endpoint provide the foundation for save
+recovery in issue #22. Failed logout stays in the existing retry flow until durable
+deletion succeeds. Signed lifecycle acceptance also stops the helper during a provider
+outage, then verifies recovery from Keychain without another exchange.

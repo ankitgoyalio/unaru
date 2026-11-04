@@ -34,10 +34,11 @@ between different executable hashes. The app does not share token access through
 inheritance. Keychain items belong to the helper, use a hash of the configured API key,
 and contain the validated account ID with its token. The store never synchronizes items.
 
-Temporary validation or Keychain read failures preserve saved authorization. A failed
-save leaves the current session usable. Sign-out reports success only after durable
-removal; failed removal requires retry. Persistence notices and dedicated recovery UI
-are tracked in #21 and #22.
+Temporary validation or Keychain read failures preserve saved authorization, including
+across helper restarts. The app hides the account until validation succeeds and offers
+**Retry**. A failed save leaves the current session usable. Sign-out reports success only
+after durable removal; failed removal requires retry. Save notices and deletion recovery
+are tracked in #22.
 
 ## Run a standalone backend for development
 
@@ -138,8 +139,13 @@ browser cookies.
 - For a local startup error, close other copies or services using port 8080 and choose
   **Retry**. If the embedded helper is missing, rebuild or reinstall the app.
 - For **Set Up Kite**, edit the app-owned `.env` and choose **Retry** to reload it.
-- For a temporary network or Kite failure, restore connectivity and choose **Retry**.
-  The app validates an existing Kite session before displaying identity.
+- For **Can’t Verify Kite Session**, check your internet connection and choose **Retry**.
+  Network failures, timeouts, rate limits, and temporary Kite failures preserve the saved
+  session. Retry validates the existing token without another browser sign-in.
+- For **Saved Session Unavailable**, choose **Retry** to access Keychain again. This error
+  does not mean that no session is saved or that Kite rejected the token. The account
+  stays hidden until the helper reads and validates the session.
+- For **Connection Unavailable**, restore connectivity and choose **Retry**.
 - For **Retry Sign-In**, retry the pending read without another token exchange or
   browser handoff. Cancelled, denied, or expired attempts need a new sign-in.
 
