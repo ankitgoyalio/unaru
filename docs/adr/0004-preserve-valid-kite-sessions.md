@@ -26,5 +26,17 @@ Keychain access. Verify restoration across actual helper termination and
 replacement with isolated test credentials. A test backend that survives an app
 relaunch does not establish persistence across helper replacement.
 
-This decision is accepted but not yet implemented. The current implementation
-keeps the session only in memory.
+The persistence slice is implemented by `KiteLogin` and its narrow `KiteSessionStore`
+boundary. Only bundled Mac helpers select `KeychainKiteSessionStore`; standalone
+backends remain memory-only. Local store operations run synchronously within the
+login actor, and restored profile requests check generation before publishing authority.
+
+Signed local acceptance uses a sandboxed parent, isolated fake credentials, and
+an isolated Keychain namespace. It verifies replacement with a different helper code
+hash under the same Apple Development identity, normal quit, parent crash, and
+sign-out followed by restart. Ad hoc CI signing alone does not prove this continuity.
+
+Credential-free save status and a save retry endpoint provide the foundation for
+recovery. Dedicated persistence notices and storage recovery UX remain in issues
+#21 and #22. Failed logout stays in the existing retry flow until durable deletion
+succeeds.

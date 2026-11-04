@@ -54,6 +54,8 @@
         @Published private(set) var logoutUnconfirmed = false
         /// Verification cannot reattach old backend authority after local logout.
         private var requiresSignIn = false
+        /// Durable logout is incomplete until the helper acknowledges secure removal.
+        private var pendingLogout = false
         /// Refresh activity shared by sheets in every window.
         @Published private(set) var isRefreshingAccount = false
         /// A retryable failure never removes an already validated identity.
@@ -91,7 +93,9 @@
                     try await backend.waitUntilReady()
                     guard !Task.isCancelled, revision == currentRevision else { return }
                     self.configuration = configuration
-                    if requiresSignIn {
+                    if pendingLogout {
+                        logOut()
+                    } else if requiresSignIn {
                         phase = .signedOut
                     } else {
                         verify()
@@ -106,6 +110,15 @@
 
         /// Retries an available session or restarts the helper after startup/configuration failure.
         func retry() {
+            if pendingLogout {
+                if backend.isRunning, configuration != nil {
+                    logOut()
+                } else {
+                    backend.stop()
+                    start()
+                }
+                return
+            }
             if !backend.isRunning || phase == .startupFailed || phase == .backendError {
                 backend.stop()
                 start()
@@ -266,7 +279,11 @@
 
         /// Removes identity in every window synchronously, before contacting the backend.
         func logOut() {
-            guard !isLoggingOut, case .signedIn = phase else { return }
+            guard !isLoggingOut else { return }
+            if !pendingLogout {
+                guard case .signedIn = phase else { return }
+            }
+            pendingLogout = true
             revision += 1
             let currentRevision = revision
             task?.cancel()
@@ -284,17 +301,17 @@
                     let data = try await transport.send("logout", method: "POST", configuration: oldConfiguration)
                     let result = try JSONDecoder().decode(LogoutResult.self, from: data)
                     guard !Task.isCancelled, revision == currentRevision else { return }
+                    pendingLogout = false
                     logoutUnconfirmed = result.revocation != .confirmed
                     isLoggingOut = false
                 } catch {
                     guard !Task.isCancelled, revision == currentRevision else { return }
-                    logoutUnconfirmed = true
-                    // An unreachable helper may still hold the old token. Destroy its
-                    // authority before accepting another session check or login.
+                    // A stopped helper may still have saved authorization. Keep logout
+                    // pending and retry deletion before another sign-in or verification.
                     configuration = nil
                     backend.stop()
                     isLoggingOut = false
-                    start()
+                    phase = .unavailable
                 }
             }
         }

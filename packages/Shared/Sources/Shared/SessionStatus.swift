@@ -8,11 +8,25 @@ public struct SessionStatus: Codable, Sendable {
         case signedIn
     }
 
+    /// Whether helper-held authorization survives quitting; absent on older backends.
+    public enum Persistence: String, Codable, Sendable {
+        /// This backend intentionally has no durable session store.
+        case memoryOnly
+        /// The validated authorization is saved securely.
+        case saved
+        /// Current authorization is usable but secure saving failed.
+        case saveFailed
+    }
+
+    /// Credential-free persistence information, separate from Kite validity.
+    public let persistence: Persistence?
+
     /// The current authentication state.
     public let state: State
 
     /// Creates a session-status response without broker credentials.
-    public init(state: State) {
+    public init(state: State, persistence: Persistence? = nil) {
         self.state = state
+        self.persistence = persistence
     }
 }

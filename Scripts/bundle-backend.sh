@@ -35,6 +35,6 @@ chmod 755 "$helper_dir/Backend"
 if [ "${CODE_SIGNING_ALLOWED:-YES}" != NO ]; then
     identity=${EXPANDED_CODE_SIGN_IDENTITY:--}
     [ -n "$identity" ] || identity=-
-    /usr/bin/codesign --force --sign "$identity" --options runtime \
+    /usr/bin/codesign --force --sign "$identity" --identifier io.ankitgoyal.unaru.backend --options runtime \
         --entitlements "$repo_root/backend/BundledBackend.entitlements" "$helper_dir/Backend"
 fi

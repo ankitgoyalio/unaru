@@ -17,12 +17,26 @@ actor KiteLogin {
     private let apiSecret: String?
     /// The replaceable external HTTP boundary used by the real SDK.
     private let transport: any KiteHTTPTransport
+    /// SDK routing remains production unless an isolated Debug helper supplies loopback.
+    private let kiteConfiguration: KiteConfiguration
     /// A clock boundary for deterministic expiry tests.
     private let now: @Sendable () -> Date
     /// The lifetime of an authorized browser attempt.
     private let lifetime: TimeInterval
     /// Maximum time to wait for provider revocation.
     private let revocationTimeout: Duration
+    /// Optional durable storage; standalone backends remain memory-only.
+    private let store: any KiteSessionStore?
+    /// Rejects restoration that resumes after newer login or logout authority.
+    private var generation = UUID()
+    /// Initial restoration remains retryable after temporary failures.
+    private var restoreNeeded = true
+    /// Confirmed invalidation must finish durable removal before any restoration.
+    private var removalPending = false
+    /// The validated credential retained for saving without another exchange.
+    private var savedSession: SavedKiteSession?
+    /// Credential-free outcome of the latest secure write.
+    private var persistence: SessionStatus.Persistence?
     /// The newest attempt, replacing all previous callback authority.
     private var attempt: Attempt?
     /// The client whose exchange and profile retrieval have succeeded.
@@ -35,6 +49,8 @@ actor KiteLogin {
         apiKey: String? = Environment.get("KITE_API_KEY"),
         apiSecret: String? = Environment.get("KITE_API_SECRET"),
         transport: any KiteHTTPTransport = URLSessionKiteTransport(),
+        store: any KiteSessionStore? = nil,
+        kiteConfiguration: KiteConfiguration = try! KiteConfiguration(),
         lifetime: TimeInterval = 300,
         revocationTimeout: Duration = .seconds(5),
         now: @escaping @Sendable () -> Date = { Date() },
@@ -42,6 +58,8 @@ actor KiteLogin {
         self.apiKey = apiKey
         self.apiSecret = apiSecret
         self.transport = transport
+        self.store = store
+        self.kiteConfiguration = kiteConfiguration
         self.lifetime = lifetime
         self.revocationTimeout = revocationTimeout
         self.now = now
@@ -52,11 +70,15 @@ actor KiteLogin {
         guard let apiKey, !apiKey.isEmpty, let apiSecret, !apiSecret.isEmpty else {
             throw Abort(.serviceUnavailable, reason: "Configure Kite credentials on the backend.")
         }
-        let client = try KiteClient(apiKey: apiKey, transport: transport)
+        let client = try KiteClient(apiKey: apiKey, configuration: kiteConfiguration, transport: transport)
         let id = UUID().uuidString
         let state = UUID().uuidString + UUID().uuidString
         let deadline = now().addingTimeInterval(lifetime)
         let browserURL = try client.loginURL(redirectParameters: "state=\(state)")
+        generation = UUID()
+        restoreNeeded = false
+        removalPending = false
+        savedSession = nil
         attempt = Attempt(id: id, state: state, deadline: deadline, client: client)
         authenticated = nil
         return LoginAttempt(id: id, browserURL: browserURL, expiresAt: deadline)
@@ -74,8 +96,9 @@ actor KiteLogin {
             throw Abort(.badRequest, reason: "Kite login was not completed. Return to Unaru to try again.")
         }
         do {
-            _ = try await current.client.exchangeRequestToken(requestToken, apiSecret: apiSecret)
+            let session = try await current.client.exchangeRequestToken(requestToken, apiSecret: apiSecret)
             guard isCurrent(current.id) else { throw Abort(.conflict, reason: "Login was superseded or expired.") }
+            attempt?.accessToken = session.accessToken
             attempt?.exchanged = true
         } catch {
             if isCurrent(current.id) {
@@ -99,7 +122,13 @@ actor KiteLogin {
         do {
             let profile = try await current.client.profile()
             guard isCurrent(id) else { return LoginStatus(state: .failed) }
+            try Task.checkCancellation()
             let identity = Self.identity(profile)
+            if let token = current.accessToken {
+                let session = SavedKiteSession(userID: profile.userID, accessToken: token)
+                savedSession = session
+                saveCurrentSession()
+            }
             attempt?.profile = identity
             authenticated = current.client
             return LoginStatus(state: .signedIn, profile: identity)
@@ -114,20 +143,33 @@ actor KiteLogin {
     }
 
     /// Invalidates callback and in-flight profile authority when the app cancels.
-    func cancel(id: String) {
+    func cancel(id: String) throws {
         if let current = attempt, current.id == id {
+            generation = UUID()
             if authenticated === current.client {
+                // Keep failed deletion visible and retryable through the same cancellation.
+                do {
+                    if let apiKey {
+                        try store?.delete(apiKey: apiKey)
+                    }
+                } catch { throw Abort(.serviceUnavailable, reason: "Saved Kite authorization could not be removed.") }
                 authenticated = nil
+                savedSession = nil
             }
             attempt = nil
         }
     }
 
     /// Detaches all old authority before remote work; completion cannot mutate a newer session.
-    func logout() async -> LogoutResult {
+    func logout() async throws -> LogoutResult {
         let client = authenticated ?? attempt?.client
+        generation = UUID()
+        restoreNeeded = false
         authenticated = nil
         attempt = nil
+        savedSession = nil
+        removalPending = true
+        try finishRemoval()
         guard let client else { return LogoutResult(revocation: .unconfirmed) }
         let confirmed = await BoundedRevocation().run(client: client, timeout: revocationTimeout)
         return LogoutResult(revocation: confirmed ? .confirmed : .unconfirmed)
@@ -135,6 +177,7 @@ actor KiteLogin {
 
     /// Reads an authenticated profile without exposing the SDK's token-bearing session.
     func profile() async throws -> AccountProfile {
+        try await restore()
         guard let client = authenticated else { throw Abort(.unauthorized, reason: "Kite sign-in required.") }
         let requestID = UUID()
         profileRequestID = requestID
@@ -146,10 +189,7 @@ actor KiteLogin {
                 throw Abort(.serviceUnavailable, reason: "Kite profile request was superseded.")
             }
             if Self.isAuthenticationRejection(error) {
-                authenticated = nil
-                if attempt?.client === client {
-                    attempt = nil
-                }
+                try invalidate()
                 throw Abort(.unauthorized, reason: "Kite sign-in required.")
             }
             throw Abort(.serviceUnavailable, reason: "Kite profile is temporarily unavailable.")
@@ -157,12 +197,105 @@ actor KiteLogin {
         guard authenticated === client, profileRequestID == requestID else {
             throw Abort(.serviceUnavailable, reason: "Kite profile request was superseded.")
         }
+        try Task.checkCancellation()
+        if let savedSession, profile.userID != savedSession.userID {
+            try invalidate()
+            throw Abort(.unauthorized, reason: "Kite sign-in required.")
+        }
         return Self.identity(profile)
     }
 
     /// Reports only whether a completed backend-held session exists.
-    func session() -> SessionStatus {
-        SessionStatus(state: authenticated == nil ? .signedOut : .signedIn)
+    func session() async throws -> SessionStatus {
+        try await restore()
+        return SessionStatus(state: authenticated == nil ? .signedOut : .signedIn, persistence: authenticated == nil ? nil : persistence ?? .memoryOnly)
+    }
+
+    /// Retries secure saving of current authority without browser or exchange work.
+    func retrySave() async throws -> SessionStatus {
+        guard authenticated != nil else { throw Abort(.unauthorized, reason: "Kite sign-in required.") }
+        saveCurrentSession()
+        return try await session()
+    }
+
+    /// Synchronous storage cannot resume after a newer actor generation has taken authority.
+    private func saveCurrentSession() {
+        guard let store, let apiKey, let savedSession else {
+            persistence = .memoryOnly
+            return
+        }
+        do {
+            try store.save(savedSession, apiKey: apiKey)
+            persistence = .saved
+        } catch {
+            persistence = .saveFailed
+        }
+    }
+
+    /// Hides rejected identity before attempting durable deletion.
+    private func invalidate() throws {
+        generation = UUID()
+        authenticated = nil
+        savedSession = nil
+        attempt = nil
+        restoreNeeded = false
+        removalPending = true
+        try finishRemoval()
+    }
+
+    /// Retries invalidation cleanup without reusing rejected credentials.
+    private func finishRemoval() throws {
+        do {
+            if let apiKey {
+                try store?.delete(apiKey: apiKey)
+            }
+            removalPending = false
+        } catch {
+            throw Abort(.serviceUnavailable, reason: "Saved Kite authorization could not be removed.")
+        }
+    }
+
+    /// Validates saved authorization before publishing any identity; errors preserve the item.
+    private func restore() async throws {
+        if removalPending {
+            try finishRemoval()
+            return
+        }
+        guard restoreNeeded else { return }
+        guard let store, let apiKey, !apiKey.isEmpty else {
+            restoreNeeded = false
+            return
+        }
+        let revision = generation
+        do {
+            guard let session = try store.load(apiKey: apiKey) else {
+                restoreNeeded = false
+                return
+            }
+            let client = try KiteClient(apiKey: apiKey, accessToken: session.accessToken, configuration: kiteConfiguration, transport: transport)
+            let profile: KiteUserProfile
+            do { profile = try await client.profile() }
+            catch {
+                guard generation == revision else { throw CancellationError() }
+                if Self.isAuthenticationRejection(error) {
+                    try invalidate()
+                    return
+                }
+                throw error
+            }
+            guard generation == revision else { throw CancellationError() }
+            try Task.checkCancellation()
+            guard profile.userID == session.userID else {
+                try invalidate()
+                return
+            }
+            authenticated = client
+            savedSession = session
+            persistence = .saved
+            restoreNeeded = false
+        } catch {
+            throw Abort(.serviceUnavailable, reason: "Saved Kite session is temporarily unavailable. Retry in Unaru.")
+        }
     }
 
     /// Checks revision and expiry after an external request resumes.
@@ -208,6 +341,8 @@ actor KiteLogin {
         var consumed = false
         /// Whether the single token exchange completed.
         var exchanged = false
+        /// Exchange credential retained only until account validation.
+        var accessToken: String?
         /// Pending or terminal failure state.
         var result: LoginStatus.State = .pending
         /// The successfully fetched public identity.

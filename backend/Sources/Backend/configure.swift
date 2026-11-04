@@ -4,6 +4,8 @@
 //
 //  Created by Ankit Goyal on 01/11/2026.
 
+import Foundation
+import KiteConnect
 import Shared
 import Vapor
 
@@ -32,7 +34,25 @@ func configure(_ app: Application) async throws {
               Array(app.environment.arguments.suffix(5).prefix(4)) == ["serve", "--hostname", "127.0.0.1", "--port"],
               let port = Int(app.environment.arguments.last ?? ""), (1 ... 65535).contains(port)
         else { throw Abort(.internalServerError, reason: "Invalid bundled backend configuration.") }
-        try routes(app, connectionToken: token)
+        #if os(macOS)
+            var namespace: UUID?
+            var kiteConfiguration = try KiteConfiguration()
+            #if DEBUG
+                if let id = Environment.get("UNARU_TEST_STORAGE"), let uuid = UUID(uuidString: id) {
+                    namespace = uuid
+                    if let value = Environment.get("UNARU_TEST_KITE_URL"), let url = URL(string: value),
+                       url.scheme == "http", url.host == "127.0.0.1", url.port != nil,
+                       url.user == nil, url.password == nil, url.query == nil, url.fragment == nil, url.path.isEmpty
+                    {
+                        kiteConfiguration = try KiteConfiguration(baseURL: url)
+                    }
+                }
+            #endif
+            let login = KiteLogin(store: KeychainKiteSessionStore(testNamespace: namespace), kiteConfiguration: kiteConfiguration)
+            try routes(app, connectionToken: token, login: login)
+        #else
+            try routes(app, connectionToken: token)
+        #endif
         return
     }
     let pairing = try PairingStore(directory: PairingStore.defaultDirectory)

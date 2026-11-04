@@ -24,6 +24,11 @@ func routes(
         try await response.content.encode(login.session(), as: .json)
         return response
     }
+    protected.post("session", "save") { _ async throws -> Response in
+        let response = Response(status: .ok)
+        try await response.content.encode(login.retrySave(), as: .json)
+        return response
+    }
     protected.post("logout") { _ async throws -> Response in
         let response = Response(status: .ok)
         try await response.content.encode(login.logout(), as: .json)
@@ -45,8 +50,8 @@ func routes(
         try await response.content.encode(login.status(id: request.parameters.get("id") ?? ""), as: .json)
         return response
     }
-    protected.delete("login", ":id") { request async -> HTTPStatus in
-        await login.cancel(id: request.parameters.get("id") ?? "")
+    protected.delete("login", ":id") { request async throws -> HTTPStatus in
+        try await login.cancel(id: request.parameters.get("id") ?? "")
         return .noContent
     }
     protected.get("profile") { _ async throws -> Response in

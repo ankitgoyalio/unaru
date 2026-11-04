@@ -14,8 +14,10 @@ Kite credentials live in `.env` in the app's Application Support directory. The 
 creates a private template on first launch. Missing credentials during sign-in show
 Set Up Kite with Open Configuration Folder and Retry. Register
 `http://127.0.0.1:8080/kite/callback` with Kite. The helper owns token exchange and keeps
-the Kite access token in memory. Closing and reopening a window retains that session;
-quitting the app discards it.
+validated Kite authorization in its own Keychain item. After quit, crash, or a compatible
+signed rebuild, the helper restores and validates the saved account before exposing
+identity. Expired or invalid authorization requires browser sign-in again. The app never
+reads the token or shares its Keychain access.
 
 Startup, sign-in, and recovery use a fixed-size, window-modal sheet over the native
 split view. The sheet closes after the account is verified. Sign in with Kite opens
@@ -30,7 +32,10 @@ Session verification fetches a fresh profile before displaying identity. Periodi
 verification detects Kite authentication rejection and session loss. Temporary network
 failures offer Retry without repeating browser login. Credential rejection offers a
 local service restart. The app caches no profile or Kite credential. Redirects are
-refused before credentials can be forwarded.
+refused before credentials can be forwarded. Logout clears visible identity immediately,
+but failed durable removal stays in the existing Retry flow and cannot re-enable sign-in
+until the helper acknowledges deletion. Dedicated storage recovery UX remains in the
+sibling persistence tickets.
 
 iOS and visionOS retain their initial content and deployment targets.
 

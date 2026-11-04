@@ -22,8 +22,22 @@ directly to its child process. It does not save a connection credential in Keych
 publish pairing authority. The helper listens only on `127.0.0.1:8080`; an occupied port
 shows a startup error with **Retry**. Close the conflicting service and retry. The app
 never attaches to another running backend. It stops its helper on quit, including an
-abrupt exit. Kite sessions stay in memory, so quitting requires another browser login.
-Closing a window alone keeps the session available.
+abrupt exit. The helper saves validated Kite authorization in login Keychain and
+validates it again after restarting. Valid sessions survive quit, crashes, and compatible
+signed replacement builds without another browser handoff. Kite expiry or confirmed
+invalidation requires sign-in again. Closing a window alone keeps the session available.
+
+The helper uses the explicit signing identifier `io.ankitgoyal.unaru.backend`.
+Replacement builds must use a compatible designated requirement, including the signing
+team. Keep the signing channel consistent. Ad hoc signatures do not establish continuity
+between different executable hashes. The app does not share token access through sandbox
+inheritance. Keychain items belong to the helper, use a hash of the configured API key,
+and contain the validated account ID with its token. The store never synchronizes items.
+
+Temporary validation or Keychain read failures preserve saved authorization. A failed
+save leaves the current session usable. Sign-out reports success only after durable
+removal; failed removal requires retry. Persistence notices and dedicated recovery UI
+are tracked in #21 and #22.
 
 ## Run a standalone backend for development
 
@@ -101,8 +115,9 @@ guidance](https://kite.trade/docs/connect/v3/apps/) permits a personal loopback
 redirect. The browser must run on the backend's Mac for a loopback callback; use your
 public HTTPS backend address otherwise.
 
-Each installation serves one Kite account and keeps its access token only in memory.
-Restarting the backend requires another login. A new login supersedes any earlier
+Each installation serves one Kite account. Standalone backends keep their access token
+only in memory and require another login after restart. Bundled Mac helpers restore
+from Keychain and validate the saved account before exposing identity. A new login supersedes any earlier
 attempt. Cancellation and the five-minute deadline reject old callbacks, including
 exchanges or profile responses already in flight. Callback authority is consumed before
 exchange, so a failed exchange needs a new login. A temporary profile failure permits

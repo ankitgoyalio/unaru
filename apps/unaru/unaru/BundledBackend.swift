@@ -105,6 +105,12 @@
             // Do not inherit remote deployment settings, credentials, or dotenv selection.
             helper.environment = ["PATH": "/usr/bin:/bin", "HOME": NSHomeDirectory(),
                                   "UNARU_BUNDLED": "1", "UNARU_CONNECTION_TOKEN": token]
+            #if DEBUG
+                if Self.isUITest {
+                    helper.environment?["UNARU_TEST_STORAGE"] = ProcessInfo.processInfo.environment["UNARU_TEST_STORAGE"]
+                    helper.environment?["UNARU_TEST_KITE_URL"] = ProcessInfo.processInfo.environment["UNARU_TEST_KITE_URL"]
+                }
+            #endif
             let pipe = Pipe()
             helper.standardInput = pipe
             let output = Pipe()

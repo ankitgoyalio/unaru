@@ -28,3 +28,14 @@ import Testing
     #expect(profile.orderTypes == ["LIMIT"])
     #expect(try JSONDecoder().decode(AccountProfile.self, from: JSONEncoder().encode(profile)) == profile)
 }
+
+@Test func sessionPersistenceIsOptionalAndCredentialFree() throws {
+    let old = try JSONDecoder().decode(SessionStatus.self, from: Data(#"{"state":"signedIn"}"#.utf8))
+    #expect(old.persistence == nil)
+    let status = SessionStatus(state: .signedIn, persistence: .saveFailed)
+    let data = try JSONEncoder().encode(status)
+    let roundTrip = try JSONDecoder().decode(SessionStatus.self, from: data)
+    #expect(roundTrip.persistence == .saveFailed)
+    let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: String])
+    #expect(object == ["state": "signedIn", "persistence": "saveFailed"])
+}

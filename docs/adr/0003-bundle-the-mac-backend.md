@@ -13,7 +13,7 @@ product scope. Standalone backend commands remain available for development.
 Kite credentials live in an owner-only configuration folder outside the bundle. The
 fixed loopback port preserves the registered browser callback. An occupied port fails
 startup instead of attaching to an existing service. A private stdout signal confirms
-that the child has bound its listener before the app sends any credential. Restarting the app loses the
-in-memory Kite session and requires browser sign-in again.
+that the child has bound its listener before the app sends any credential. The helper stops with the app; valid Kite authorization survives through helper-owned
+Keychain storage, as specified in ADR 0004.
 
 [ADR 0004](0004-preserve-valid-kite-sessions.md) revises this session lifetime.

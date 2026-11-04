@@ -8,7 +8,7 @@ public struct LogoutResult: Codable, Sendable {
         case unconfirmed
     }
 
-    /// Local authority is always cleared, independently of this remote outcome.
+    /// Returned only after local authority and any durable authorization are removed.
     public let revocation: Revocation
 
     /// Creates a logout response after local session authority has been cleared.
