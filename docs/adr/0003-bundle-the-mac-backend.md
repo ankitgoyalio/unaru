@@ -15,3 +15,5 @@ fixed loopback port preserves the registered browser callback. An occupied port 
 startup instead of attaching to an existing service. A private stdout signal confirms
 that the child has bound its listener before the app sends any credential. Restarting the app loses the
 in-memory Kite session and requires browser sign-in again.
+
+[ADR 0004](0004-preserve-valid-kite-sessions.md) revises this session lifetime.
