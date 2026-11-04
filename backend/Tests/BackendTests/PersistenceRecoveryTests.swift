@@ -16,7 +16,7 @@ extension KiteLoginTests {
     func unfinishedLogoutBlocksLogin() async throws {
         let storage = IsolatedSessionStore()
         let transport = KiteResponses()
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             _ = try await LogoutTests().signIn(app)
             storage.fail("delete")
             let failed = try await app.testing().sendRequest(.POST, "logout", headers: authorization)
@@ -29,7 +29,7 @@ extension KiteLoginTests {
             let retry = try await app.testing().sendRequest(.POST, "logout", headers: authorization)
             #expect(retry.status == .ok)
         }
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let status = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try status.content.decode(SessionStatus.self).state == .signedOut)
         }
@@ -40,7 +40,7 @@ extension KiteLoginTests {
         let storage = IsolatedSessionStore()
         let transport = KiteResponses()
         storage.fail("save")
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let attempt = try await LogoutTests().signIn(app)
             let login = try await app.testing().sendRequest(.GET, "login/\(attempt.id)", headers: authorization)
             let object = try #require(JSONSerialization.jsonObject(with: Data(login.body.string.utf8)) as? [String: Any])
@@ -57,7 +57,7 @@ extension KiteLoginTests {
             #expect(!saved.body.string.contains("test-access"))
             #expect(!login.body.string.contains("test-access"))
         }
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let restored = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try restored.content.decode(SessionStatus.self).state == .signedIn)
             #expect(try restored.content.decode(SessionStatus.self).persistence == .saved)
@@ -69,7 +69,7 @@ extension KiteLoginTests {
     func delayedSaveSuperseded(logout: Bool) async throws {
         let storage = PausedSessionStore()
         let transport = KiteResponses()
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             _ = try await LogoutTests().signIn(app)
             storage.hold("save")
             let save = Task { try await app.testing().sendRequest(.POST, "session/save", headers: authorization) }
@@ -87,7 +87,7 @@ extension KiteLoginTests {
             _ = try await save.value
             try await newer.value
         }
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let status = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try status.content.decode(SessionStatus.self).state == (logout ? .signedOut : .signedIn))
             if !logout {
@@ -100,7 +100,7 @@ extension KiteLoginTests {
     func delayedDeletionSuperseded() async throws {
         let storage = PausedSessionStore()
         let transport = KiteResponses()
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             _ = try await LogoutTests().signIn(app)
             storage.hold("delete")
             await transport.hold("/session/token")
@@ -115,17 +115,11 @@ extension KiteLoginTests {
             let profile = try await app.testing().sendRequest(.GET, "profile", headers: authorization)
             #expect(profile.status == .ok)
         }
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let status = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try status.content.decode(SessionStatus.self).state == .signedIn)
             #expect(await transport.requests.last?.headers["Authorization"] == "token test-key:new-test-access")
         }
-    }
-
-    private func recoveryApp(_ storage: any KiteSessionStore, transport: KiteResponses, test: (Application) async throws -> Void) async throws {
-        try await withApp(configure: { app in
-            try routes(app, connectionToken: "test-connection-token", login: KiteLogin(apiKey: "test-key", apiSecret: "test-secret", transport: transport, store: storage))
-        }, test)
     }
 }
 

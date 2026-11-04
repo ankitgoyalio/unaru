@@ -16,7 +16,7 @@ extension KiteLoginTests {
     func durableProfileAccountMismatch() async throws {
         let storage = IsolatedSessionStore()
         let transport = KiteResponses()
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             _ = try await LogoutTests().signIn(app)
             await transport.setProfileResponse(status: 200, body: #"{"status":"success","data":{"user_id":"OTHER","user_name":"Another Account","user_shortname":"Other","user_type":"individual","email":"other@example.invalid","broker":"ZERODHA","exchanges":[],"products":[],"order_types":[],"avatar_url":null,"meta":{"demat_consent":"physical"}}}"#)
             let response = try await app.testing().sendRequest(.GET, "profile", headers: authorization)
@@ -24,7 +24,7 @@ extension KiteLoginTests {
             #expect(!response.body.string.contains("Another"))
         }
         await transport.setProfileResponse(status: 200)
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let response = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try response.content.decode(SessionStatus.self).state == .signedOut)
         }
@@ -34,7 +34,7 @@ extension KiteLoginTests {
     func durableOldLogin(operation: String) async throws {
         let storage = IsolatedSessionStore()
         let transport = KiteResponses()
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let path: String
             if operation == "profile" || operation == "rejectedProfile" {
                 _ = try await LogoutTests().signIn(app)
@@ -71,7 +71,7 @@ extension KiteLoginTests {
             #expect(!obsolete.body.string.contains("Asha"))
         }
         await transport.setProfileStatus(200)
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let response = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try response.content.decode(SessionStatus.self).state == .signedIn)
             #expect(await transport.requests.last?.headers["Authorization"] == "token test-key:new-test-access")
@@ -82,7 +82,7 @@ extension KiteLoginTests {
     func durableInvalidationDeleteFailure() async throws {
         let storage = IsolatedSessionStore()
         let transport = KiteResponses()
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             _ = try await LogoutTests().signIn(app)
             storage.fail("delete")
             await transport.setProfileResponse(status: 403, errorType: "TokenException")
@@ -110,7 +110,7 @@ extension KiteLoginTests {
         case "permission": await transport.setProfileResponse(status: 403, errorType: "PermissionException")
         default: await transport.setProfileResponse(status: 200, body: "invalid")
         }
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             for path in ["session", "profile", "session"] {
                 let failed = try await app.testing().sendRequest(.GET, path, headers: authorization)
                 #expect(failed.status == .serviceUnavailable)
@@ -122,7 +122,7 @@ extension KiteLoginTests {
         // Destroy the failed coordinator before recovery: authority must remain durable.
         storage.fail(nil)
         await transport.setProfileResponse(status: 200)
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let retry = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try retry.content.decode(SessionStatus.self).state == .signedIn)
             let profile = try await app.testing().sendRequest(.GET, "profile", headers: authorization)
@@ -137,12 +137,12 @@ extension KiteLoginTests {
         let transport = KiteResponses()
         try await seed(storage, transport: transport)
         await transport.setProfileResponse(status: code, errorType: "TokenException")
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let response = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try response.content.decode(SessionStatus.self).state == .signedOut)
         }
         await transport.setProfileResponse(status: 200)
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let response = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try response.content.decode(SessionStatus.self).state == .signedOut)
         }
@@ -152,7 +152,7 @@ extension KiteLoginTests {
     func durableLogoutRetry() async throws {
         let storage = IsolatedSessionStore()
         let transport = KiteResponses()
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             _ = try await LogoutTests().signIn(app)
             storage.fail("delete")
             let failed = try await app.testing().sendRequest(.POST, "logout", headers: authorization)
@@ -163,7 +163,7 @@ extension KiteLoginTests {
             let retry = try await app.testing().sendRequest(.POST, "logout", headers: authorization)
             #expect(retry.status == .ok)
         }
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let response = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try response.content.decode(SessionStatus.self).state == .signedOut)
         }
@@ -174,12 +174,12 @@ extension KiteLoginTests {
         let storage = IsolatedSessionStore()
         let transport = KiteResponses()
         try await seed(storage, transport: transport)
-        try await durableApp(storage, transport: transport, apiKey: "another-test-key") { app in
+        try await sessionApp(storage, transport: transport, apiKey: "another-test-key") { app in
             let response = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try response.content.decode(SessionStatus.self).state == .signedOut)
         }
         await transport.setProfileResponse(status: 200, body: #"{"status":"success","data":{"user_id":"OTHER","user_name":"Another Account","user_shortname":"Other","user_type":"individual","email":"other@example.invalid","broker":"ZERODHA","exchanges":[],"products":[],"order_types":[],"avatar_url":null,"meta":{"demat_consent":"physical"}}}"#)
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let response = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try response.content.decode(SessionStatus.self).state == .signedOut)
             #expect(!response.body.string.contains("Another"))
@@ -192,7 +192,7 @@ extension KiteLoginTests {
         let transport = KiteResponses()
         try await seed(storage, transport: transport)
         await transport.hold("/user/profile")
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let pending = Task { try await app.testing().sendRequest(.GET, "session", headers: authorization) }
             await transport.waitForHeldRequest()
             if logout {
@@ -208,7 +208,7 @@ extension KiteLoginTests {
             let current = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try current.content.decode(SessionStatus.self).state == (logout ? .signedOut : .signedIn))
         }
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let current = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try current.content.decode(SessionStatus.self).state == (logout ? .signedOut : .signedIn))
             if !logout {
@@ -218,31 +218,21 @@ extension KiteLoginTests {
     }
 
     private func seed(_ storage: IsolatedSessionStore, transport: KiteResponses) async throws {
-        try await durableApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             _ = try await LogoutTests().signIn(app)
         }
-    }
-
-    private func durableApp(_ storage: IsolatedSessionStore, transport: KiteResponses, apiKey: String = "test-key", test: (Application) async throws -> Void) async throws {
-        try await withApp(configure: { app in
-            try routes(app, connectionToken: "test-connection-token", login: KiteLogin(apiKey: apiKey, apiSecret: "test-secret", transport: transport, store: storage))
-        }, test)
     }
 
     @Test("Cancellation after validation cannot resurrect the cancelled login on restart")
     func durableCancellation() async throws {
         let storage = IsolatedSessionStore()
         let transport = KiteResponses()
-        try await withApp(configure: { app in
-            try routes(app, connectionToken: "test-connection-token", login: KiteLogin(apiKey: "test-key", apiSecret: "test-secret", transport: transport, store: storage))
-        }) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let attempt = try await LogoutTests().signIn(app)
             let cancelled = try await app.testing().sendRequest(.DELETE, "login/\(attempt.id)", headers: authorization)
             #expect(cancelled.status == .noContent)
         }
-        try await withApp(configure: { app in
-            try routes(app, connectionToken: "test-connection-token", login: KiteLogin(apiKey: "test-key", apiSecret: "test-secret", transport: transport, store: storage))
-        }) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let status = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try status.content.decode(SessionStatus.self).state == .signedOut)
         }
@@ -253,9 +243,7 @@ extension KiteLoginTests {
         let storage = IsolatedSessionStore()
         storage.fail("save")
         let transport = KiteResponses()
-        try await withApp(configure: { app in
-            try routes(app, connectionToken: "test-connection-token", login: KiteLogin(apiKey: "test-key", apiSecret: "test-secret", transport: transport, store: storage))
-        }) { app in
+        try await sessionApp(storage, transport: transport) { app in
             _ = try await LogoutTests().signIn(app)
             let status = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try status.content.decode(SessionStatus.self).persistence == .saveFailed)
@@ -272,14 +260,10 @@ extension KiteLoginTests {
     func durableRestart() async throws {
         let storage = IsolatedSessionStore()
         let transport = KiteResponses()
-        try await withApp(configure: { app in
-            try routes(app, connectionToken: "test-connection-token", login: KiteLogin(apiKey: "test-key", apiSecret: "test-secret", transport: transport, store: storage))
-        }) { app in
+        try await sessionApp(storage, transport: transport) { app in
             _ = try await LogoutTests().signIn(app)
         }
-        try await withApp(configure: { app in
-            try routes(app, connectionToken: "test-connection-token", login: KiteLogin(apiKey: "test-key", apiSecret: "test-secret", transport: transport, store: storage))
-        }) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let response = try await app.testing().sendRequest(.GET, "session", headers: authorization)
             #expect(try response.content.decode(SessionStatus.self).state == .signedIn)
             let profile = try await app.testing().sendRequest(.GET, "profile", headers: authorization)

@@ -130,7 +130,10 @@ compiles a sandboxed parent, signs two helper variants with different code hashe
 the stable helper identifier, and exercises normal quit, parent crash, restoration,
 launch-credential rotation, failed validation followed by helper restart and Retry,
 save failure/retry, and failed deletion/retry across restart against fake loopback Kite
-responses.
+responses. Cancellation acceptance covers validation completed before the app accepts
+identity, failed deletion, repeated retry, helper restart before retry, and stale
+cancellation before and after replacement. Cancellation intent is replayed before any
+session restoration.
 It uses unique fake credentials and a UUID Keychain service with cleanup. Without the
 identity variable, this test is explicitly skipped. CI's ad hoc signatures cannot replace
 this signing-aware evidence. Tests never access the owner's Kite session.

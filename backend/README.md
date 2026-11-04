@@ -157,6 +157,9 @@ browser cookies.
 - For **Couldn’t Finish Logging Out**, choose **Retry Log Out**. The app retries durable
   removal before allowing another sign-in, including after relaunch. Local completion
   does not imply that Kite confirmed provider revocation.
+- For **Couldn’t Finish Cancelling Sign-In**, choose **Retry Cancellation**. The app
+  retains this attempt's cancellation across relaunch and retries before restoring any
+  saved session. Another sign-in remains blocked until the helper confirms removal.
 - For **Retry Sign-In**, retry the pending read without another token exchange or
   browser handoff. Cancelled, denied, or expired attempts need a new sign-in.
 

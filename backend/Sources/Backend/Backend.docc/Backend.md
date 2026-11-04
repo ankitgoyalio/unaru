@@ -75,7 +75,6 @@ replaces only its external HTTP transport during tests.
 - `GET /login/:id` returns `LoginStatus`: `pending`, `signedIn` with a public
   `AccountProfile`, `failed`, or `expired`. After exchange, this operation fetches
   the profile. HTTP 503 permits retrying that read without repeating exchange.
-- `DELETE /login/:id` invalidates that attempt, including in-flight responses.
 - `GET /profile` retrieves the backend-held session's current public identity.
   A missing session or Kite `TokenException` returns HTTP 401 with
   `{"code":"kiteSignInRequired"}`. A token rejection invalidates the session.
@@ -98,6 +97,12 @@ replaces only its external HTTP transport during tests.
   It performs no browser handoff or exchange. Connection authorization is required.
 - Signed-in `LoginStatus` responses also include optional credential-free `persistence`
   status so clients can present save failures immediately after browser completion.
+- `DELETE /login/:id` detaches the matching browser attempt and validated authority
+  before secure deletion. HTTP 503 leaves removal pending and requires retry. A successful
+  response acknowledges durable removal of that attempt's saved authorization.
+  The saved value retains a credential-free attempt ID so cancellation can be replayed
+  before restoration after helper restart. An old cancellation cannot delete a newer
+  saved session. Clients retain the cancellation intent until acknowledgement.
 - `POST /logout` detaches old authority and removes saved authorization before returning
   `LogoutResult`. Failed secure deletion returns HTTP 503 and permits another logout
   request. Remote revocation remains bounded and may be `unconfirmed` after local success.

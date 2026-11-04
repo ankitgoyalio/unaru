@@ -13,36 +13,6 @@
     /// Owns the helper and verified Kite session.
     @MainActor
     final class BackendConnection: ObservableObject {
-        /// Current connection state without cached identity.
-        enum Phase: Equatable {
-            /// The app is launching its embedded helper.
-            case starting
-            /// The embedded helper could not start or authorize the app.
-            case startupFailed
-            /// The app is making an authorized session-status request.
-            case checking
-            /// The helper requires Kite authentication.
-            case signedOut
-            /// An authorized browser attempt is pending.
-            case loggingIn
-            /// A temporary profile/status error can retry the same attempt.
-            case loginUnavailable
-            /// The browser attempt failed and can be started again.
-            case loginFailed
-            /// Exchange and profile retrieval succeeded.
-            case signedIn(AccountProfile)
-            /// Kite configuration needs repair.
-            case backendError
-            /// A temporary connection failure permits retry.
-            case unavailable
-            /// Saved authorization has not yet been durably removed.
-            case logoutFailed
-            /// Saved authorization awaits a successful provider validation.
-            case sessionUnavailable
-            /// Secure storage could not be read and remains available for retry.
-            case storageUnavailable
-        }
-
         /// State shared by all windows.
         @Published private(set) var phase: Phase = .starting {
             didSet {
@@ -64,8 +34,10 @@
         @Published private(set) var logoutUnconfirmed = false
         /// Verification cannot reattach old backend authority after local logout.
         private var requiresSignIn = false
-        /// Durable logout is incomplete until the helper acknowledges secure removal.
-        private var pendingLogout = BundledBackend.hasPendingLogout
+        /// Cancellation or logout stays pending until the helper acknowledges durable removal.
+        private var pendingRemoval = BundledBackend.pendingRemoval
+        /// Cancellation has its own progress and retry language while sharing durable cleanup.
+        @Published private(set) var isCancellingLogin = false
         /// Refresh activity shared by sheets in every window.
         @Published private(set) var isRefreshingAccount = false
         /// A retryable failure never removes an already validated identity.
@@ -102,7 +74,9 @@
 
         /// Starts or restarts the helper, then waits for its private readiness signal.
         private func start() {
-            cancelLogin()
+            revision += 1
+            task?.cancel()
+            activeAttempt = nil
             configuration = nil
             phase = .starting
             let currentRevision = revision
@@ -112,8 +86,8 @@
                     try await backend.waitUntilReady()
                     guard !Task.isCancelled, revision == currentRevision else { return }
                     self.configuration = configuration
-                    if pendingLogout {
-                        logOut()
+                    if pendingRemoval != nil {
+                        finishRemoval()
                     } else if requiresSignIn {
                         phase = .signedOut
                     } else {
@@ -129,9 +103,9 @@
 
         /// Retries an available session or restarts the helper after startup/configuration failure.
         func retry() {
-            if pendingLogout {
+            if pendingRemoval != nil {
                 if backend.isRunning, configuration != nil {
-                    logOut()
+                    finishRemoval()
                 } else {
                     backend.stop()
                     start()
@@ -331,11 +305,30 @@
 
         /// Removes identity in every window synchronously, before contacting the backend.
         func logOut() {
+            guard !isLoggingOut, case .signedIn = phase else { return }
+            pendingRemoval = .logout
+            finishRemoval()
+        }
+
+        /// Makes earlier results obsolete, retaining cancellation until durable acknowledgement.
+        func cancelLogin() {
             guard !isLoggingOut else { return }
-            if !pendingLogout {
-                guard case .signedIn = phase else { return }
+            if let attempt = activeAttempt {
+                pendingRemoval = .cancellation(attempt.id)
+                finishRemoval()
+            } else {
+                revision += 1
+                task?.cancel()
+                phase = configuration == nil ? .starting : .signedOut
             }
-            pendingLogout = true
+        }
+
+        /// Persists credential-free intent before any helper request and replays it after restart.
+        private func finishRemoval() {
+            if case .some(.unreadable) = pendingRemoval {
+                pendingRemoval = BundledBackend.pendingRemoval ?? .unreadable
+            }
+            guard !isLoggingOut, let removal = pendingRemoval else { return }
             revision += 1
             let currentRevision = revision
             task?.cancel()
@@ -344,11 +337,12 @@
             activeAttempt = nil
             requiresSignIn = true
             isLoggingOut = true
+            isCancellingLogin = removal.isCancellation
             logoutUnconfirmed = false
             phase = .signedOut
             let oldConfiguration = configuration
             do {
-                try BundledBackend.setLogoutPending(true)
+                try BundledBackend.setRemovalPending(removal)
             } catch {
                 isLoggingOut = false
                 phase = .logoutFailed
@@ -357,34 +351,20 @@
             task = Task {
                 do {
                     guard let oldConfiguration else { throw BackendTransport.Failure.unavailable }
-                    let data = try await transport.send("logout", method: "POST", configuration: oldConfiguration)
-                    let result = try JSONDecoder().decode(LogoutResult.self, from: data)
+                    let unconfirmed = try await removal.perform(using: transport, configuration: oldConfiguration)
                     guard !Task.isCancelled, revision == currentRevision else { return }
-                    try BundledBackend.setLogoutPending(false)
-                    pendingLogout = false
-                    logoutUnconfirmed = result.revocation != .confirmed
+                    try BundledBackend.setRemovalPending(nil)
+                    pendingRemoval = nil
+                    logoutUnconfirmed = unconfirmed
                     isLoggingOut = false
+                    isCancellingLogin = false
                 } catch {
                     guard !Task.isCancelled, revision == currentRevision else { return }
-                    // A stopped helper may still have saved authorization. Keep logout
-                    // pending and retry deletion before another sign-in or verification.
                     configuration = nil
                     backend.stop()
                     isLoggingOut = false
                     phase = .logoutFailed
                 }
-            }
-        }
-
-        /// Makes earlier browser/profile results obsolete immediately, then revokes the server attempt.
-        func cancelLogin() {
-            revision += 1
-            task?.cancel()
-            let oldAttempt = activeAttempt
-            activeAttempt = nil
-            phase = configuration == nil ? .starting : .signedOut
-            if let oldAttempt, let configuration {
-                Task { _ = try? await transport.send("login/\(oldAttempt.id)", method: "DELETE", configuration: configuration) }
             }
         }
 
@@ -412,7 +392,6 @@
                 }
             }
             cancelLogin()
-            phase = .loginFailed
         }
 
         /// Maps login errors to an actionable state without displaying server diagnostics.
@@ -433,7 +412,6 @@
                 phase = .backendError
             case BackendTransport.Failure.failed:
                 cancelLogin()
-                phase = .loginFailed
             default:
                 phase = .loginUnavailable
             }

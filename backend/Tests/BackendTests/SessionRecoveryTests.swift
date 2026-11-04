@@ -16,10 +16,10 @@ extension KiteLoginTests {
     func supersededRestoreRejection() async throws {
         let storage = IsolatedSessionStore()
         let transport = KiteResponses()
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             _ = try await LogoutTests().signIn(app)
         }
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             await transport.hold("/user/profile")
             let pending = Task { try await app.testing().sendRequest(.GET, "session", headers: authorization) }
             await transport.waitForHeldRequest()
@@ -34,7 +34,7 @@ extension KiteLoginTests {
             #expect(try current.content.decode(SessionStatus.self).state == .signedIn)
         }
         await transport.setProfileResponse(status: 200)
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let restored = try await app.testing().sendRequest(.GET, "profile", headers: authorization)
             #expect(try restored.content.decode(AccountProfile.self).userID == "AB1234")
             #expect(await transport.requests.filter { $0.url.path == "/session/token" }.count == 1)
@@ -45,7 +45,7 @@ extension KiteLoginTests {
     func repeatedRecovery(failure: String) async throws {
         let storage = IsolatedSessionStore()
         let transport = KiteResponses()
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             _ = try await LogoutTests().signIn(app)
         }
         if failure == "storage" {
@@ -53,7 +53,7 @@ extension KiteLoginTests {
         } else {
             await transport.setProfileTimeout(true)
         }
-        try await recoveryApp(storage, transport: transport) { app in
+        try await sessionApp(storage, transport: transport) { app in
             let count = await transport.requests.count
             for path in ["session", "profile"] {
                 let denied = try await app.testing().sendRequest(.GET, path, headers: ["Authorization": "Bearer wrong-launch-token"])
@@ -75,11 +75,5 @@ extension KiteLoginTests {
             #expect(try profile.content.decode(AccountProfile.self).name == "Asha Rao")
             #expect(await transport.requests.filter { $0.url.path == "/session/token" }.count == 1)
         }
-    }
-
-    private func recoveryApp(_ storage: IsolatedSessionStore, transport: KiteResponses, test: (Application) async throws -> Void) async throws {
-        try await withApp(configure: { app in
-            try routes(app, connectionToken: "test-connection-token", login: KiteLogin(apiKey: "test-key", apiSecret: "test-secret", transport: transport, store: storage))
-        }, test)
     }
 }

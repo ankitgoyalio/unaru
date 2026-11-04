@@ -58,3 +58,18 @@ generation. Delayed provider responses still require generation and client check
 
 Signed lifecycle acceptance also stops the helper during a provider outage, then
 verifies recovery from Keychain without another exchange.
+
+Cancelling browser sign-in also detaches authority before attempting secure removal.
+If validation finished before the app received its result, cancellation removes the
+saved authorization for that attempt. Failed removal keeps sign-in blocked and offers
+Retry Cancellation. The app persists credential-free intent before sending the request
+and replays it before restoration after helper or app restart. The saved Keychain value
+includes an optional browser-attempt ID, so replaying an old cancellation cannot delete
+a newer session. This ID grants no callback authority. Callback state, request tokens,
+browser URLs, and deadlines remain temporary. Existing saved sessions without that ID
+remain readable.
+
+Cancellation and logout share durable-removal recovery. Cancellation retains its
+attempt scope across retries and never becomes an unconditional logout. Only logout
+reports provider revocation status. The helper uses the same authority-removal
+transition for cancellation, logout, and confirmed invalidation.

@@ -66,17 +66,26 @@
             configurationDirectory.appendingPathComponent(".pending-kite-logout")
         }
 
-        /// Startup must finish removal before requesting any restorable session.
-        static var hasPendingLogout: Bool {
-            FileManager.default.fileExists(atPath: logoutMarker.path)
+        /// Startup replays unfinished removal before requesting a restorable session.
+        static var pendingRemoval: SessionRemoval? {
+            guard FileManager.default.fileExists(atPath: logoutMarker.path) else { return nil }
+            guard let data = try? Data(contentsOf: logoutMarker) else { return .unreadable }
+            // Preserve unfinished logout from builds that wrote the original marker.
+            if data == Data("pending\n".utf8) {
+                return .logout
+            }
+            return (try? JSONDecoder().decode(SessionRemoval.self, from: data)) ?? .unreadable
         }
 
-        /// A completed logout requires both helper deletion and clearing its local intent.
-        static func setLogoutPending(_ pending: Bool) throws {
-            if pending {
+        /// Completion requires both helper deletion and clearing its durable intent.
+        static func setRemovalPending(_ removal: SessionRemoval?) throws {
+            if let removal {
+                if case .unreadable = removal {
+                    throw CocoaError(.fileReadCorruptFile)
+                }
                 try FileManager.default.createDirectory(at: configurationDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-                try Data("pending\n".utf8).write(to: logoutMarker, options: .atomic)
-            } else if hasPendingLogout {
+                try JSONEncoder().encode(removal).write(to: logoutMarker, options: .atomic)
+            } else if FileManager.default.fileExists(atPath: logoutMarker.path) {
                 try FileManager.default.removeItem(at: logoutMarker)
             }
         }

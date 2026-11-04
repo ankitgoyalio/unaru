@@ -50,7 +50,8 @@
       "testOpenAppRequestsLoginWhenProviderRejectsSession",
       "testRedirectDoesNotForwardConnectionCredentials",
       "testUnfinishedLogoutSurvivesRelaunchBeforeAnySessionRestore",
-      "testSavedSessionRecoveryRetriesWithoutRevealingIdentityOrOpeningBrowser"
+      "testSavedSessionRecoveryRetriesWithoutRevealingIdentityOrOpeningBrowser",
+      "testUnfinishedCancellationSurvivesRelaunchAndRejectsDelayedIdentity"
     ],
     "measured_case_seconds": 87.204
   }

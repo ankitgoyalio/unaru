@@ -12,6 +12,8 @@ struct SavedKiteSession: Codable, Sendable {
     let userID: String
     /// The provider credential, never logged or sent to the app.
     let accessToken: String
+    /// Credential-free origin used to scope cancellation across helper replacement.
+    var loginAttemptID: String? = nil
 }
 
 /// Atomic local operations, serialized with login authority by the coordinator.

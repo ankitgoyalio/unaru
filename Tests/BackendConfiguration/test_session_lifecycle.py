@@ -210,7 +210,45 @@ exit(child.terminationStatus)
                 self.stop()
                 self.launch(host, port, directory, environment)
                 self.assertEqual(self.request("session")["state"], "signedOut")
-                print("Signed sandbox helper: changed code hash, quit/crash restoration, fresh launch credential, transient validation/restart/retry, save failure/retry, delete failure/restart/retry passed")
+                cancelled = self.login()
+                self.set_failure(host, failure_file, "delete")
+                for _ in range(2):
+                    with self.assertRaises(HTTPError) as cancellation:
+                        self.request("login/" + cancelled["id"], "DELETE")
+                    self.assertEqual(cancellation.exception.code, 503)
+                    self.assertEqual(self.request("login/" + cancelled["id"])["state"], "failed")
+                    with self.assertRaises(HTTPError) as hidden:
+                        self.request("session")
+                    self.assertEqual(hidden.exception.code, 503)
+                with self.assertRaises(HTTPError) as save:
+                    self.request("session/save", "POST")
+                self.assertEqual(save.exception.code, 401)
+                self.stop()
+                self.launch(host, port, directory, environment)
+                # Replay the app's attempt-scoped intent before any restore request.
+                with self.assertRaises(HTTPError) as restarted_cancel:
+                    self.request("login/" + cancelled["id"], "DELETE")
+                self.assertEqual(restarted_cancel.exception.code, 503)
+                with self.assertRaises(HTTPError) as still_hidden:
+                    self.request("session")
+                self.assertEqual(still_hidden.exception.code, 503)
+                self.set_failure(host, failure_file)
+                self.request("login/" + cancelled["id"], "DELETE")
+                self.stop()
+                self.launch(host, port, directory, environment)
+                self.assertEqual(self.request("session")["state"], "signedOut")
+                self.assertEqual(provider.exchanges, 2)
+                old_attempt = self.login()
+                self.login()
+                self.request("login/" + old_attempt["id"], "DELETE")
+                self.assertEqual(self.request("session")["state"], "signedIn")
+                self.stop()
+                self.launch(host, port, directory, environment)
+                self.request("login/" + old_attempt["id"], "DELETE")
+                self.assertEqual(self.request("session")["state"], "signedIn")
+                self.assertEqual(self.request("profile")["userID"], "FAKE20")
+                self.assertEqual(provider.exchanges, 4)
+                print("Signed sandbox helper: replacement, quit/crash, validation/save/logout recovery, cancellation failure/restart/retry and stale cancellation passed")
             finally:
                 if self.process is not None and self.process.poll() is None:
                     # Cleanup is scoped to this UUID and fake API key, even after assertion failure.
@@ -262,6 +300,15 @@ exit(child.terminationStatus)
         self.process.stdout.close()
         self.process = None
 
+    def login(self):
+        attempt = self.request("login", "POST")
+        redirect = parse_qs(urlparse(attempt["browserURL"]).query)["redirect_params"][0]
+        state = parse_qs(redirect)["state"][0]
+        with urlopen(self.address + "/kite/callback?status=success&request_token=fake20-request&state=" + state) as response:
+            self.assertEqual(response.status, 200)
+        self.assertEqual(self.request("login/" + attempt["id"])["state"], "signedIn")
+        return attempt
+
     def request(self, path, method="GET", token=None):
         request = Request(self.address + "/" + path, method=method,
                           headers={"Authorization": "Bearer " + (token or self.token)})
@@ -269,4 +316,4 @@ exit(child.terminationStatus)
             data = response.read().decode()
             self.assertNotIn("fake20-secret", data)
             self.assertNotIn("access_token", data)
-            return json.loads(data)
+            return json.loads(data) if data else None

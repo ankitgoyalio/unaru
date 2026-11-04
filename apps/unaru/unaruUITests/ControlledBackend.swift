@@ -233,8 +233,9 @@
                     body = "{}"
                 } else if path.hasPrefix("/login/ui-attempt-"), text.hasPrefix("DELETE") {
                     lock.withLock {
-                        if path == "/login/ui-attempt-\(attemptNumber)" {
+                        if path == "/login/ui-attempt-\(attemptNumber)", status == 200 {
                             loginResult = "failed"
+                            authenticated = false
                         }
                     }
                     body = "{}"

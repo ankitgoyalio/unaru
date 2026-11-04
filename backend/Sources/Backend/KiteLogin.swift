@@ -47,8 +47,10 @@ actor KiteLogin {
     private var restoreRequestID: UUID?
     /// Confirmed invalidation must finish durable removal before any restoration.
     private var removalPending = false
+    /// Limits cancellation cleanup to the matching browser authorization.
+    private var cancellationID: String?
     /// The validated credential retained for saving without another exchange.
-    private var savedSession: SavedKiteSession?
+    private var validatedSession: SavedKiteSession?
     /// Credential-free outcome of the latest secure write.
     private var persistence: SessionStatus.Persistence?
     /// The newest attempt, replacing all previous callback authority.
@@ -95,7 +97,7 @@ actor KiteLogin {
         generation = UUID()
         restoreNeeded = false
         removalPending = false
-        savedSession = nil
+        validatedSession = nil
         attempt = Attempt(id: id, state: state, deadline: deadline, client: client)
         authenticated = nil
         return LoginAttempt(id: id, browserURL: browserURL, expiresAt: deadline)
@@ -142,8 +144,8 @@ actor KiteLogin {
             try Task.checkCancellation()
             let identity = Self.identity(profile)
             if let token = current.accessToken {
-                let session = SavedKiteSession(userID: profile.userID, accessToken: token)
-                savedSession = session
+                let session = SavedKiteSession(userID: profile.userID, accessToken: token, loginAttemptID: id)
+                validatedSession = session
                 saveCurrentSession()
             }
             attempt?.profile = identity
@@ -159,34 +161,21 @@ actor KiteLogin {
         }
     }
 
-    /// Invalidates callback and in-flight profile authority when the app cancels.
+    /// Cancels only matching authority, including an acknowledged attempt after restart.
     func cancel(id: String) throws {
-        if let current = attempt, current.id == id {
-            generation = UUID()
-            if authenticated === current.client {
-                // Keep failed deletion visible and retryable through the same cancellation.
-                do {
-                    if let apiKey {
-                        try store?.delete(apiKey: apiKey)
-                    }
-                } catch { throw Abort(.serviceUnavailable, reason: "Saved Kite authorization could not be removed.") }
-                authenticated = nil
-                savedSession = nil
-            }
-            attempt = nil
+        if attempt?.id == id || validatedSession?.loginAttemptID == id || (removalPending && cancellationID == id) {
+            try removeAuthority(cancellationID: id)
+        } else if attempt == nil, authenticated == nil, let apiKey,
+                  try store?.load(apiKey: apiKey)?.loginAttemptID == id
+        {
+            try removeAuthority(cancellationID: id)
         }
     }
 
     /// Detaches all old authority before remote work; completion cannot mutate a newer session.
     func logout() async throws -> LogoutResult {
         let client = authenticated ?? attempt?.client
-        generation = UUID()
-        restoreNeeded = false
-        authenticated = nil
-        attempt = nil
-        savedSession = nil
-        removalPending = true
-        try finishRemoval()
+        try removeAuthority()
         guard let client else { return LogoutResult(revocation: .unconfirmed) }
         let confirmed = await BoundedRevocation().run(client: client, timeout: revocationTimeout)
         return LogoutResult(revocation: confirmed ? .confirmed : .unconfirmed)
@@ -206,7 +195,7 @@ actor KiteLogin {
                 throw Abort(.serviceUnavailable, reason: "Kite profile request was superseded.")
             }
             if Self.isAuthenticationRejection(error) {
-                try invalidate()
+                try removeAuthority()
                 throw Abort(.unauthorized, reason: "Kite sign-in required.")
             }
             throw Abort(.serviceUnavailable, reason: "Kite profile is temporarily unavailable.")
@@ -215,8 +204,8 @@ actor KiteLogin {
             throw Abort(.serviceUnavailable, reason: "Kite profile request was superseded.")
         }
         try Task.checkCancellation()
-        if let savedSession, profile.userID != savedSession.userID {
-            try invalidate()
+        if let validatedSession, profile.userID != validatedSession.userID {
+            try removeAuthority()
             throw Abort(.unauthorized, reason: "Kite sign-in required.")
         }
         return Self.identity(profile)
@@ -237,36 +226,44 @@ actor KiteLogin {
 
     /// Synchronous storage cannot resume after a newer actor generation has taken authority.
     private func saveCurrentSession() {
-        guard let store, let apiKey, let savedSession else {
+        guard let store, let apiKey, let validatedSession else {
             persistence = .memoryOnly
             return
         }
         do {
-            try store.save(savedSession, apiKey: apiKey)
+            try store.save(validatedSession, apiKey: apiKey)
             persistence = .saved
         } catch {
             persistence = .saveFailed
         }
     }
 
-    /// Hides rejected identity before attempting durable deletion.
-    private func invalidate() throws {
+    /// Detaches authority before storage work; cancellation never removes another attempt.
+    private func removeAuthority(cancellationID: String? = nil) throws {
         generation = UUID()
         authenticated = nil
-        savedSession = nil
+        validatedSession = nil
         attempt = nil
         restoreNeeded = false
         removalPending = true
+        self.cancellationID = cancellationID
         try finishRemoval()
     }
 
-    /// Retries invalidation cleanup without reusing rejected credentials.
+    /// Retries durable cleanup without restoring rejected or cancelled credentials.
     private func finishRemoval() throws {
         do {
             if let apiKey {
-                try store?.delete(apiKey: apiKey)
+                if let cancellationID {
+                    if try store?.load(apiKey: apiKey)?.loginAttemptID == cancellationID {
+                        try store?.delete(apiKey: apiKey)
+                    }
+                } else {
+                    try store?.delete(apiKey: apiKey)
+                }
             }
             removalPending = false
+            cancellationID = nil
         } catch {
             throw Abort(.serviceUnavailable, reason: "Saved Kite authorization could not be removed.")
         }
@@ -303,7 +300,7 @@ actor KiteLogin {
             catch {
                 guard generation == revision, restoreRequestID == requestID else { throw CancellationError() }
                 if Self.isAuthenticationRejection(error) {
-                    try invalidate()
+                    try removeAuthority()
                     return
                 }
                 throw error
@@ -311,11 +308,11 @@ actor KiteLogin {
             guard generation == revision, restoreRequestID == requestID else { throw CancellationError() }
             try Task.checkCancellation()
             guard profile.userID == session.userID else {
-                try invalidate()
+                try removeAuthority()
                 return
             }
             authenticated = client
-            savedSession = session
+            validatedSession = session
             persistence = .saved
             restoreNeeded = false
         } catch let error as any AbortError {
@@ -325,7 +322,7 @@ actor KiteLogin {
         }
     }
 
-    /// Checks revision and expiry after an external request resumes.
+    /// Checks attempt authority and expiry after an external request resumes.
     private func isCurrent(_ id: String) -> Bool {
         attempt?.id == id && (attempt?.deadline ?? .distantPast) > now()
     }

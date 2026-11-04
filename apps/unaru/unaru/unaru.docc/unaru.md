@@ -22,7 +22,9 @@ reads the token or shares its Keychain access.
 Startup, sign-in, and recovery use a fixed-size, window-modal sheet over the native
 split view. The sheet closes after the account is verified. Sign in with Kite opens
 the default browser. The app polls an authorized attempt with a five-minute deadline
-and cancellation. Cancelling sign-in returns to the sign-in action within the sheet.
+and cancellation. Cancelling sign-in shows progress until durable removal is confirmed.
+Failure shows Couldn’t Finish Cancelling Sign-In with Retry Cancellation and blocks
+another sign-in. Success returns to the sign-in action within the sheet.
 The resizable sidebar shows an informational ``AccountFooter`` only while signed in.
 It shows the avatar or initials, full name, and Kite user ID. A nonmodal Sign-In Not
 Saved notice in the main area leaves the account usable and offers Retry Saving.
@@ -41,7 +43,8 @@ offers a local service restart without discarding the saved Kite token. The app 
 refused before credentials can be forwarded. Logout clears visible identity immediately,
 but failed durable removal shows Couldn’t Finish Logging Out with Retry Log Out.
 Sign-in stays blocked until the helper acknowledges deletion. A credential-free marker
-in the app's configuration directory retains unfinished logout across app relaunches.
+in the app's configuration directory retains unfinished logout or cancellation across
+app relaunches. Cancellation retains the attempt ID and never broadens into logout.
 Startup retries deletion before any session-status or profile request. The marker is
 removed only after durable deletion succeeds. A separate notice reports unconfirmed
 provider revocation after successful local removal.
