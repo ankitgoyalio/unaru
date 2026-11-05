@@ -15,7 +15,8 @@
       "testPositionsRelaunchFetchesNewDataWithoutAnotherBrowserLogin",
       "testFundsNavigationShowsSegmentBalancesAndKeyboardInspection",
       "testMutualFundLoadingFailureStaleRecoveryAndSourceSpecificRetry",
-      "testPerformanceWithholdsMixedRefreshTotalsAndRecoversOnlyFailedSource"
+      "testPerformanceWithholdsMixedRefreshTotalsAndRecoversOnlyFailedSource",
+      "testAllocationShowsRankedHoldingsSupportedGroupsAndCoverageInBothAppearances"
     ],
     "measured_case_seconds": 148.635
   },
@@ -33,7 +34,8 @@
       "testPositionsRejectSupersededSuccessAndFailure",
       "testFundsRejectsSupersededSuccessAndFailure",
       "testMutualFundsRejectsSupersededSuccessAndFailure",
-      "testPerformanceRejectsObsoleteAggregateSuccessAndAuthorityFailure"
+      "testPerformanceRejectsObsoleteAggregateSuccessAndAuthorityFailure",
+      "testAllocationRefreshUpdatesRankingAndWithholdsStaleInspectionWeights"
     ],
     "measured_case_seconds": 149.916
   },
@@ -54,7 +56,8 @@
       "testFundsFailureIsIndependentAndRetryRetainsStaleBalances",
       "testFundsRelaunchLoadsFreshBalancesWithoutBrowserLogin",
       "testMutualFundsAuthorityRemovalClearsWindowsAndRejectsOldResponses",
-      "testPerformanceAuthorityRemovalClearsWindowsAndRejectsOldAggregate"
+      "testPerformanceAuthorityRemovalClearsWindowsAndRejectsOldAggregate",
+      "testAllocationDistinguishesEmptyInventoryAndUnavailableValuations"
     ],
     "measured_case_seconds": 150.032
   },

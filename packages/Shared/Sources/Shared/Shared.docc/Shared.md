@@ -69,9 +69,19 @@ Successful empty sources produce zero inventory and no return percentage.
 
 ``PortfolioPerformanceRequest`` identifies the exact two successful source reads.
 ``PortfolioHoldingPerformance`` qualifies row identity by source and carries final
-eligibility, including cross-source overlap. These values support later allocation
-and ordering without another financial calculation in the app. MTF-only rows remain
+eligibility, including cross-source overlap. Its optional allocation percentage uses the same final eligibility as the combined result. MTF-only rows remain
 inspectable outside ordinary coverage. Financed quantities never enter these measures.
+
+``PortfolioAllocation`` carries current-value concentration, valuation coverage, and
+separate MTF omission counts. ``PortfolioAllocationHolding`` ranks all valued ordinary
+holdings by current value. Cost eligibility does not affect allocation. Per-row and
+group percentages use the positive valued total, with no percentage for an unavailable
+or nonpositive denominator. Unvalued holdings remain in source and performance rows.
+
+``PortfolioAllocationGroup`` retains unavailable group values and separate valued and
+total counts. ``HoldingInvestmentType`` supports mutual funds from the dedicated source
+and unknown securities. Exchange listing does not establish direct equity, ETF, bond,
+or underlying exposure. Each ordinary row belongs to exactly one group.
 
 ## Topics
 
@@ -100,6 +110,10 @@ inspectable outside ordinary coverage. Financed quantities never enter these mea
 - ``PortfolioPerformance``
 - ``PortfolioPerformanceRequest``
 - ``PortfolioHoldingPerformance``
+- ``PortfolioAllocation``
+- ``PortfolioAllocationHolding``
+- ``PortfolioAllocationGroup``
+- ``HoldingInvestmentType``
 
 ### Trading positions
 

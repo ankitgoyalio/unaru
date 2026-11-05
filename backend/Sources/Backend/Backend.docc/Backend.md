@@ -112,9 +112,32 @@ prevent otherwise supported arithmetic.
 Source normalization indexes duplicate identities in linear time. Combined analysis
 checks shared depository identities across sources and returns source-qualified rows
 with final eligibility. Cross-source overlaps retain both records with unavailable
-contributions. These row values are the authoritative inputs for later allocation,
+contributions. These row values are the authoritative inputs for allocation,
 largest-holding ordering, and value-based inspection. Positions and trading balances
 never enter this projection.
+
+### Current-value allocation contract
+
+The performance response also includes Shared `PortfolioAllocation`.
+``HoldingAllocation`` uses the final ordinary row valuations after cross-source overlap
+checks. Acquisition cost is not an allocation input. Holdings with usable value and
+unavailable cost remain eligible. Ranking is descending by current value, with
+source-qualified row identity as the deterministic tie-breaker. Source names and symbols
+stay available without external metadata lookups.
+
+Each ordinary row belongs to one supported type group. Securities remain unknown because
+the source supplies no investment classification. The dedicated fund source establishes
+mutual fund membership without underlying exposure. Group coverage includes unvalued
+records. Missing prices and ambiguous inventory make valuation coverage incomplete.
+No unavailable holding receives an invented weight. Group and row percentages divide
+only by a positive available valued total. Successful empty inventory has zero value,
+empty ranking and groups, and no percentages.
+
+MTF quantities stay outside the denominator and ranking. The result counts records with
+omitted MTF components, including mixed records whose ordinary component remains eligible.
+Positions, funds, collateral balances, and provider P&L never enter allocation.
+Allocation follows the same exact-read, authority, memory-only, and refresh lifetime as
+the performance response.
 
 ### Net positions contract
 

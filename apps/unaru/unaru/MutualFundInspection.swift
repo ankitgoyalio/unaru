@@ -14,6 +14,8 @@
         let holding: MutualFundHolding
         /// Final cross-source eligibility, when both sources have been analysed.
         let analysis: PortfolioHoldingPerformance?
+        /// Allocation requires a current combined denominator, even when stale source values remain inspectable.
+        let allocationIsCurrent: Bool
         @Environment(\.dismiss) private var dismiss
 
         var body: some View {
@@ -21,7 +23,8 @@
                 Text("Mutual Fund Details").font(.title).accessibilityAddTraits(.isHeader)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true)
+                        HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true,
+                                               allocationPercent: allocationIsCurrent ? analysis?.allocationPercent : nil)
                         GroupBox("Identity and Source") {
                             fields {
                                 field("Fund", holding.fund)

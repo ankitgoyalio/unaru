@@ -83,6 +83,20 @@ and return coverage, with matched cost and value for returns. Holding tables and
 inspection sheets display the same backend row values. MTF stays outside ordinary
 analysis. Unavailable values remain distinct from zero.
 
+``PortfolioAllocationView`` shows the largest five valued holdings and supported
+investment-type groups. The backend ranks holdings and supplies every percentage from
+current value, including value with unusable acquisition cost. Unknown securities remain
+visible without direct equity or ETF exposure assumptions. Text labels, currency values,
+percentages, and group coverage provide an accessible equivalent to each allocation bar.
+The panel scrolls at the minimum window size and uses native appearance styles.
+
+Allocation identifies the valued subset when any ordinary valuation is unavailable.
+MTF omission counts include mixed records with eligible ordinary inventory. Positions
+and funds stay separate. An empty ordinary population and a missing or nonpositive
+valued denominator have distinct messages. Holding inspection shows the backend share
+only while the combined analysis is current. Refresh withholds both totals and allocation,
+including inspection weights, until the contributing sources succeed again.
+
 ``PortfolioStore`` requests combined performance using the exact successful source
 read IDs. A full refresh resets success for both sources and immediately withholds
 totals. Retained stale rows never count as success in a new refresh. A source-specific

@@ -73,6 +73,9 @@
         /// Cross-source identity overlap explains why otherwise usable prices cannot contribute.
         let overlapsSources: Bool
 
+        /// A current backend share; absent when valuation or the combined denominator is unavailable.
+        let allocationPercent: Decimal?
+
         var body: some View {
             GroupBox("Current-Holdings Unrealised Performance") {
                 VStack(alignment: .leading, spacing: 10) {
@@ -81,6 +84,8 @@
                     LabeledContent("Current value") { Text(holdingMoney(performance?.currentValue)).accessibilityIdentifier("Holding current value") }
                     LabeledContent("Gain or loss") { Text(holdingMoney(performance?.gain)).accessibilityIdentifier("Holding gain") }
                     LabeledContent("Unrealised return", value: holdingPercent(performance?.returnPercent))
+                    LabeledContent("Allocation") { Text(holdingPercent(allocationPercent)).accessibilityIdentifier("Holding allocation") }
+                    Text("Allocation covers valued ordinary holdings only.").font(.callout).foregroundStyle(.secondary)
                     if overlapsSources {
                         Text("Potential overlap across holdings sources — calculated contribution unavailable.")
                     }
