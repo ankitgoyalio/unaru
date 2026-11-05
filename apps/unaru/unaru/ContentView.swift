@@ -51,6 +51,10 @@ struct ContentView: View {
                             DisclosureGroup(isExpanded: $portfolioExpanded) {
                                 Label("Holdings", systemImage: "list.bullet.rectangle")
                                     .tag(PortfolioDestination.holdings)
+                                Label("Positions", systemImage: "arrow.left.arrow.right")
+                                    .tag(PortfolioDestination.positions)
+                                Label("Funds", systemImage: "banknote")
+                                    .tag(PortfolioDestination.funds)
                             } label: {
                                 Label("Portfolio", systemImage: "briefcase")
                             }
@@ -84,7 +88,13 @@ struct ContentView: View {
                             .padding()
                         }
                         if case .signedIn = connection.phase {
-                            PortfolioView(destination: $destination, store: connection.portfolio)
+                            if destination == .positions {
+                                PositionsView(store: connection.positions)
+                            } else if destination == .funds {
+                                FundsView(store: connection.funds)
+                            } else {
+                                PortfolioView(destination: $destination, store: connection.portfolio)
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -92,7 +102,7 @@ struct ContentView: View {
             }
             .toolbar {
                 Button("Refresh Portfolio", systemImage: "arrow.clockwise") { connection.refreshPortfolio() }
-                    .help("Refresh securities holdings (⌘R)")
+                    .help("Refresh portfolio sources (⌘R)")
                     .disabled(needsConnection)
             }
         }

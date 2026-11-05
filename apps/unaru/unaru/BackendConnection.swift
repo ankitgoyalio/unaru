@@ -5,7 +5,6 @@
 //  Created by Ankit Goyal on 01/11/2026.
 
 #if os(macOS)
-    import AppKit
     import Combine
     import Foundation
     import Shared
@@ -18,6 +17,8 @@
             didSet {
                 if case .signedIn = phase {} else {
                     portfolio.clear()
+                    positions.clear()
+                    funds.clear()
                     isRefreshingAccount = false
                     accountRefreshFailed = false
                     saveRevision += 1
@@ -31,9 +32,34 @@
 
         /// Holdings are shared in memory by all windows.
         let portfolio = PortfolioStore()
+        /// Trading balances have their own source state and request lifetime.
+        let funds = FundsStore()
+
+        /// Retries funds without cancelling or refreshing a successful holdings source.
+        func refreshFunds() {
+            guard case .signedIn = phase, let configuration else { return }
+            funds.refresh(transport: transport, configuration: configuration) { [weak self] failure in
+                self?.phase = failure == .signedOut ? .signedOut : .startupFailed
+            }
+        }
+
+        /// Independent trading source, shared across windows in memory.
+        let positions = PositionsStore()
+
+        /// Retries positions without disturbing successfully loaded holdings.
+        func refreshPositions() {
+            guard case .signedIn = phase, let configuration else { return }
+            positions.refresh(transport: transport, configuration: configuration) { [weak self] failure in
+                self?.phase = failure == .signedOut ? .signedOut : .startupFailed
+            }
+        }
 
         /// Loads through the existing connection without disturbing account refresh work.
         func refreshPortfolio(source: PortfolioStore.Source? = nil) {
+            if source == nil {
+                refreshPositions()
+                refreshFunds()
+            }
             guard case .signedIn = phase, let configuration else { return }
             portfolio.refresh(source: source, transport: transport, configuration: configuration) { [weak self] failure in
                 self?.phase = failure == .signedOut ? .signedOut : .startupFailed
@@ -277,18 +303,7 @@
                     let attempt = try JSONDecoder().decode(LoginAttempt.self, from: data)
                     guard !Task.isCancelled, revision == currentRevision else { return }
                     activeAttempt = attempt
-                    let url = attempt.browserURL
-                    guard url.scheme == "https", url.host == "kite.zerodha.com", url.path == "/connect/login",
-                          url.user == nil, url.password == nil, url.fragment == nil else { throw BackendTransport.Failure.failed }
-                    #if DEBUG
-                        if BundledBackend.isUITest, ProcessInfo.processInfo.environment["UNARU_TEST_BROWSER"] == "1" {
-                            _ = try await transport.send("test/browser", method: "POST", configuration: configuration, body: data)
-                        } else {
-                            guard NSWorkspace.shared.open(url) else { throw BackendTransport.Failure.failed }
-                        }
-                    #else
-                        guard NSWorkspace.shared.open(url) else { throw BackendTransport.Failure.failed }
-                    #endif
+                    try await KiteBrowser.open(attempt.browserURL, handoffData: data, transport: transport, configuration: configuration)
                     try await observe(attempt, configuration: configuration, revision: currentRevision)
                 } catch {
                     guard !Task.isCancelled, revision == currentRevision else { return }

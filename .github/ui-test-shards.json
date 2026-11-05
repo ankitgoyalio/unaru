@@ -11,6 +11,9 @@
       "testBackendConfigurationFailureDoesNotAskForKiteSignIn",
       "testSaveFailureKeepsAccountUsableAndRetryClearsWarning",
       "testPortfolioRefreshRetainsStaleRowsAndRetriesWithoutLogin",
+      "testPositionsLoadingRecoveryAndEmptyRemainSeparateFromHoldings",
+      "testPositionsRelaunchFetchesNewDataWithoutAnotherBrowserLogin",
+      "testFundsNavigationShowsSegmentBalancesAndKeyboardInspection",
       "testMutualFundLoadingFailureStaleRecoveryAndSourceSpecificRetry"
     ],
     "measured_case_seconds": 148.635
@@ -26,6 +29,8 @@
       "testAccountSheetDistinguishesMissingAndEmptyDetails",
       "testKiteBrowserCompletionShowsAccountButton",
       "testPortfolioRejectsSupersededSuccessAndFailure",
+      "testPositionsRejectSupersededSuccessAndFailure",
+      "testFundsRejectsSupersededSuccessAndFailure",
       "testMutualFundsRejectsSupersededSuccessAndFailure"
     ],
     "measured_case_seconds": 149.916
@@ -43,6 +48,9 @@
       "testTemporaryServerFailureOffersRetry",
       "testLateSaveResponseCannotClearNewLoginWarning",
       "testHoldingsKeyboardInspectionShowsSourceFieldsAndLimitations",
+      "testPositionsAuthorityRemovalClearsEveryWindowAndRejectsOldAccount",
+      "testFundsFailureIsIndependentAndRetryRetainsStaleBalances",
+      "testFundsRelaunchLoadsFreshBalancesWithoutBrowserLogin",
       "testMutualFundsAuthorityRemovalClearsWindowsAndRejectsOldResponses"
     ],
     "measured_case_seconds": 150.032
@@ -61,6 +69,9 @@
       "testPortfolioDefaultsToOverviewAndLoadsHoldings",
       "testPortfolioAuthorityRemovalClearsWindowsAndRejectsOldResponses",
       "testPortfolioRelaunchLoadsFreshSourceWithoutBrowserSignIn",
+      "testPositionsGroupsNetExposureAndInspectsBrokerDetailsWithKeyboard",
+      "testFundsLoadingDisabledAndAbsentSegmentsAreDistinct",
+      "testFundsAuthorityRemovalClearsWindowsAndRejectsOldResponses",
       "testMutualFundsShowFractionalUnitsDatesAndKeyboardInspection",
       "testMutualFundsRelaunchLoadsFreshSourceWithoutBrowserSignIn"
     ],

@@ -14,6 +14,10 @@
         case portfolio
         /// Lists securities and mutual funds returned by Kite for inspection.
         case holdings
+        /// Trading exposure stays separate from investment holdings.
+        case positions
+        /// Keeps trading balances separate from investment analysis.
+        case funds
     }
 
     /// Native source status and navigation, with no combined investment total in this slice.

@@ -59,11 +59,20 @@ actor KiteLogin {
     private var authenticated: KiteClient?
     /// Only the latest authenticated profile read may publish identity or reject the session.
     private var profileRequestID: UUID?
-    /// Superseded portfolio responses cannot publish or remove authority.
-    private var holdingsRequestID: UUID?
+    /// Supported portfolio sources supersede only their own earlier reads.
+    private enum PortfolioSource: Hashable {
+        /// Ordinary securities, with separate financing details.
+        case securities
+        /// Fractional mutual fund units.
+        case mutualFunds
+        /// Net trading positions.
+        case positions
+        /// Trading balances by enabled segment.
+        case funds
+    }
 
-    /// Mutual fund refresh ordering is independent of securities reads.
-    private var mutualFundsRequestID: UUID?
+    /// Authority checks retain independent ordering for each portfolio source.
+    private var portfolioRequestIDs: [PortfolioSource: UUID] = [:]
 
     /// Creates an installation with production transport unless tests supply HTTP responses.
     init(
@@ -216,43 +225,44 @@ actor KiteLogin {
         return Self.identity(profile)
     }
 
-    /// Reads securities through the pinned SDK, checking authority after every suspension.
+    /// Reads securities through the pinned SDK under current portfolio authority.
     func holdings() async throws -> SecuritiesHoldings {
-        try await restore()
-        guard let client = authenticated else { throw Abort(.unauthorized) }
-        let requestID = UUID()
-        holdingsRequestID = requestID
-        do {
-            let rows = try await client.holdings()
-            guard authenticated === client, holdingsRequestID == requestID else { throw CancellationError() }
-            try Task.checkCancellation()
-            return SecuritiesHoldings(holdings: SecuritiesHoldingSource.normalize(rows), retrievedAt: now())
-        } catch {
-            guard authenticated === client, holdingsRequestID == requestID else {
-                throw Abort(.serviceUnavailable, reason: "Holdings request was superseded.")
-            }
-            if Self.isAuthenticationRejection(error) {
-                try removeAuthority()
-                throw Abort(.unauthorized)
-            }
-            throw RecoveryFailure(code: .portfolioUnavailable)
-        }
+        let rows = try await readPortfolio(.securities) { try await $0.holdings() }
+        return SecuritiesHoldings(holdings: SecuritiesHoldingSource.normalize(rows), retrievedAt: now())
     }
 
-    /// Reads mutual funds through the pinned SDK, checking authority after every suspension.
+    /// Reads fractional mutual funds without merging or calculating source contributions.
     func mutualFundHoldings() async throws -> MutualFundHoldings {
+        let rows = try await readPortfolio(.mutualFunds) { try await $0.mutualFundHoldings() }
+        return MutualFundHoldings(holdings: MutualFundHoldingSource.normalize(rows), retrievedAt: now())
+    }
+
+    /// Reads only the SDK net positions collection, separate from holdings.
+    func positions() async throws -> NetPositions {
+        let result = try await readPortfolio(.positions) { try await $0.positions() }
+        return NetPositions(positions: NetPositionSource.normalize(result.net), retrievedAt: now())
+    }
+
+    /// Reads trading balances without mixing them with investment holdings.
+    func funds() async throws -> TradingFunds {
+        let rows = try await readPortfolio(.funds) { try await $0.margins() }
+        return TradingFunds(segments: TradingFundsSource.normalize(rows), retrievedAt: now())
+    }
+
+    /// Applies the same post-suspension authority and failure rules to every SDK portfolio read.
+    private func readPortfolio<Value: Sendable>(_ source: PortfolioSource, read: @Sendable (KiteClient) async throws -> Value) async throws -> Value {
         try await restore()
         guard let client = authenticated else { throw Abort(.unauthorized) }
         let requestID = UUID()
-        mutualFundsRequestID = requestID
+        portfolioRequestIDs[source] = requestID
         do {
-            let rows = try await client.mutualFundHoldings()
-            guard authenticated === client, mutualFundsRequestID == requestID else { throw CancellationError() }
+            let value = try await read(client)
+            guard authenticated === client, portfolioRequestIDs[source] == requestID else { throw CancellationError() }
             try Task.checkCancellation()
-            return MutualFundHoldings(holdings: MutualFundHoldingSource.normalize(rows), retrievedAt: now())
+            return value
         } catch {
-            guard authenticated === client, mutualFundsRequestID == requestID else {
-                throw Abort(.serviceUnavailable, reason: "Mutual fund request was superseded.")
+            guard authenticated === client, portfolioRequestIDs[source] == requestID else {
+                throw Abort(.serviceUnavailable, reason: "Portfolio request was superseded.")
             }
             if Self.isAuthenticationRejection(error) {
                 try removeAuthority()
@@ -384,22 +394,6 @@ actor KiteLogin {
             return problem.errorType == "TokenException"
         }
         return false
-    }
-
-    /// Restricts avatar requests to public HTTPS addresses without credentials or query data.
-    private static func identity(_ profile: KiteUserProfile) -> AccountProfile {
-        let url = profile.avatarURL.flatMap(URL.init(string:))
-        let safe = url.flatMap { url -> URL? in
-            guard url.scheme == "https", url.host != nil, url.user == nil, url.password == nil,
-                  url.query == nil, url.fragment == nil else { return nil }
-            return url
-        }
-        return AccountProfile(
-            name: profile.userName, userID: profile.userID, avatarURL: safe,
-            email: profile.email, broker: profile.broker, accountType: profile.userType,
-            exchanges: profile.exchanges.map(\.rawValue), products: profile.products.map(\.rawValue),
-            orderTypes: profile.orderTypes.map(\.rawValue),
-        )
     }
 
     /// In-memory attempt data, discarded on restart or replacement.

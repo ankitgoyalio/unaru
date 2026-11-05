@@ -51,29 +51,56 @@ provider revocation after successful local removal.
 
 iOS and visionOS retain their initial content and deployment targets.
 
-The initial signed-in destination is Portfolio. Its Holdings child lists securities and mutual funds
-reported by Kite in separate native tables. Return opens inspection for the selected row.
-Inspection separates ordinary inventory, prices, financing, and source limitations.
-The account control remains in the sidebar footer. The view covers the connected Kite account's returned holdings without claiming complete
-demat inventory or external-account coverage. Trading positions and combined investment
-calculations are outside these source inspection views.
+The initial signed-in destination is Portfolio. Its Holdings child lists securities and
+mutual funds reported by Kite in separate native tables. Return opens inspection for the
+selected row. Inspection separates ordinary inventory, prices, financing, and source
+limitations. The account control remains in the sidebar footer. The view covers the
+connected Kite account's returned holdings without claiming complete demat inventory or
+external-account coverage. Trading positions and combined investment calculations are
+outside these source inspection views.
 
 ``PortfolioStore`` shares fetched holdings across windows in memory. Opening Portfolio
-and Refresh Portfolio fetch both sources independently. The toolbar and menu offer Refresh Portfolio
-with Command-R. Initial loading, an empty source, retrieval time, missing price date,
-and read failures have separate visible states. Retry preserves the valid Kite session and requests only the failed source.
-Each source has its own loading, failure, empty, and retrieval state. A failed refresh
-retains that source's previous rows with a stale notice while successful sources remain visible. Authority removal clears
-holdings across every window. Obsolete success and failure cannot restore old rows or
-invalidate a newer session. App relaunch fetches holdings again without restoring a
-portfolio snapshot.
+and Refresh Portfolio fetch both sources independently. The toolbar and menu offer
+Refresh Portfolio with Command-R. Initial loading, an empty source, retrieval time,
+missing price date, and read failures have separate visible states. Retry preserves the
+valid Kite session and requests only the failed source. Each source has its own loading,
+failure, empty, and retrieval state. A failed refresh retains that source's previous
+rows with a stale notice while successful sources remain visible. Authority removal
+clears holdings across every window. Obsolete success and failure cannot restore old
+rows or invalidate a newer session. App relaunch fetches holdings again without
+restoring a portfolio snapshot.
 
 Mutual fund inspection retains fractional units, acquisition prices, latest available
 NAVs, folios, and pledged units. NAV dates appear per holding, including different dates
-within a source. Unavailable dates stay unavailable. Retrieval time never establishes
-a current-day NAV. Missing cost, NAV, pledge relationships, and potential overlaps have
+within a source. Unavailable dates stay unavailable. Retrieval time never establishes a
+current-day NAV. Missing cost, NAV, pledge relationships, and potential overlaps have
 text explanations. Exact source prices remain available in inspection without treating
 provider P&L as a verified return.
+
+The Positions child shows Current Net Positions and Closed Positions in separate
+native tables. Return opens the selected row's broker details. Realised and unrealised
+trading P&L remain separate from holdings returns, and delivery purchases do not alter
+holdings. Prices without usable values are unavailable. Retrieval time is distinct
+from the unavailable price valuation date.
+
+``PositionsStore`` keeps this source in memory across windows, independently of holdings.
+Opening Positions or refreshing requests a new read. Retry preserves successful
+holdings and valid Kite authority. A failed refresh retains positions with a stale
+notice. Authority removal clears positions and inspection across every window, and
+obsolete successes or failures cannot replace newer source data or authority.
+
+The Funds child opens ``FundsView``. ``FundsStore`` shares balances across windows in
+memory and refreshes independently of holdings. Each enabled segment shows Kite's net
+availability and total utilisation. Disabled or absent segments have explicit labels,
+without invented zero availability. Native inspection sheets expose broker components
+and explain their overlap. Funds never contribute to holdings performance or wealth.
+
+Opening Funds or choosing Refresh Portfolio retrieves fresh balances. Retry Funds
+recovers only this source. Initial loading, successful empty data, disabled segments,
+retrieval time, failed retrieval, and stale balances remain distinct. Logout or confirmed
+expiry clears balances across windows and dismisses inspection. Obsolete success and
+failure cannot restore old balances or invalidate newer authority. Relaunch performs a
+fresh read rather than restoring saved portfolio data.
 
 ## Topics
 

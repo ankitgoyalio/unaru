@@ -40,6 +40,26 @@ Keep Kite's API secret and token exchange on the backend. The backend owns broke
 credential storage, login correlation, and app authorization. KiteConnect supplies the
 broker protocol implementation.
 
+### Trading funds contract
+
+`GET /portfolio/funds` requires app authorization and a validated Kite session.
+The pinned SDK reads `GET /user/margins`. ``TradingFundsSource`` maps the documented
+equity and commodity segments into Shared `TradingFunds`. Each segment preserves
+its enabled state, net availability, total utilisation (`debits`), and component balances
+as Decimal values. Negative and zero balances remain valid reported amounts.
+No components are added together and no funds enter holdings performance or wealth.
+
+Disabled segments remain explicit successful results. The pinned SDK requires both
+segments and their documented fields. Missing segment data is a malformed response,
+reported as a retryable HTTP 503 with `portfolioUnavailable`, never a disabled segment
+or an invented zero balance. Provider diagnostics and extra fields are excluded.
+Retrieval time uses Foundation Codable seconds since 2001. Responses use `no-store`.
+
+Funds requests have independent supersession checks. Old responses after logout,
+confirmed expiry, a new login, or a newer funds read cannot disclose old balances or
+remove newer authority. Temporary failures preserve the valid session. Confirmed token
+rejection uses the existing authority-removal and `kiteSignInRequired` contract.
+
 ### Securities holdings contract
 
 `GET /portfolio/holdings` requires app authorization and a validated Kite session.
@@ -60,6 +80,28 @@ Missing Kite authority or confirmed `TokenException` returns HTTP 401 with
 `kiteSignInRequired`. Missing app authorization is rejected before the operation runs.
 An obsolete response after authority removal or a newer holdings read returns no old
 data and cannot invalidate newer authority. Authorized responses use `Cache-Control: no-store`.
+
+### Net positions contract
+
+`GET /portfolio/positions` requires app authorization and a validated Kite session.
+The pinned SDK reads Kite's positions, and ``NetPositionSource`` exposes only the
+`net` collection as Shared `NetPositions`. The overlapping `day` collection is not
+added or returned. Nonzero signed quantities are current positions. Returned zero
+quantities are closed positions. Every net row keeps its own retrieval-scoped identity.
+
+Signed quantities, contract multipliers, prices, realised and unrealised trading P&L,
+mark-to-market values, and buy/sell activity remain broker reported. No trading value
+or P&L contributes to holdings quantities or investment returns. Delivery purchases
+stay in Positions until the holdings source reports them. No market-price timestamp
+is supplied, so `valuationDate` remains absent. Retrieval time uses Foundation Codable
+seconds since 2001.
+
+An empty net collection is a successful source. Temporary failures return HTTP 503
+with `portfolioUnavailable` and preserve valid Kite authority. Confirmed token rejection
+returns HTTP 401 with `kiteSignInRequired`. The operation rejects obsolete responses
+after authority changes or a newer positions read. Holdings and positions reads do not
+supersede one another. Responses contain no broker credentials and use
+`Cache-Control: no-store`.
 
 ### Mutual fund holdings contract
 

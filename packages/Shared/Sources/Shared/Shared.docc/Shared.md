@@ -43,6 +43,17 @@ fields separate from ordinary inventory. These contracts expose no broker creden
 or combined investment total. HTTP 503 with `portfolioUnavailable` permits retrying the
 source without another sign-in.
 
+``NetPositions`` contains only current net collection rows, including returned closed
+positions, with retrieval time separate from the unavailable market-price date.
+``TradingPosition`` preserves signed quantities, multipliers, broker prices and trading
+P&L, and supporting buy/sell fields. Its `state` groups nonzero quantities as current
+and zero quantities as closed. These values do not contribute to holdings returns.
+
+``TradingFunds`` describes a successful trading-funds read. ``TradingFundsSegment``
+preserves enabled state, net availability, total utilisation, and whitelisted components
+without combining overlapping balances. These balances remain separate from holdings
+value and returns. A disabled segment is not a source failure.
+
 ``MutualFundHoldings`` records a separate successful mutual fund source read and retrieval
 time. ``MutualFundHolding`` preserves fractional Decimal units, acquisition price, latest
 NAV, each row's available NAV date, optional folio, and pledged units. Row IDs are local
@@ -70,6 +81,16 @@ Provider P&L is not exposed as a calculated return.
 - ``SecuritiesHoldings``
 - ``SecurityHolding``
 - ``HoldingMTF``
+
+### Trading positions
+
+- ``NetPositions``
+- ``TradingPosition``
+
+### Trading funds
+
+- ``TradingFunds``
+- ``TradingFundsSegment``
 
 ### Mutual fund holdings
 

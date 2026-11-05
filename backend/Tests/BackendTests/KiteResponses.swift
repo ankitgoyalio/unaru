@@ -19,6 +19,16 @@ actor KiteResponses: KiteHTTPTransport {
     private var profileTimeout = false
     private var invalidationBody = #"{"status":"success","data":true}"#
     private var invalidationDisconnect = false
+    private var fundsStatus = 200
+    private var fundsBody = "{}"
+    private var fundsFailure: URLError.Code?
+
+    func setFunds(status: Int = 200, body: String, failure: URLError.Code? = nil) {
+        fundsStatus = status
+        fundsBody = body
+        fundsFailure = failure
+    }
+
     private var holdingsStatus = 200
     private var holdingsBody = #"{"status":"success","data":[]}"#
     private var holdingsFailure: URLError.Code?
@@ -27,6 +37,16 @@ actor KiteResponses: KiteHTTPTransport {
         holdingsStatus = status
         holdingsBody = body
         holdingsFailure = failure
+    }
+
+    private var positionsStatus = 200
+    private var positionsBody = #"{"status":"success","data":{"net":[],"day":[]}}"#
+    private var positionsFailure: URLError.Code?
+
+    func setPositions(status: Int = 200, body: String = #"{"status":"success","data":{"net":[],"day":[]}}"#, failure: URLError.Code? = nil) {
+        positionsStatus = status
+        positionsBody = body
+        positionsFailure = failure
     }
 
     private var mutualFundsStatus = 200
@@ -97,6 +117,18 @@ actor KiteResponses: KiteHTTPTransport {
                 observer?.resume()
                 observer = nil
             }
+        }
+        if request.url.path == "/portfolio/positions" {
+            if let positionsFailure {
+                throw URLError(positionsFailure)
+            }
+            return KiteHTTPResponse(statusCode: positionsStatus, body: Data(positionsBody.utf8))
+        }
+        if request.url.path == "/user/margins" {
+            if let fundsFailure {
+                throw URLError(fundsFailure)
+            }
+            return KiteHTTPResponse(statusCode: fundsStatus, body: Data(fundsBody.utf8))
         }
         if request.url.path == "/mf/holdings" {
             if let mutualFundsFailure {
