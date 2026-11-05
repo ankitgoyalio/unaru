@@ -81,6 +81,41 @@ Missing Kite authority or confirmed `TokenException` returns HTTP 401 with
 An obsolete response after authority removal or a newer holdings read returns no old
 data and cannot invalidate newer authority. Authorized responses use `Cache-Control: no-store`.
 
+### Current-holdings performance contract
+
+`POST /portfolio/performance` accepts Shared `PortfolioPerformanceRequest` with the
+`readID` of each successful holdings source. It requires app authorization and validated
+Kite authority. ``PerformanceSources`` accepts only the latest successful reads.
+A source read clears its cached result before requesting Kite, so an in-flight or
+failed refresh cannot supply an aggregate. Missing or superseded read IDs return
+HTTP 503 with `portfolioUnavailable`. Authority removal clears both cached sources.
+All snapshots remain in memory and responses use `Cache-Control: no-store`.
+
+``HoldingValuation`` uses Decimal throughout. Ordinary securities quantity is settled
+quantity plus T1, excluding the separate MTF quantity. Used quantity and net CNC
+positions are never deducted again. This follows the provider's
+[quantity clarification](https://kite.trade/forum/discussion/comment/50543/) and
+[same-day sale example](https://kite.trade/forum/discussion/comment/52974/).
+An ordinary component of a mixed MTF record remains eligible when its relationship is
+supported. Financed sales, short delivery, pledge relationships, discrepancies, and
+possible overlapping records withhold the affected contribution.
+
+Cost is eligible quantity times positive acquisition price. Value is eligible quantity
+times positive market price or NAV. Each measure can be available independently.
+Gain requires both. Combined return is summed matched gain divided by summed matched
+cost, times 100, with no percentage for a nonpositive denominator. The response gives
+cost, value, and return coverage separately, plus matched cost and value. No available
+contribution from nonempty inventory is unavailable, while successful empty inventory
+is zero. Unknown classification and missing valuation dates do not invent metadata or
+prevent otherwise supported arithmetic.
+
+Source normalization indexes duplicate identities in linear time. Combined analysis
+checks shared depository identities across sources and returns source-qualified rows
+with final eligibility. Cross-source overlaps retain both records with unavailable
+contributions. These row values are the authoritative inputs for later allocation,
+largest-holding ordering, and value-based inspection. Positions and trading balances
+never enter this projection.
+
 ### Net positions contract
 
 `GET /portfolio/positions` requires app authorization and a validated Kite session.
@@ -116,7 +151,7 @@ Symbols and folios are inspection fields, not unique row keys. Repeated fund sym
 carry an overlap limitation even when folios differ. Pledged units are neither added to
 nor deducted from primary units. Nonpositive prices and units remain inspectable with
 limitations. Malformed required SDK fields fail the source rather than fabricating rows.
-The contract excludes provider P&L and calculates no combined investment total.
+The source contract excludes provider P&L. Combined performance uses the separate operation below.
 
 Empty success, temporary failures, and confirmed invalidation follow the securities
 HTTP contract. Mutual fund refresh ordering is independent of securities ordering.

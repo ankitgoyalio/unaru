@@ -39,8 +39,7 @@ hello()
 empty result. It preserves retrieval time separately from the optional price valuation
 date. ``SecurityHolding`` retains each source row and its limitations, including unknown
 classification, unusable prices, and potential overlap. ``HoldingMTF`` keeps financing
-fields separate from ordinary inventory. These contracts expose no broker credentials
-or combined investment total. HTTP 503 with `portfolioUnavailable` permits retrying the
+fields separate from ordinary inventory. These source contracts expose no broker credentials. HTTP 503 with `portfolioUnavailable` permits retrying the
 source without another sign-in.
 
 ``NetPositions`` contains only current net collection rows, including returned closed
@@ -60,6 +59,19 @@ NAV, each row's available NAV date, optional folio, and pledged units. Row IDs a
 to a retrieval. Matching symbols or folios do not justify merging rows. Limitation codes
 identify unusable values, missing dates, pledge uncertainty, and possible overlaps.
 Provider P&L is not exposed as a calculated return.
+
+``HoldingPerformance`` carries backend-calculated ordinary quantity, invested cost,
+current value, gain, and return percentage. Nil means unavailable. Zero gain remains
+zero. Cost and value have independent eligibility. ``PortfolioPerformance`` exposes
+combined measures and separate cost, value, and matched-return coverage counts.
+Its matched cost and value explain the basis of the combined gain and percentage.
+Successful empty sources produce zero inventory and no return percentage.
+
+``PortfolioPerformanceRequest`` identifies the exact two successful source reads.
+``PortfolioHoldingPerformance`` qualifies row identity by source and carries final
+eligibility, including cross-source overlap. These values support later allocation
+and ordering without another financial calculation in the app. MTF-only rows remain
+inspectable outside ordinary coverage. Financed quantities never enter these measures.
 
 ## Topics
 
@@ -81,6 +93,13 @@ Provider P&L is not exposed as a calculated return.
 - ``SecuritiesHoldings``
 - ``SecurityHolding``
 - ``HoldingMTF``
+
+### Current-holdings performance
+
+- ``HoldingPerformance``
+- ``PortfolioPerformance``
+- ``PortfolioPerformanceRequest``
+- ``PortfolioHoldingPerformance``
 
 ### Trading positions
 

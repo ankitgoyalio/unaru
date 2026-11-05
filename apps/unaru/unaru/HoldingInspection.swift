@@ -9,10 +9,12 @@
     import Shared
     import SwiftUI
 
-    /// Broker fields stay inspectable without implying an investment calculation or price date.
+    /// Broker fields and authoritative current-holdings values stay inspectable with their limitations.
     struct HoldingInspection: View {
         /// The selected source row, including separate financing metadata.
         let holding: SecurityHolding
+        /// Final cross-source eligibility, when both sources have been analysed.
+        let analysis: PortfolioHoldingPerformance?
         @Environment(\.dismiss) private var dismiss
 
         var body: some View {
@@ -20,6 +22,7 @@
                 Text("Holding Details").font(.title).accessibilityAddTraits(.isHeader)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true)
                         GroupBox("Identity and Source") {
                             fields {
                                 field("Symbol", holding.symbol)

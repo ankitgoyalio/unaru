@@ -12,7 +12,8 @@ import Shared
 enum MutualFundHoldingSource {
     /// Retains fractional units and individual calendar dates without merging broker rows.
     static func normalize(_ rows: [KiteMutualFundHolding]) -> [MutualFundHolding] {
-        rows.enumerated().map { index, row in
+        let symbolCounts = rows.reduce(into: [String: Int]()) { $0[$1.tradingSymbol, default: 0] += 1 }
+        return rows.enumerated().map { index, row in
             var limitations: [MutualFundHolding.Limitation] = []
             if row.lastPriceDate == nil {
                 limitations.append(.navDateUnavailable)
@@ -29,14 +30,14 @@ enum MutualFundHoldingSource {
             if let pledged = row.pledgedQuantity, pledged != 0 {
                 limitations.append(.pledgeRelationshipUnknown)
             }
-            if !row.tradingSymbol.isEmpty, rows.enumerated().contains(where: { otherIndex, other in
-                otherIndex != index && row.tradingSymbol == other.tradingSymbol
-            }) {
+            if !row.tradingSymbol.isEmpty, symbolCounts[row.tradingSymbol, default: 0] > 1 {
                 limitations.append(.overlappingRecords)
             }
             return MutualFundHolding(id: "mf-\(index)", fund: row.fund, symbol: row.tradingSymbol, folio: row.folio,
                                      quantity: row.quantity, averagePrice: row.averagePrice, lastPrice: row.lastPrice,
-                                     navDate: row.lastPriceDate?.description, pledgedQuantity: row.pledgedQuantity, limitations: limitations)
+                                     navDate: row.lastPriceDate?.description, pledgedQuantity: row.pledgedQuantity, limitations: limitations,
+                                     performance: HoldingValuation.calculate(quantity: row.quantity, averagePrice: row.averagePrice, price: row.lastPrice,
+                                                                             quantityUsable: !limitations.contains(where: { [.quantityUnusable, .pledgeRelationshipUnknown, .overlappingRecords].contains($0) })))
         }
     }
 }

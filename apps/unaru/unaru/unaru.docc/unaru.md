@@ -77,6 +77,20 @@ current-day NAV. Missing cost, NAV, pledge relationships, and potential overlaps
 text explanations. Exact source prices remain available in inspection without treating
 provider P&L as a verified return.
 
+``PortfolioPerformanceView`` displays current-holdings invested cost, current value,
+unrealised gain, and weighted return from the backend. It shows separate value, cost,
+and return coverage, with matched cost and value for returns. Holding tables and
+inspection sheets display the same backend row values. MTF stays outside ordinary
+analysis. Unavailable values remain distinct from zero.
+
+``PortfolioStore`` requests combined performance using the exact successful source
+read IDs. A full refresh resets success for both sources and immediately withholds
+totals. Retained stale rows never count as success in a new refresh. A source-specific
+Retry can complete the current refresh without refetching its successful peer.
+Delayed aggregate success and failure cannot replace a newer refresh or authority.
+Source-qualified row projections use indexed lookups and apply only to their exact
+retrievals. The app formats Decimal values and performs no second financial calculation.
+
 The Positions child shows Current Net Positions and Closed Positions in separate
 native tables. Return opens the selected row's broker details. Realised and unrealised
 trading P&L remain separate from holdings returns, and delivery purchases do not alter

@@ -10,17 +10,20 @@ public import Foundation
 public struct MutualFundHoldings: Codable, Sendable {
     /// Every provider row in source order; possible overlaps remain separate.
     public let holdings: [MutualFundHolding]
+    /// Opaque identity for aggregating exactly this successful source read.
+    public let readID: String?
     /// When the helper obtained this source, distinct from each holding's NAV date.
     public let retrievedAt: Date
 
     /// Creates a credential-free, memory-only mutual fund snapshot.
-    public init(holdings: [MutualFundHolding], retrievedAt: Date) {
+    public init(holdings: [MutualFundHolding], retrievedAt: Date, readID: String? = UUID().uuidString) {
         self.holdings = holdings
+        self.readID = readID
         self.retrievedAt = retrievedAt
     }
 }
 
-/// Broker-reported mutual fund units, without an inferred return or inventory adjustment.
+/// Broker-reported mutual fund units with authoritative current-holdings values.
 public struct MutualFundHolding: Codable, Sendable, Identifiable {
     /// Row identity within this retrieval; folios and symbols need not be unique.
     public let id: String
@@ -40,6 +43,9 @@ public struct MutualFundHolding: Codable, Sendable, Identifiable {
     public let navDate: String?
     /// Pledged units, with no assumed relationship to the primary quantity.
     public let pledgedQuantity: Decimal?
+
+    /// Authoritative ordinary holding calculations, absent in older inspection-only responses.
+    public let performance: HoldingPerformance?
 
     /// Reasons this row cannot imply complete cost, valuation, or inventory coverage.
     public let limitations: [Limitation]
@@ -62,7 +68,7 @@ public struct MutualFundHolding: Codable, Sendable, Identifiable {
 
     /// Preserves the supported source fields without arbitrary provider metadata or credentials.
     public init(id: String, fund: String, symbol: String, folio: String?, quantity: Decimal,
-                averagePrice: Decimal, lastPrice: Decimal, navDate: String?, pledgedQuantity: Decimal?, limitations: [Limitation])
+                averagePrice: Decimal, lastPrice: Decimal, navDate: String?, pledgedQuantity: Decimal?, limitations: [Limitation], performance: HoldingPerformance? = nil)
     {
         self.id = id
         self.fund = fund
@@ -73,6 +79,7 @@ public struct MutualFundHolding: Codable, Sendable, Identifiable {
         self.lastPrice = lastPrice
         self.navDate = navDate
         self.pledgedQuantity = pledgedQuantity
+        self.performance = performance
         self.limitations = limitations
     }
 }

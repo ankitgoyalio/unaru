@@ -40,6 +40,9 @@
                         .font(.largeTitle).accessibilityAddTraits(.isHeader)
                     Text("Holdings returned by your connected Kite account. Coverage may be incomplete.")
                         .foregroundStyle(.secondary)
+                    if destination == .portfolio {
+                        PortfolioPerformanceView(store: store)
+                    }
                     Text("Securities Holdings").font(.title2).accessibilityAddTraits(.isHeader)
                     if store.isLoading {
                         ProgressView("Loading securities holdings…")
@@ -63,10 +66,13 @@
                             Text("\(snapshot.holdings.count) securities holdings")
                             if destination == .holdings {
                                 Table(snapshot.holdings, selection: $selection) {
-                                    TableColumn("Symbol", value: \.symbol)
-                                    TableColumn("Exchange", value: \.exchange)
-                                    TableColumn("Quantity (Kite)") { row in Text(String(row.quantity)) }
-                                    TableColumn("Market Price") { row in Text(usablePrice(row.lastPrice)) }
+                                    TableColumn("Symbol", value: \.symbol).width(min: 80, ideal: 100)
+                                    TableColumn("Exchange", value: \.exchange).width(55)
+                                    TableColumn("Quantity") { row in Text(String(row.quantity)) }.width(70)
+                                    TableColumn("Current Value") { row in Text(holdingMoney(store.values(for: row)?.currentValue)) }.width(min: 90, ideal: 110)
+                                    TableColumn("Invested Cost") { row in Text(holdingMoney(store.values(for: row)?.investedCost)) }.width(min: 90, ideal: 110)
+                                    TableColumn("Gain or Loss") { row in Text(holdingMoney(store.values(for: row)?.gain)) }.width(min: 90, ideal: 110)
+                                    TableColumn("Return") { row in Text(holdingPercent(store.values(for: row)?.returnPercent)) }.width(75)
                                 }
                                 .frame(height: min(300, CGFloat(snapshot.holdings.count) * 28 + 40))
                                 .accessibilityLabel("Securities holdings")
@@ -91,8 +97,8 @@
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .accessibilityLabel("Portfolio content")
-            .sheet(item: $inspectedMutualFund) { holding in MutualFundInspection(holding: holding) }
-            .sheet(item: $inspected) { holding in HoldingInspection(holding: holding) }
+            .sheet(item: $inspectedMutualFund) { holding in MutualFundInspection(holding: holding, analysis: store.analyzedRow(source: .mutualFunds, id: holding.id)) }
+            .sheet(item: $inspected) { holding in HoldingInspection(holding: holding, analysis: store.analyzedRow(source: .securities, id: holding.id)) }
             .onReceive(store.$snapshot) { _ in
                 selection = nil
                 inspected = nil

@@ -56,7 +56,12 @@ actor KiteLogin {
     /// The newest attempt, replacing all previous callback authority.
     private var attempt: Attempt?
     /// The client whose exchange and profile retrieval have succeeded.
-    private var authenticated: KiteClient?
+    private var authenticated: KiteClient? {
+        didSet { performanceSources = PerformanceSources() }
+    }
+
+    /// Only the latest successful source reads under current authority, retained in memory.
+    private var performanceSources = PerformanceSources()
     /// Only the latest authenticated profile read may publish identity or reject the session.
     private var profileRequestID: UUID?
     /// Supported portfolio sources supersede only their own earlier reads.
@@ -227,14 +232,26 @@ actor KiteLogin {
 
     /// Reads securities through the pinned SDK under current portfolio authority.
     func holdings() async throws -> SecuritiesHoldings {
+        performanceSources.securities = nil
         let rows = try await readPortfolio(.securities) { try await $0.holdings() }
-        return SecuritiesHoldings(holdings: SecuritiesHoldingSource.normalize(rows), retrievedAt: now())
+        let result = SecuritiesHoldings(holdings: SecuritiesHoldingSource.normalize(rows), retrievedAt: now())
+        performanceSources.securities = result
+        return result
     }
 
-    /// Reads fractional mutual funds without merging or calculating source contributions.
+    /// Reads fractional mutual funds and authoritative source valuations without merging rows.
     func mutualFundHoldings() async throws -> MutualFundHoldings {
+        performanceSources.mutualFunds = nil
         let rows = try await readPortfolio(.mutualFunds) { try await $0.mutualFundHoldings() }
-        return MutualFundHoldings(holdings: MutualFundHoldingSource.normalize(rows), retrievedAt: now())
+        let result = MutualFundHoldings(holdings: MutualFundHoldingSource.normalize(rows), retrievedAt: now())
+        performanceSources.mutualFunds = result
+        return result
+    }
+
+    /// Aggregates only exact successful reads under current authority, without another provider read.
+    func performance(_ request: PortfolioPerformanceRequest) throws -> PortfolioPerformance {
+        guard authenticated != nil else { throw Abort(.unauthorized) }
+        return try performanceSources.aggregate(request)
     }
 
     /// Reads only the SDK net positions collection, separate from holdings.

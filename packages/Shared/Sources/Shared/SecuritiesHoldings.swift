@@ -10,14 +10,17 @@ public import Foundation
 public struct SecuritiesHoldings: Codable, Sendable {
     /// Rows retain their source order and identity, including potentially overlapping records.
     public let holdings: [SecurityHolding]
+    /// Opaque identity for aggregating exactly this successful source read.
+    public let readID: String?
     /// When the helper obtained the source, not the time of the market price.
     public let retrievedAt: Date
     /// A source price date, absent when Kite supplies none.
     public let valuationDate: String?
 
     /// Creates a credential-free source result; failures use the HTTP problem contract.
-    public init(holdings: [SecurityHolding], retrievedAt: Date, valuationDate: String? = nil) {
+    public init(holdings: [SecurityHolding], retrievedAt: Date, valuationDate: String? = nil, readID: String? = UUID().uuidString) {
         self.holdings = holdings
+        self.readID = readID
         self.retrievedAt = retrievedAt
         self.valuationDate = valuationDate
     }
@@ -69,6 +72,8 @@ public struct SecurityHolding: Codable, Sendable, Identifiable {
     public let lastPrice: Decimal
     /// Broker financing data, separate from ordinary holding quantities and prices.
     public let mtf: HoldingMTF?
+    /// Authoritative ordinary holding calculations, absent in older inspection-only responses.
+    public let performance: HoldingPerformance?
     /// Reasons a row must not imply complete classification or valuation coverage.
     public let limitations: [Limitation]
 
@@ -110,6 +115,7 @@ public struct SecurityHolding: Codable, Sendable, Identifiable {
         openingQuantity: Int64, usedQuantity: Int64?, shortQuantity: Int64?, collateralQuantity: Int64,
         collateralType: String?, authorisedDate: Date?, discrepancy: Bool,
         averagePrice: Decimal, lastPrice: Decimal, mtf: HoldingMTF?, limitations: [Limitation],
+        performance: HoldingPerformance? = nil,
     ) {
         self.id = id
         self.symbol = symbol
@@ -133,6 +139,7 @@ public struct SecurityHolding: Codable, Sendable, Identifiable {
         self.averagePrice = averagePrice
         self.lastPrice = lastPrice
         self.mtf = mtf
+        self.performance = performance
         self.limitations = limitations
     }
 }

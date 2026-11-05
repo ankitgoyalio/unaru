@@ -46,10 +46,13 @@
                         Text("\(snapshot.holdings.count) mutual fund holdings")
                         if showsRows {
                             Table(snapshot.holdings, selection: $selection) {
-                                TableColumn("Fund", value: \.fund)
-                                TableColumn("Units") { row in Text(mutualFundDecimal(row.quantity)) }
-                                TableColumn("Latest NAV") { row in Text(usablePrice(row.lastPrice)) }
-                                TableColumn("NAV Date") { row in Text(row.navDate ?? "Unavailable") }
+                                TableColumn("Fund", value: \.fund).width(120)
+                                TableColumn("Units") { row in Text(mutualFundDecimal(row.quantity)) }.width(90)
+                                TableColumn("Current Value") { row in Text(holdingMoney(store.values(for: row)?.currentValue)) }.width(85)
+                                TableColumn("Invested Cost") { row in Text(holdingMoney(store.values(for: row)?.investedCost)) }.width(85)
+                                TableColumn("Gain or Loss") { row in Text(holdingMoney(store.values(for: row)?.gain)) }.width(80)
+                                TableColumn("Return") { row in Text(holdingPercent(store.values(for: row)?.returnPercent)) }.width(75)
+                                TableColumn("NAV Date") { row in Text(row.navDate ?? "Unavailable") }.width(90)
                             }
                             .frame(height: min(260, CGFloat(snapshot.holdings.count) * 28 + 40))
                             .accessibilityLabel("Mutual fund holdings")

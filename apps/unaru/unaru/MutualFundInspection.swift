@@ -12,6 +12,8 @@
     struct MutualFundInspection: View {
         /// Source row retained without merging matching fund symbols or folios.
         let holding: MutualFundHolding
+        /// Final cross-source eligibility, when both sources have been analysed.
+        let analysis: PortfolioHoldingPerformance?
         @Environment(\.dismiss) private var dismiss
 
         var body: some View {
@@ -19,6 +21,7 @@
                 Text("Mutual Fund Details").font(.title).accessibilityAddTraits(.isHeader)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true)
                         GroupBox("Identity and Source") {
                             fields {
                                 field("Fund", holding.fund)
