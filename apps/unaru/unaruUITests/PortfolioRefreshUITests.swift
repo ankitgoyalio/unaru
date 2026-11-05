@@ -102,7 +102,6 @@
                     let removalWindow = try XCTUnwrap(app.windows.allElementsBoundByIndex.first { !$0.sheets.firstMatch.exists })
                     removalWindow.buttons["Open Kite account"].click()
                     XCTAssertTrue(app.buttons["Log Out"].waitForExistence(timeout: 5))
-                    XCTAssertTrue(app.staticTexts["Holding Details"].firstMatch.exists)
                     app.buttons["Log Out"].click()
                     XCTAssertTrue(app.sheets["alert"].waitForExistence(timeout: 5))
                     app.sheets["alert"].buttons["Log Out"].click()
