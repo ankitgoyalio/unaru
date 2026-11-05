@@ -52,9 +52,19 @@ provider revocation after successful local removal.
 iOS and visionOS retain their initial content and deployment targets.
 
 The initial signed-in destination is Portfolio. Its Holdings child lists securities and
-mutual funds reported by Kite in separate native tables. Return opens inspection for the
+mutual funds reported by Kite in one native table. Search matches source names and symbols
+without merging records. Investment Type filters the same list by Mutual Funds or Unknown.
+Unknown preserves securities whose source supplies no verified asset classification.
+A search or filter with no matches has its own state and reset action. Current Value,
+Invested Cost, and Return support ascending and descending order. Current Value descending
+is the default. Return compares backend unrealised return percentages. Unavailable values
+sort last in either direction and stay distinct from zero. Return opens inspection for the
 selected row. Inspection separates ordinary inventory, prices, financing, and source
-limitations. The account control remains in the sidebar footer. The view covers the
+limitations. Each inspection retains its selected source retrieval time and reports price
+or NAV dates separately. A replacement source snapshot dismisses inspection and clears
+selection, even when the helper reuses a row ID. A failed refresh keeps the same row
+inspectable with its stale notice and source-specific Retry. Search and filter state
+survive refreshes. Sign-out and confirmed expiry remove inspection content. The account control remains in the sidebar footer. The view covers the
 connected Kite account's returned holdings without claiming complete demat inventory or
 external-account coverage. Trading positions and combined investment calculations are
 outside these source inspection views.

@@ -43,7 +43,7 @@
             XCTAssertTrue(app.staticTexts["Couldn’t refresh securities holdings"].waitForExistence(timeout: 10))
             XCTAssertFalse(app.staticTexts["Allocation by Current Value"].exists)
             app.staticTexts["Holdings"].firstMatch.click()
-            let table = app.outlines["Securities holdings"]
+            let table = app.outlines["Holdings"]
             XCTAssertTrue(table.waitForExistence(timeout: 5))
             table.staticTexts["STOCK"].click()
             app.typeKey(.return, modifierFlags: [])

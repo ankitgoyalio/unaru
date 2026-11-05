@@ -58,9 +58,8 @@
                 second.buttons["View Holdings"].click()
                 XCTAssertTrue(second.staticTexts["Sample Growth Fund"].waitForExistence(timeout: 5))
                 let inspectionWindow = second
-                inspectionWindow.scrollViews["Portfolio content"].scroll(byDeltaX: 0, deltaY: -500)
-                inspectionWindow.outlines["Mutual fund holdings"].staticTexts["Sample Growth Fund"].click()
-                inspectionWindow.buttons["Inspect Mutual Fund"].click()
+                inspectionWindow.outlines["Holdings"].staticTexts["Sample Growth Fund"].click()
+                inspectionWindow.buttons["Inspect Holding"].click()
                 XCTAssertTrue(inspectionWindow.sheets.firstMatch.staticTexts["Mutual Fund Details"].waitForExistence(timeout: 5))
                 let oldBody = expiry ? mutualFundFixture(name: "OBSOLETE") : #"{"code":"kiteSignInRequired"}"#
                 backend.respond(path: "/portfolio/mutual-funds", status: expiry ? 200 : 401, hold: true, body: oldBody)
@@ -81,7 +80,7 @@
                 for window in app.windows.allElementsBoundByIndex {
                     XCTAssertTrue(window.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
                     XCTAssertFalse(window.staticTexts["Sample Growth Fund"].exists)
-                    XCTAssertFalse(window.buttons["Inspect Mutual Fund"].exists)
+                    XCTAssertFalse(window.buttons["Inspect Holding"].exists)
                     XCTAssertFalse(window.staticTexts["Mutual Fund Details"].exists)
                     XCTAssertFalse(window.buttons["Open Kite account"].exists)
                 }

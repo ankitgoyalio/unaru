@@ -45,8 +45,8 @@
                 backend.completeLogin()
                 XCTAssertTrue(app.buttons["View Holdings"].waitForExistence(timeout: 10))
                 app.buttons["View Holdings"].click()
-                XCTAssertTrue(app.outlines["Securities holdings"].waitForExistence(timeout: 5))
-                app.outlines["Securities holdings"].staticTexts["STOCK"].click()
+                XCTAssertTrue(app.outlines["Holdings"].waitForExistence(timeout: 5))
+                app.outlines["Holdings"].staticTexts["STOCK"].click()
                 app.typeKey(.return, modifierFlags: [])
                 let sheet = app.sheets.firstMatch
                 XCTAssertTrue(sheet.staticTexts["Holding Details"].waitForExistence(timeout: 5))

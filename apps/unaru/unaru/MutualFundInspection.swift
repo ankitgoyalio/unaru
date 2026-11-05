@@ -5,6 +5,7 @@
 //  Created by Ankit Goyal on 05/11/2026.
 
 #if os(macOS)
+    import Foundation
     import Shared
     import SwiftUI
 
@@ -19,6 +20,8 @@
         let analysis: PortfolioHoldingPerformance?
         /// Allocation requires a current combined denominator, even when stale source values remain inspectable.
         let allocationIsCurrent: Bool
+        /// The exact selected source retrieval, separate from its price or NAV date.
+        let retrievedAt: Date
         @Environment(\.dismiss) private var dismiss
 
         var body: some View {
@@ -27,7 +30,7 @@
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         SourceInspectionStatus(source: "Mutual fund holdings", isLoading: store.mutualFundsLoading,
-                                               failed: store.mutualFundsFailed, retrievedAt: store.mutualFundsSnapshot?.retrievedAt,
+                                               failed: store.mutualFundsFailed, retrievedAt: retrievedAt,
                                                retryTitle: "Retry Mutual Funds") { connection.refreshPortfolio(source: .mutualFunds) }
                         HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true,
                                                allocationPercent: allocationIsCurrent ? analysis?.allocationPercent : nil)
@@ -36,6 +39,7 @@
                                 field("Fund", holding.fund)
                                 field("Symbol / ISIN", holding.symbol.isEmpty ? "Unavailable" : holding.symbol)
                                 field("Folio", holding.folio.flatMap { $0.isEmpty ? nil : $0 } ?? "Unavailable")
+                                field("Investment type", "Mutual Fund")
                                 field("Source", "Kite mutual fund holdings")
                                 field("Source row", holding.id)
                             }

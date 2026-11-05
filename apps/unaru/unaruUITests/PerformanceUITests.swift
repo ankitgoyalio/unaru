@@ -32,7 +32,7 @@
                 XCTAssertTrue((app.staticTexts["Performance matched cost"].value as? String ?? app.staticTexts["Performance matched cost"].label).contains("1,100.00"))
                 capture(app, name: "Performance overview - \(appearance)")
                 app.buttons["View Holdings"].click()
-                let securities = app.outlines["Securities holdings"]
+                let securities = app.outlines["Holdings"]
                 XCTAssertTrue(securities.waitForExistence(timeout: 5))
                 XCTAssertTrue(securities.staticTexts.containing(NSPredicate(format: "label CONTAINS '1,200.00' OR value CONTAINS '1,200.00'")).firstMatch.exists)
                 XCTAssertTrue(securities.staticTexts["20.00%"].exists)
@@ -75,7 +75,7 @@
             backend.completeLogin()
             waitForPending(backend)
             app.buttons["View Holdings"].click()
-            let table = app.outlines["Securities holdings"]
+            let table = app.outlines["Holdings"]
             XCTAssertTrue(table.staticTexts["STOCK"].waitForExistence(timeout: 5))
             table.staticTexts["STOCK"].click()
             app.typeKey(.return, modifierFlags: [])

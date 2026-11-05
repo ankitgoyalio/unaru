@@ -20,19 +20,13 @@
         case funds
     }
 
-    /// Native source status and navigation, with no combined investment total in this slice.
+    /// Native overview and source status keep investment holdings separate from supporting destinations.
     struct PortfolioView: View {
         @EnvironmentObject private var connection: BackendConnection
         /// Window-local selection in the Portfolio sidebar hierarchy.
         @Binding var destination: PortfolioDestination?
         /// Shared memory-only source state from the authenticated connection.
         @ObservedObject var store: PortfolioStore
-        @State private var selection: SecurityHolding.ID?
-        @State private var inspected: SecurityHolding?
-
-        @State private var mutualFundSelection: MutualFundHolding.ID?
-        @State private var inspectedMutualFund: MutualFundHolding?
-
         var body: some View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -45,6 +39,9 @@
                         if let allocation = store.performance?.allocation {
                             PortfolioAllocationView(allocation: allocation)
                         }
+                    }
+                    if destination == .holdings {
+                        HoldingsBrowser(store: store)
                     }
                     Text("Securities Holdings").font(.title2).accessibilityAddTraits(.isHeader)
                     if store.isLoading {
@@ -60,37 +57,17 @@
                     if let snapshot = store.snapshot {
                         Text("Retrieved \(snapshot.retrievedAt.formatted(date: .abbreviated, time: .standard))")
                             .accessibilityIdentifier("Holdings retrieval time")
-                        Text("Price valuation date unavailable")
+                        Text(snapshot.valuationDate.map { "Price valuation date: \($0)" } ?? "Price valuation date unavailable")
                             .foregroundStyle(.secondary)
                         if snapshot.holdings.isEmpty {
                             ContentUnavailableView("No Securities Holdings", systemImage: "tray",
                                                    description: Text("Kite returned an empty securities holdings source."))
                         } else {
                             Text("\(snapshot.holdings.count) securities holdings")
-                            if destination == .holdings {
-                                Table(snapshot.holdings, selection: $selection) {
-                                    TableColumn("Symbol", value: \.symbol).width(min: 80, ideal: 100)
-                                    TableColumn("Exchange", value: \.exchange).width(55)
-                                    TableColumn("Quantity") { row in Text(String(row.quantity)) }.width(70)
-                                    TableColumn("Current Value") { row in Text(holdingMoney(store.values(for: row)?.currentValue)) }.width(min: 90, ideal: 110)
-                                    TableColumn("Invested Cost") { row in Text(holdingMoney(store.values(for: row)?.investedCost)) }.width(min: 90, ideal: 110)
-                                    TableColumn("Gain or Loss") { row in Text(holdingMoney(store.values(for: row)?.gain)) }.width(min: 90, ideal: 110)
-                                    TableColumn("Return") { row in Text(holdingPercent(store.values(for: row)?.returnPercent)) }.width(75)
-                                }
-                                .frame(height: min(300, CGFloat(snapshot.holdings.count) * 28 + 40))
-                                .accessibilityLabel("Securities holdings")
-                                .contextMenu(forSelectionType: String.self) { identifiers in
-                                    Button("Inspect Holding") { inspect(identifiers.first) }
-                                } primaryAction: { identifiers in inspect(identifiers.first) }
-                                Button("Inspect Holding") { inspect(selection) }
-                                    .disabled(selection == nil)
-                                    .keyboardShortcut(.return, modifiers: [])
-                            }
                         }
                     }
                     Divider()
-                    MutualFundHoldingsView(store: store, showsRows: destination == .holdings,
-                                           selection: $mutualFundSelection, inspected: $inspectedMutualFund)
+                    MutualFundHoldingsView(store: store)
                     if destination != .holdings {
                         Button("View Holdings") { destination = .holdings }
                     }
@@ -100,36 +77,12 @@
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .accessibilityLabel("Portfolio content")
-            .sheet(item: $inspectedMutualFund) { holding in MutualFundInspection(store: store, holding: holding, analysis: store.analyzedRow(source: .mutualFunds, id: holding.id), allocationIsCurrent: store.performance != nil) }
-            .sheet(item: $inspected) { holding in HoldingInspection(store: store, holding: holding, analysis: store.analyzedRow(source: .securities, id: holding.id), allocationIsCurrent: store.performance != nil) }
-            .onReceive(store.$snapshot) { _ in
-                selection = nil
-                inspected = nil
-            }
-            .onReceive(store.$mutualFundsSnapshot) { _ in
-                mutualFundSelection = nil
-                inspectedMutualFund = nil
-            }
-            .onChange(of: selection) { _, value in
-                if value != nil {
-                    mutualFundSelection = nil
-                }
-            }
-            .onChange(of: mutualFundSelection) { _, value in
-                if value != nil {
-                    selection = nil
-                }
-            }
             .onAppear { connection.refreshPortfolio() }
             .onChange(of: destination) { _, newValue in
                 if newValue == .portfolio {
                     connection.refreshPortfolio()
                 }
             }
-        }
-
-        private func inspect(_ id: String?) {
-            inspected = store.snapshot?.holdings.first { $0.id == id }
         }
     }
 #endif

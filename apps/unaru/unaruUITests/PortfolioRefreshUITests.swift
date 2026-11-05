@@ -87,7 +87,7 @@
                 second.buttons["View Holdings"].click()
                 XCTAssertTrue(second.staticTexts["STOCK"].waitForExistence(timeout: 5))
                 let inspectionWindow = second
-                inspectionWindow.outlines["Securities holdings"].staticTexts["STOCK"].click()
+                inspectionWindow.outlines["Holdings"].staticTexts["STOCK"].click()
                 inspectionWindow.buttons["Inspect Holding"].click()
                 XCTAssertTrue(inspectionWindow.sheets.firstMatch.staticTexts["Holding Details"].waitForExistence(timeout: 5))
                 let oldBody = expiry ? portfolioFixture(symbol: "OBSOLETE") : #"{"code":"kiteSignInRequired"}"#

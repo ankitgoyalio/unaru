@@ -9,18 +9,11 @@
     import Shared
     import SwiftUI
 
-    /// Separate source status and native table keep mutual fund dates and units inspectable.
+    /// Mutual fund retrieval, loading and failure remain visible independently of securities.
     struct MutualFundHoldingsView: View {
         @EnvironmentObject private var connection: BackendConnection
         /// The connection's memory-only source state.
         @ObservedObject var store: PortfolioStore
-        /// The overview shows source summaries; Holdings also shows the rows.
-        let showsRows: Bool
-        /// Selection stays local to this window.
-        @Binding var selection: MutualFundHolding.ID?
-        /// The exact broker row selected for inspection.
-        @Binding var inspected: MutualFundHolding?
-
         var body: some View {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Mutual Fund Holdings").font(.title2).accessibilityAddTraits(.isHeader)
@@ -44,32 +37,9 @@
                                                description: Text("Kite returned an empty mutual fund holdings source."))
                     } else {
                         Text("\(snapshot.holdings.count) mutual fund holdings")
-                        if showsRows {
-                            Table(snapshot.holdings, selection: $selection) {
-                                TableColumn("Fund", value: \.fund).width(120)
-                                TableColumn("Units") { row in Text(mutualFundDecimal(row.quantity)) }.width(90)
-                                TableColumn("Current Value") { row in Text(holdingMoney(store.values(for: row)?.currentValue)) }.width(85)
-                                TableColumn("Invested Cost") { row in Text(holdingMoney(store.values(for: row)?.investedCost)) }.width(85)
-                                TableColumn("Gain or Loss") { row in Text(holdingMoney(store.values(for: row)?.gain)) }.width(80)
-                                TableColumn("Return") { row in Text(holdingPercent(store.values(for: row)?.returnPercent)) }.width(75)
-                                TableColumn("NAV Date") { row in Text(row.navDate ?? "Unavailable") }.width(90)
-                            }
-                            .frame(height: min(260, CGFloat(snapshot.holdings.count) * 28 + 40))
-                            .accessibilityLabel("Mutual fund holdings")
-                            .contextMenu(forSelectionType: String.self) { identifiers in
-                                Button("Inspect Mutual Fund") { inspect(identifiers.first) }
-                            } primaryAction: { identifiers in inspect(identifiers.first) }
-                            Button("Inspect Mutual Fund") { inspect(selection) }
-                                .disabled(selection == nil)
-                                .keyboardShortcut(.return, modifiers: [])
-                        }
                     }
                 }
             }
-        }
-
-        private func inspect(_ id: String?) {
-            inspected = store.mutualFundsSnapshot?.holdings.first { $0.id == id }
         }
     }
 

@@ -41,14 +41,14 @@
                 XCTAssertTrue(first.isHittable)
                 capture(app, name: "Current-value allocation - \(appearance)")
                 app.buttons["View Holdings"].click()
-                app.outlines["Securities holdings"].staticTexts["STOCK"].click()
+                app.outlines["Holdings"].staticTexts["STOCK"].click()
                 app.typeKey(.return, modifierFlags: [])
                 let sheet = app.sheets.firstMatch
                 XCTAssertTrue(sheet.staticTexts["Holding allocation"].waitForExistence(timeout: 5))
                 XCTAssertEqual(sheet.staticTexts["Holding allocation"].value as? String, "60.00%")
                 app.typeKey(.escape, modifierFlags: [])
                 XCTAssertTrue(sheet.waitForNonExistence(timeout: 5))
-                let fundsTable = app.outlines["Mutual fund holdings"]
+                let fundsTable = app.outlines["Holdings"]
                 fundsTable.staticTexts["Transferred Fund"].click()
                 app.typeKey(.return, modifierFlags: [])
                 XCTAssertTrue(sheet.staticTexts["Mutual Fund Details"].waitForExistence(timeout: 5))

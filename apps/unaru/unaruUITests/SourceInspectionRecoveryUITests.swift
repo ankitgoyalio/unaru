@@ -19,7 +19,7 @@
             backend.completeLogin()
             XCTAssertTrue(app.buttons["View Holdings"].waitForExistence(timeout: 10))
             app.buttons["View Holdings"].click()
-            let table = app.outlines["Securities holdings"]
+            let table = app.outlines["Holdings"]
             XCTAssertTrue(table.staticTexts["STOCK"].waitForExistence(timeout: 5))
             table.staticTexts["STOCK"].click()
             app.typeKey(.return, modifierFlags: [])
@@ -73,9 +73,6 @@
                 app.staticTexts[source.destination].firstMatch.click()
                 XCTAssertTrue(app.staticTexts[source.row].waitForExistence(timeout: 5))
                 if source.destination != "Funds" {
-                    if source.destination == "Holdings" {
-                        app.scrollViews["Portfolio content"].scroll(byDeltaX: 0, deltaY: -500)
-                    }
                     app.staticTexts[source.row].click()
                     app.typeKey(.return, modifierFlags: [])
                 } else {

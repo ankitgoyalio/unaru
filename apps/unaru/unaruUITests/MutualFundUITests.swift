@@ -22,12 +22,11 @@
                 XCTAssertTrue(app.buttons["View Holdings"].waitForExistence(timeout: 10))
                 app.buttons["View Holdings"].click()
                 XCTAssertTrue(app.staticTexts["STOCK"].waitForExistence(timeout: 10))
-                let table = app.outlines["Mutual fund holdings"]
+                let table = app.outlines["Holdings"]
                 XCTAssertTrue(table.waitForExistence(timeout: 5))
-                for value in ["Sample Growth Fund", "12.345678901", "2026-11-03", "2026-11-02", "Unavailable"] {
+                for value in ["Sample Growth Fund", "Older NAV Fund", "Undated Fund", "Unavailable"] {
                     XCTAssertTrue(table.staticTexts[value].firstMatch.exists, value)
                 }
-                app.scrollViews["Portfolio content"].scroll(byDeltaX: 0, deltaY: -500)
                 capture(app, name: "Mixed holdings - \(appearance)")
                 table.staticTexts["Sample Growth Fund"].click()
                 app.typeKey(.return, modifierFlags: [])

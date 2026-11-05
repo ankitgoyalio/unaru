@@ -20,6 +20,10 @@
         let analysis: PortfolioHoldingPerformance?
         /// Allocation requires a current combined denominator, even when stale source values remain inspectable.
         let allocationIsCurrent: Bool
+        /// The exact selected source retrieval, separate from its price or NAV date.
+        let retrievedAt: Date
+        /// Available broker price date, never inferred from retrieval time.
+        let valuationDate: String?
         @Environment(\.dismiss) private var dismiss
 
         var body: some View {
@@ -28,14 +32,14 @@
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         SourceInspectionStatus(source: "Securities holdings", isLoading: store.isLoading,
-                                               failed: store.failed, retrievedAt: store.snapshot?.retrievedAt,
+                                               failed: store.failed, retrievedAt: retrievedAt,
                                                retryTitle: "Retry Securities") { connection.refreshPortfolio(source: .securities) }
                         HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true,
                                                allocationPercent: allocationIsCurrent ? analysis?.allocationPercent : nil)
                         GroupBox("Identity and Source") {
                             fields {
                                 field("Symbol", holding.symbol)
-                                field("Name", holding.name ?? "Name unavailable")
+                                field("Name", holding.name.flatMap { $0.isEmpty ? nil : $0 } ?? "Name unavailable")
                                 field("Investment type", "Unknown investment type")
                                 field("Exchange", holding.exchange)
                                 field("ISIN", holding.isin.isEmpty ? "Unavailable" : holding.isin)
@@ -62,7 +66,12 @@
                             fields {
                                 field("Average acquisition price", usablePrice(holding.averagePrice))
                                 field("Market price", usablePrice(holding.lastPrice))
-                                Text("Price valuation date unavailable").foregroundStyle(.secondary)
+                                LabeledContent("Price valuation date") {
+                                    Text(valuationDate ?? "Unavailable").accessibilityIdentifier("Holding valuation date")
+                                }
+                                if valuationDate == nil {
+                                    Text("Price valuation date unavailable").foregroundStyle(.secondary)
+                                }
                                 if holding.averagePrice <= 0 {
                                     field("Reported acquisition price", reportedDecimal(holding.averagePrice))
                                 }

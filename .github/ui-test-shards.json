@@ -17,7 +17,9 @@
       "testMutualFundLoadingFailureStaleRecoveryAndSourceSpecificRetry",
       "testPerformanceWithholdsMixedRefreshTotalsAndRecoversOnlyFailedSource",
       "testSupportingFailuresPreserveHoldingsTotalsAndRecoverIndependently",
-      "testAllocationShowsRankedHoldingsSupportedGroupsAndCoverageInBothAppearances"
+      "testAllocationShowsRankedHoldingsSupportedGroupsAndCoverageInBothAppearances",
+      "testHoldingsSearchesNamesAndSymbolsAcrossBothSources",
+      "testHoldingsRefreshRetainsSearchAndCannotReattachInspectionToReusedRow"
     ],
     "measured_case_seconds": 148.635
   },
@@ -37,7 +39,8 @@
       "testMutualFundsRejectsSupersededSuccessAndFailure",
       "testPerformanceRejectsObsoleteAggregateSuccessAndAuthorityFailure",
       "testOpenHoldingInspectionShowsPendingStaleRetrievalAndRetry",
-      "testAllocationRefreshUpdatesRankingAndWithholdsStaleInspectionWeights"
+      "testAllocationRefreshUpdatesRankingAndWithholdsStaleInspectionWeights",
+      "testHoldingsFiltersSupportedTypesAndRetainsUnknownInBothAppearances"
     ],
     "measured_case_seconds": 149.916
   },
@@ -60,7 +63,8 @@
       "testMutualFundsAuthorityRemovalClearsWindowsAndRejectsOldResponses",
       "testPerformanceAuthorityRemovalClearsWindowsAndRejectsOldAggregate",
       "testEitherHoldingsRetryCanReplaceStaleRowsWithEmptyAndRestoreTotals",
-      "testAllocationDistinguishesEmptyInventoryAndUnavailableValuations"
+      "testAllocationDistinguishesEmptyInventoryAndUnavailableValuations",
+      "testHoldingsSortsAuthoritativeMeasuresAndKeepsUnavailableAfterZero"
     ],
     "measured_case_seconds": 150.032
   },
@@ -85,7 +89,8 @@
       "testMutualFundsRelaunchLoadsFreshSourceWithoutBrowserSignIn",
       "testPerformanceOverviewAndRowsShowAuthoritativeValuesAndCoverage",
       "testPerformanceCrossSourceOverlapWithholdsRowValues",
-      "testOtherSourceInspectionsKeepRetrievalAndRecoveryVisible"
+      "testOtherSourceInspectionsKeepRetrievalAndRecoveryVisible",
+      "testHoldingsInspectionPreservesSourceIdentityMetadataAndAuthoritativeAllocation"
     ],
     "measured_case_seconds": 87.204
   }
