@@ -48,7 +48,7 @@
         }
 
         /// Shared failure categories for backend requests and authentication operations.
-        enum Failure: Error {
+        enum Failure: Error, Equatable {
             /// App authorization was rejected.
             case configuration
             /// The authorized backend has no valid Kite session.

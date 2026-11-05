@@ -149,6 +149,14 @@ After login, hide and restore the sidebar and verify readable name and ID wrappi
 UI queries cover labels and control availability but do not verify spoken VoiceOver
 output.
 
+Portfolio recovery acceptance uses `ControlledBackend` responses held by path.
+`pendingResponses(for:)` and `releaseResponses(path:)` let one source finish while
+another remains pending. The tests cover retained retrieval times in open inspection,
+source-specific Retry, successful empty replacements, and supporting failures that
+leave holdings totals available. Relaunch fixtures report saved Kite authorization
+but hold fresh portfolio reads. These UI fixtures verify fresh loading without a
+second browser login. They do not prove Keychain continuity across helper replacement.
+
 ## Resolve commit check failures
 
 The hook checks staged documentation links, authored file sizes, Swift headers,

@@ -18,7 +18,7 @@
         private var profileRequests = 0
         private var responseStatus = 200
         private var holdResponses = false
-        private var heldResponses: [@Sendable () -> Void] = []
+        private var heldResponses: [(path: String, send: @Sendable () -> Void)] = []
         private var responseBody: String?
         private var responseLocation: String?
         private var requestCount = 0
@@ -108,6 +108,10 @@
             lock.withLock { heldResponses.count }
         }
 
+        func pendingResponses(for path: String) -> Int {
+            lock.withLock { heldResponses.filter { $0.path == path }.count }
+        }
+
         var completedResponses: Int {
             lock.withLock { completedCount }
         }
@@ -144,15 +148,17 @@
             }
         }
 
-        func releaseResponses() {
+        func releaseResponses(path: String? = nil) {
             let pending = lock.withLock {
-                holdResponses = false
-                let pending = heldResponses
-                heldResponses.removeAll()
+                if path == nil {
+                    holdResponses = false
+                }
+                let pending = heldResponses.filter { path == nil || $0.path == path }
+                heldResponses.removeAll { path == nil || $0.path == path }
                 return pending
             }
             for response in pending {
-                queue.async(execute: response)
+                queue.async(execute: response.send)
             }
         }
 
@@ -247,6 +253,12 @@
                     body = configuredBody ?? (result == "signedIn"
                         ? "{\"state\":\"signedIn\",\"profile\":\(accountProfile(avatarField: avatarField))\(persistenceField)}"
                         : "{\"state\":\"\(result)\"}")
+                } else if path == "/portfolio/positions" {
+                    body = configuredBody ?? #"{"positions":[],"retrievedAt":815000000}"#
+                } else if path == "/portfolio/holdings" || path == "/portfolio/mutual-funds" {
+                    body = configuredBody ?? #"{"holdings":[],"retrievedAt":815000000}"#
+                } else if path == "/portfolio/funds" {
+                    body = configuredBody ?? #"{"segments":[],"retrievedAt":815000000}"#
                 } else if path == "/profile" {
                     let avatarField = lock.withLock { avatar.map { ",\"avatarURL\":\"\($0)\"" } ?? "" }
                     body = configuredBody ?? accountProfile(avatarField: avatarField)
@@ -264,7 +276,7 @@
                     connection.send(content: Data(response.utf8), completion: .contentProcessed { _ in connection.cancel() })
                 }
                 if hold {
-                    lock.withLock { heldResponses.append(send) }
+                    lock.withLock { heldResponses.append((path, send)) }
                 } else {
                     send()
                 }

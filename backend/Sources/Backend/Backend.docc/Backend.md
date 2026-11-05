@@ -40,6 +40,146 @@ Keep Kite's API secret and token exchange on the backend. The backend owns broke
 credential storage, login correlation, and app authorization. KiteConnect supplies the
 broker protocol implementation.
 
+### Trading funds contract
+
+`GET /portfolio/funds` requires app authorization and a validated Kite session.
+The pinned SDK reads `GET /user/margins`. ``TradingFundsSource`` maps the documented
+equity and commodity segments into Shared `TradingFunds`. Each segment preserves
+its enabled state, net availability, total utilisation (`debits`), and component balances
+as Decimal values. Negative and zero balances remain valid reported amounts.
+No components are added together and no funds enter holdings performance or wealth.
+
+Disabled segments remain explicit successful results. The pinned SDK requires both
+segments and their documented fields. Missing segment data is a malformed response,
+reported as a retryable HTTP 503 with `portfolioUnavailable`, never a disabled segment
+or an invented zero balance. Provider diagnostics and extra fields are excluded.
+Retrieval time uses Foundation Codable seconds since 2001. Responses use `no-store`.
+
+Funds requests have independent supersession checks. Old responses after logout,
+confirmed expiry, a new login, or a newer funds read cannot disclose old balances or
+remove newer authority. Temporary failures preserve the valid session. Confirmed token
+rejection uses the existing authority-removal and `kiteSignInRequired` contract.
+
+### Securities holdings contract
+
+`GET /portfolio/holdings` requires app authorization and a validated Kite session.
+The real pinned SDK reads Kite's securities holdings. ``SecuritiesHoldingSource`` maps
+only supported inspection fields into Shared `SecuritiesHoldings`; arbitrary provider
+metadata and credentials never enter the response. Foundation Codable dates use
+seconds since 2001. Retrieval time records when the helper obtained the response.
+The source provides no security name, investment classification, or price valuation date.
+
+Every source row remains visible, including potentially overlapping records and
+nonpositive prices. Ordinary, T1, used, collateral, and MTF fields remain separate.
+Used quantity is not subtracted again. Pledge and MTF relationships are not inferred,
+and this operation calculates no combined investment total.
+
+A successful empty source returns HTTP 200 with an empty `holdings` array. Temporary
+provider failures return HTTP 503 with `portfolioUnavailable` and preserve the session.
+Missing Kite authority or confirmed `TokenException` returns HTTP 401 with
+`kiteSignInRequired`. Missing app authorization is rejected before the operation runs.
+An obsolete response after authority removal or a newer holdings read returns no old
+data and cannot invalidate newer authority. Authorized responses use `Cache-Control: no-store`.
+
+### Current-holdings performance contract
+
+`POST /portfolio/performance` accepts Shared `PortfolioPerformanceRequest` with the
+`readID` of each successful holdings source. It requires app authorization and validated
+Kite authority. ``PerformanceSources`` accepts only the latest successful reads.
+A source read clears its cached result before requesting Kite, so an in-flight or
+failed refresh cannot supply an aggregate. Missing or superseded read IDs return
+HTTP 503 with `portfolioUnavailable`. Authority removal clears both cached sources.
+All snapshots remain in memory and responses use `Cache-Control: no-store`.
+
+``HoldingValuation`` uses Decimal throughout. Ordinary securities quantity is settled
+quantity plus T1, excluding the separate MTF quantity. Used quantity and net CNC
+positions are never deducted again. This follows the provider's
+[quantity clarification](https://kite.trade/forum/discussion/comment/50543/) and
+[same-day sale example](https://kite.trade/forum/discussion/comment/52974/).
+An ordinary component of a mixed MTF record remains eligible when its relationship is
+supported. Financed sales, short delivery, pledge relationships, discrepancies, and
+possible overlapping records withhold the affected contribution.
+
+Cost is eligible quantity times positive acquisition price. Value is eligible quantity
+times positive market price or NAV. Each measure can be available independently.
+Gain requires both. Combined return is summed matched gain divided by summed matched
+cost, times 100, with no percentage for a nonpositive denominator. The response gives
+cost, value, and return coverage separately, plus matched cost and value. No available
+contribution from nonempty inventory is unavailable, while successful empty inventory
+is zero. Unknown classification and missing valuation dates do not invent metadata or
+prevent otherwise supported arithmetic.
+
+Source normalization indexes duplicate identities in linear time. Combined analysis
+checks shared depository identities across sources and returns source-qualified rows
+with final eligibility. Cross-source overlaps retain both records with unavailable
+contributions. These row values are the authoritative inputs for allocation,
+largest-holding ordering, and value-based inspection. Positions and trading balances
+never enter this projection.
+
+### Current-value allocation contract
+
+The performance response also includes Shared `PortfolioAllocation`.
+``HoldingAllocation`` uses the final ordinary row valuations after cross-source overlap
+checks. Acquisition cost is not an allocation input. Holdings with usable value and
+unavailable cost remain eligible. Ranking is descending by current value, with
+source-qualified row identity as the deterministic tie-breaker. Source names and symbols
+stay available without external metadata lookups.
+
+Each ordinary row belongs to one supported type group. Securities remain unknown because
+the source supplies no investment classification. The dedicated fund source establishes
+mutual fund membership without underlying exposure. Group coverage includes unvalued
+records. Missing prices and ambiguous inventory make valuation coverage incomplete.
+No unavailable holding receives an invented weight. Group and row percentages divide
+only by a positive available valued total. Successful empty inventory has zero value,
+empty ranking and groups, and no percentages.
+
+MTF quantities stay outside the denominator and ranking. The result counts records with
+omitted MTF components, including mixed records whose ordinary component remains eligible.
+Positions, funds, collateral balances, and provider P&L never enter allocation.
+Allocation follows the same exact-read, authority, memory-only, and refresh lifetime as
+the performance response.
+
+### Net positions contract
+
+`GET /portfolio/positions` requires app authorization and a validated Kite session.
+The pinned SDK reads Kite's positions, and ``NetPositionSource`` exposes only the
+`net` collection as Shared `NetPositions`. The overlapping `day` collection is not
+added or returned. Nonzero signed quantities are current positions. Returned zero
+quantities are closed positions. Every net row keeps its own retrieval-scoped identity.
+
+Signed quantities, contract multipliers, prices, realised and unrealised trading P&L,
+mark-to-market values, and buy/sell activity remain broker reported. No trading value
+or P&L contributes to holdings quantities or investment returns. Delivery purchases
+stay in Positions until the holdings source reports them. No market-price timestamp
+is supplied, so `valuationDate` remains absent. Retrieval time uses Foundation Codable
+seconds since 2001.
+
+An empty net collection is a successful source. Temporary failures return HTTP 503
+with `portfolioUnavailable` and preserve valid Kite authority. Confirmed token rejection
+returns HTTP 401 with `kiteSignInRequired`. The operation rejects obsolete responses
+after authority changes or a newer positions read. Holdings and positions reads do not
+supersede one another. Responses contain no broker credentials and use
+`Cache-Control: no-store`.
+
+### Mutual fund holdings contract
+
+`GET /portfolio/mutual-funds` applies the same app and Kite authorization requirements
+as securities holdings. The pinned SDK reads `GET /mf/holdings`.
+``MutualFundHoldingSource`` returns Shared `MutualFundHoldings` with its own retrieval
+time. Source ordering and all rows remain intact. Fractional units, acquisition prices,
+NAVs, and pledged units retain Decimal precision. Available NAV dates stay calendar
+dates. Missing, null, and empty dates remain unavailable, with no retrieval-time fallback.
+
+Symbols and folios are inspection fields, not unique row keys. Repeated fund symbols
+carry an overlap limitation even when folios differ. Pledged units are neither added to
+nor deducted from primary units. Nonpositive prices and units remain inspectable with
+limitations. Malformed required SDK fields fail the source rather than fabricating rows.
+The source contract excludes provider P&L. Combined performance uses the separate operation below.
+
+Empty success, temporary failures, and confirmed invalidation follow the securities
+HTTP contract. Mutual fund refresh ordering is independent of securities ordering.
+Delayed responses must still match the current Kite authority and latest source request.
+
 ### Environment configuration
 
 ``Entrypoint`` uses Vapor's automatic dotenv loading before configuring logging and
@@ -128,6 +268,11 @@ let configuration = try KiteConfiguration()
 let client = try KiteClient(apiKey: "documentation-api-key", configuration: configuration)
 _ = client
 ```
+
+``portfolioResponse(_:)`` maps all portfolio reads to the same credential-free response
+contract. Recovery failures use HTTP 503 with a structured problem code. Confirmed missing
+Kite authority uses HTTP 401 with `kiteSignInRequired`. Successful reads use Foundation's
+JSON date representation for the Mac client.
 
 ## Topics
 

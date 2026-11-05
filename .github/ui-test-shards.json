@@ -9,7 +9,17 @@
       "testRelaunchValidatesBeforeRestoringIdentityWithoutBrowserLogin",
       "testBundledBackendStartsWithoutConnectionSetupAndRelaunches",
       "testBackendConfigurationFailureDoesNotAskForKiteSignIn",
-      "testSaveFailureKeepsAccountUsableAndRetryClearsWarning"
+      "testSaveFailureKeepsAccountUsableAndRetryClearsWarning",
+      "testPortfolioRefreshRetainsStaleRowsAndRetriesWithoutLogin",
+      "testPositionsLoadingRecoveryAndEmptyRemainSeparateFromHoldings",
+      "testPositionsRelaunchFetchesNewDataWithoutAnotherBrowserLogin",
+      "testFundsNavigationShowsSegmentBalancesAndKeyboardInspection",
+      "testMutualFundLoadingFailureStaleRecoveryAndSourceSpecificRetry",
+      "testPerformanceWithholdsMixedRefreshTotalsAndRecoversOnlyFailedSource",
+      "testSupportingFailuresPreserveHoldingsTotalsAndRecoverIndependently",
+      "testAllocationShowsRankedHoldingsSupportedGroupsAndCoverageInBothAppearances",
+      "testHoldingsSearchesNamesAndSymbolsAcrossBothSources",
+      "testHoldingsRefreshRetainsSearchAndCannotReattachInspectionToReusedRow"
     ],
     "measured_case_seconds": 148.635
   },
@@ -22,7 +32,15 @@
       "testRevokedSessionOnLaunchOffersKiteLoginInsteadOfConnectionSettings",
       "testRejectedInternalAuthorizationCanRetryWithoutSettings",
       "testAccountSheetDistinguishesMissingAndEmptyDetails",
-      "testKiteBrowserCompletionShowsAccountButton"
+      "testKiteBrowserCompletionShowsAccountButton",
+      "testPortfolioRejectsSupersededSuccessAndFailure",
+      "testPositionsRejectSupersededSuccessAndFailure",
+      "testFundsRejectsSupersededSuccessAndFailure",
+      "testMutualFundsRejectsSupersededSuccessAndFailure",
+      "testPerformanceRejectsObsoleteAggregateSuccessAndAuthorityFailure",
+      "testOpenHoldingInspectionShowsPendingStaleRetrievalAndRetry",
+      "testAllocationRefreshUpdatesRankingAndWithholdsStaleInspectionWeights",
+      "testHoldingsFiltersSupportedTypesAndRetainsUnknownInBothAppearances"
     ],
     "measured_case_seconds": 149.916
   },
@@ -37,7 +55,16 @@
       "testConnectionFailureCanRetryWithoutRepeatingSetup",
       "testTemporaryLoginFailureRetriesCompletionWithoutAnotherBrowserHandoff",
       "testTemporaryServerFailureOffersRetry",
-      "testLateSaveResponseCannotClearNewLoginWarning"
+      "testLateSaveResponseCannotClearNewLoginWarning",
+      "testHoldingsKeyboardInspectionShowsSourceFieldsAndLimitations",
+      "testPositionsAuthorityRemovalClearsEveryWindowAndRejectsOldAccount",
+      "testFundsFailureIsIndependentAndRetryRetainsStaleBalances",
+      "testFundsRelaunchLoadsFreshBalancesWithoutBrowserLogin",
+      "testMutualFundsAuthorityRemovalClearsWindowsAndRejectsOldResponses",
+      "testPerformanceAuthorityRemovalClearsWindowsAndRejectsOldAggregate",
+      "testEitherHoldingsRetryCanReplaceStaleRowsWithEmptyAndRestoreTotals",
+      "testAllocationDistinguishesEmptyInventoryAndUnavailableValuations",
+      "testHoldingsSortsAuthoritativeMeasuresAndKeepsUnavailableAfterZero"
     ],
     "measured_case_seconds": 150.032
   },
@@ -51,7 +78,20 @@
       "testRedirectDoesNotForwardConnectionCredentials",
       "testUnfinishedLogoutSurvivesRelaunchBeforeAnySessionRestore",
       "testSavedSessionRecoveryRetriesWithoutRevealingIdentityOrOpeningBrowser",
-      "testUnfinishedCancellationSurvivesRelaunchAndRejectsDelayedIdentity"
+      "testUnfinishedCancellationSurvivesRelaunchAndRejectsDelayedIdentity",
+      "testPortfolioDefaultsToOverviewAndLoadsHoldings",
+      "testPortfolioAuthorityRemovalClearsWindowsAndRejectsOldResponses",
+      "testPortfolioRelaunchLoadsFreshSourceWithoutBrowserSignIn",
+      "testPositionsGroupsNetExposureAndInspectsBrokerDetailsWithKeyboard",
+      "testFundsLoadingDisabledAndAbsentSegmentsAreDistinct",
+      "testFundsAuthorityRemovalClearsWindowsAndRejectsOldResponses",
+      "testMutualFundsShowFractionalUnitsDatesAndKeyboardInspection",
+      "testMutualFundsRelaunchLoadsFreshSourceWithoutBrowserSignIn",
+      "testPerformanceOverviewAndRowsShowAuthoritativeValuesAndCoverage",
+      "testPerformanceCrossSourceOverlapWithholdsRowValues",
+      "testOtherSourceInspectionsKeepRetrievalAndRecoveryVisible",
+      "testHoldingsInspectionPreservesSourceIdentityMetadataAndAuthoritativeAllocation",
+      "testNewAuthorityResetsEveryWindowToPortfolioWithoutResettingRevalidation"
     ],
     "measured_case_seconds": 87.204
   }

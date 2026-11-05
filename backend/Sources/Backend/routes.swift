@@ -72,6 +72,24 @@ func routes(
         }
         return response
     }
+    protected.get("portfolio", "holdings") { _ async throws -> Response in
+        try await portfolioResponse { try await login.holdings() }
+    }
+    protected.get("portfolio", "positions") { _ async throws -> Response in
+        try await portfolioResponse { try await login.positions() }
+    }
+    protected.get("portfolio", "funds") { _ async throws -> Response in
+        try await portfolioResponse { try await login.funds() }
+    }
+    protected.get("portfolio", "mutual-funds") { _ async throws -> Response in
+        try await portfolioResponse { try await login.mutualFundHoldings() }
+    }
+    protected.post("portfolio", "performance") { request async throws -> Response in
+        try await portfolioResponse {
+            let sources = try request.content.decode(PortfolioPerformanceRequest.self, using: JSONDecoder())
+            return try await login.performance(sources)
+        }
+    }
     app.get("kite", "callback") { request async -> Response in
         let response: Response
         do {

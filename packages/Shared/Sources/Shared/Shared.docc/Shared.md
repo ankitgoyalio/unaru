@@ -35,6 +35,60 @@ The following example compiles as a Swift Testing test body:
 hello()
 ```
 
+``SecuritiesHoldings`` represents a successful securities-source read, including an
+empty result. It preserves retrieval time separately from the optional price valuation
+date. ``SecurityHolding`` retains each source row and its limitations, including unknown
+classification, unusable prices, and potential overlap. ``HoldingMTF`` keeps financing
+fields separate from ordinary inventory. These source contracts expose no broker credentials. HTTP 503 with `portfolioUnavailable` permits retrying the
+source without another sign-in.
+
+``NetPositions`` contains only current net collection rows, including returned closed
+positions, with retrieval time separate from the unavailable market-price date.
+``TradingPosition`` preserves signed quantities, multipliers, broker prices and trading
+P&L, and supporting buy/sell fields. Its `state` groups nonzero quantities as current
+and zero quantities as closed. These values do not contribute to holdings returns.
+
+``TradingFunds`` describes a successful trading-funds read. ``TradingFundsSegment``
+preserves enabled state, net availability, total utilisation, and whitelisted components
+without combining overlapping balances. These balances remain separate from holdings
+value and returns. A disabled segment is not a source failure.
+``TradingFundsComponent`` supplies typed keys to normalization and inspection. Component
+dictionaries retain their existing JSON object keys, such as `intradayPayin`.
+
+``MutualFundHoldings`` records a separate successful mutual fund source read and retrieval
+time. ``MutualFundHolding`` preserves fractional Decimal units, acquisition price, latest
+NAV, each row's available NAV date, optional folio, and pledged units. Row IDs are local
+to a retrieval. Matching symbols or folios do not justify merging rows. Limitation codes
+identify unusable values, missing dates, pledge uncertainty, and possible overlaps.
+Provider P&L is not exposed as a calculated return.
+
+``HoldingPerformance`` carries backend-calculated ordinary quantity, invested cost,
+current value, gain, and return percentage. Nil means unavailable. Zero gain remains
+zero. Cost and value have independent eligibility. ``PortfolioPerformance`` exposes
+combined measures and separate cost, value, and matched-return coverage counts.
+Its matched cost and value explain the basis of the combined gain and percentage.
+Successful empty sources produce zero inventory and no return percentage.
+
+``PortfolioPerformanceRequest`` identifies the exact two successful source reads.
+``PortfolioHoldingPerformance`` qualifies row identity by source and carries final
+eligibility, including cross-source overlap. Its optional allocation percentage uses the same final eligibility as the combined result. MTF-only rows remain
+inspectable outside ordinary coverage. Financed quantities never enter these measures.
+
+``PortfolioAllocation`` carries current-value concentration, valuation coverage, and
+separate MTF omission counts. ``PortfolioAllocationHolding`` ranks all valued ordinary
+holdings by current value. Cost eligibility does not affect allocation. Per-row and
+group percentages use the positive valued total, with no percentage for an unavailable
+or nonpositive denominator. Unvalued holdings remain in source and performance rows.
+
+``PortfolioAllocationGroup`` retains unavailable group values and separate valued and
+total counts. ``HoldingInvestmentType`` supports mutual funds from the dedicated source
+and unknown securities. Exchange listing does not establish direct equity, ETF, bond,
+or underlying exposure. Each ordinary row belongs to exactly one group.
+
+``PortfolioHoldingPerformance/Source/qualifiedID(_:)`` constructs the same source-qualified
+row identity for performance, allocation, and app lookups. It preserves the opaque local
+row ID without merging holdings by symbol.
+
 ## Topics
 
 ### Scaffold
@@ -49,6 +103,39 @@ hello()
 - ``LoginAttempt``
 - ``LoginStatus``
 - ``AccountProfile``
+
+### Securities holdings
+
+- ``SecuritiesHoldings``
+- ``SecurityHolding``
+- ``HoldingMTF``
+
+### Current-holdings performance
+
+- ``HoldingPerformance``
+- ``PortfolioPerformance``
+- ``PortfolioPerformanceRequest``
+- ``PortfolioHoldingPerformance``
+- ``PortfolioAllocation``
+- ``PortfolioAllocationHolding``
+- ``PortfolioAllocationGroup``
+- ``HoldingInvestmentType``
+
+### Trading positions
+
+- ``NetPositions``
+- ``TradingPosition``
+
+### Trading funds
+
+- ``TradingFunds``
+- ``TradingFundsSegment``
+- ``TradingFundsComponent``
+
+### Mutual fund holdings
+
+- ``MutualFundHoldings``
+- ``MutualFundHolding``
 
 ### Connection pairing
 
