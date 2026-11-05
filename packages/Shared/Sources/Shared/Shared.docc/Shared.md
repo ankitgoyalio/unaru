@@ -43,6 +43,13 @@ fields separate from ordinary inventory. These contracts expose no broker creden
 or combined investment total. HTTP 503 with `portfolioUnavailable` permits retrying the
 source without another sign-in.
 
+``MutualFundHoldings`` records a separate successful mutual fund source read and retrieval
+time. ``MutualFundHolding`` preserves fractional Decimal units, acquisition price, latest
+NAV, each row's available NAV date, optional folio, and pledged units. Row IDs are local
+to a retrieval. Matching symbols or folios do not justify merging rows. Limitation codes
+identify unusable values, missing dates, pledge uncertainty, and possible overlaps.
+Provider P&L is not exposed as a calculated return.
+
 ## Topics
 
 ### Scaffold
@@ -63,6 +70,11 @@ source without another sign-in.
 - ``SecuritiesHoldings``
 - ``SecurityHolding``
 - ``HoldingMTF``
+
+### Mutual fund holdings
+
+- ``MutualFundHoldings``
+- ``MutualFundHolding``
 
 ### Connection pairing
 

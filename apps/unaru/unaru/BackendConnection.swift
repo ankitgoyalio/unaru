@@ -33,9 +33,9 @@
         let portfolio = PortfolioStore()
 
         /// Loads through the existing connection without disturbing account refresh work.
-        func refreshPortfolio() {
+        func refreshPortfolio(source: PortfolioStore.Source? = nil) {
             guard case .signedIn = phase, let configuration else { return }
-            portfolio.refresh(transport: transport, configuration: configuration) { [weak self] failure in
+            portfolio.refresh(source: source, transport: transport, configuration: configuration) { [weak self] failure in
                 self?.phase = failure == .signedOut ? .signedOut : .startupFailed
             }
         }

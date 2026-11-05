@@ -247,7 +247,7 @@
                     body = configuredBody ?? (result == "signedIn"
                         ? "{\"state\":\"signedIn\",\"profile\":\(accountProfile(avatarField: avatarField))\(persistenceField)}"
                         : "{\"state\":\"\(result)\"}")
-                } else if path == "/portfolio/holdings" {
+                } else if path == "/portfolio/holdings" || path == "/portfolio/mutual-funds" {
                     body = configuredBody ?? #"{"holdings":[],"retrievedAt":815000000}"#
                 } else if path == "/profile" {
                     let avatarField = lock.withLock { avatar.map { ",\"avatarURL\":\"\($0)\"" } ?? "" }

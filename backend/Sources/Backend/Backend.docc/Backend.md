@@ -61,6 +61,25 @@ Missing Kite authority or confirmed `TokenException` returns HTTP 401 with
 An obsolete response after authority removal or a newer holdings read returns no old
 data and cannot invalidate newer authority. Authorized responses use `Cache-Control: no-store`.
 
+### Mutual fund holdings contract
+
+`GET /portfolio/mutual-funds` applies the same app and Kite authorization requirements
+as securities holdings. The pinned SDK reads `GET /mf/holdings`.
+``MutualFundHoldingSource`` returns Shared `MutualFundHoldings` with its own retrieval
+time. Source ordering and all rows remain intact. Fractional units, acquisition prices,
+NAVs, and pledged units retain Decimal precision. Available NAV dates stay calendar
+dates. Missing, null, and empty dates remain unavailable, with no retrieval-time fallback.
+
+Symbols and folios are inspection fields, not unique row keys. Repeated fund symbols
+carry an overlap limitation even when folios differ. Pledged units are neither added to
+nor deducted from primary units. Nonpositive prices and units remain inspectable with
+limitations. Malformed required SDK fields fail the source rather than fabricating rows.
+The contract excludes provider P&L and calculates no combined investment total.
+
+Empty success, temporary failures, and confirmed invalidation follow the securities
+HTTP contract. Mutual fund refresh ordering is independent of securities ordering.
+Delayed responses must still match the current Kite authority and latest source request.
+
 ### Environment configuration
 
 ``Entrypoint`` uses Vapor's automatic dotenv loading before configuring logging and

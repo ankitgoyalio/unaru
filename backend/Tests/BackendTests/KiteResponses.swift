@@ -29,6 +29,16 @@ actor KiteResponses: KiteHTTPTransport {
         holdingsFailure = failure
     }
 
+    private var mutualFundsStatus = 200
+    private var mutualFundsBody = #"{"status":"success","data":[]}"#
+    private var mutualFundsFailure: URLError.Code?
+
+    func setMutualFunds(status: Int = 200, body: String = #"{"status":"success","data":[]}"#, failure: URLError.Code? = nil) {
+        mutualFundsStatus = status
+        mutualFundsBody = body
+        mutualFundsFailure = failure
+    }
+
     private var heldPath: String?
     private var heldRequest: CheckedContinuation<Void, Never>?
     private var observer: CheckedContinuation<Void, Never>?
@@ -87,6 +97,12 @@ actor KiteResponses: KiteHTTPTransport {
                 observer?.resume()
                 observer = nil
             }
+        }
+        if request.url.path == "/mf/holdings" {
+            if let mutualFundsFailure {
+                throw URLError(mutualFundsFailure)
+            }
+            return KiteHTTPResponse(statusCode: mutualFundsStatus, body: Data(mutualFundsBody.utf8))
         }
         if request.url.path == "/portfolio/holdings" {
             if let holdingsFailure {

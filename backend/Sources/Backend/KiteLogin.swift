@@ -62,6 +62,9 @@ actor KiteLogin {
     /// Superseded portfolio responses cannot publish or remove authority.
     private var holdingsRequestID: UUID?
 
+    /// Mutual fund refresh ordering is independent of securities reads.
+    private var mutualFundsRequestID: UUID?
+
     /// Creates an installation with production transport unless tests supply HTTP responses.
     init(
         apiKey: String? = Environment.get("KITE_API_KEY"),
@@ -227,6 +230,29 @@ actor KiteLogin {
         } catch {
             guard authenticated === client, holdingsRequestID == requestID else {
                 throw Abort(.serviceUnavailable, reason: "Holdings request was superseded.")
+            }
+            if Self.isAuthenticationRejection(error) {
+                try removeAuthority()
+                throw Abort(.unauthorized)
+            }
+            throw RecoveryFailure(code: .portfolioUnavailable)
+        }
+    }
+
+    /// Reads mutual funds through the pinned SDK, checking authority after every suspension.
+    func mutualFundHoldings() async throws -> MutualFundHoldings {
+        try await restore()
+        guard let client = authenticated else { throw Abort(.unauthorized) }
+        let requestID = UUID()
+        mutualFundsRequestID = requestID
+        do {
+            let rows = try await client.mutualFundHoldings()
+            guard authenticated === client, mutualFundsRequestID == requestID else { throw CancellationError() }
+            try Task.checkCancellation()
+            return MutualFundHoldings(holdings: MutualFundHoldingSource.normalize(rows), retrievedAt: now())
+        } catch {
+            guard authenticated === client, mutualFundsRequestID == requestID else {
+                throw Abort(.serviceUnavailable, reason: "Mutual fund request was superseded.")
             }
             if Self.isAuthenticationRejection(error) {
                 try removeAuthority()

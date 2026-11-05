@@ -51,20 +51,29 @@ provider revocation after successful local removal.
 
 iOS and visionOS retain their initial content and deployment targets.
 
-The initial signed-in destination is Portfolio. Its Holdings child lists each security
-reported by Kite in a native table. Return opens inspection for the selected row.
+The initial signed-in destination is Portfolio. Its Holdings child lists securities and mutual funds
+reported by Kite in separate native tables. Return opens inspection for the selected row.
 Inspection separates ordinary inventory, prices, financing, and source limitations.
-The account control remains in the sidebar footer. This source contains securities,
-not mutual fund holdings, trading positions, or a combined investment total.
+The account control remains in the sidebar footer. The view covers the connected Kite account's returned holdings without claiming complete
+demat inventory or external-account coverage. Trading positions and combined investment
+calculations are outside these source inspection views.
 
 ``PortfolioStore`` shares fetched holdings across windows in memory. Opening Portfolio
-and Refresh Portfolio fetch the source. The toolbar and menu offer Refresh Portfolio
+and Refresh Portfolio fetch both sources independently. The toolbar and menu offer Refresh Portfolio
 with Command-R. Initial loading, an empty source, retrieval time, missing price date,
-and read failures have separate visible states. Retry preserves the valid Kite session.
-A failed refresh retains previous rows with a stale notice. Authority removal clears
+and read failures have separate visible states. Retry preserves the valid Kite session and requests only the failed source.
+Each source has its own loading, failure, empty, and retrieval state. A failed refresh
+retains that source's previous rows with a stale notice while successful sources remain visible. Authority removal clears
 holdings across every window. Obsolete success and failure cannot restore old rows or
 invalidate a newer session. App relaunch fetches holdings again without restoring a
 portfolio snapshot.
+
+Mutual fund inspection retains fractional units, acquisition prices, latest available
+NAVs, folios, and pledged units. NAV dates appear per holding, including different dates
+within a source. Unavailable dates stay unavailable. Retrieval time never establishes
+a current-day NAV. Missing cost, NAV, pledge relationships, and potential overlaps have
+text explanations. Exact source prices remain available in inspection without treating
+provider P&L as a verified return.
 
 ## Topics
 
