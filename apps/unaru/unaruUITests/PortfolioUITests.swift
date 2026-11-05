@@ -39,9 +39,12 @@
             XCTAssertTrue(app.staticTexts["Portfolio Overview"].exists)
             sidebar.disclosureTriangles.firstMatch.click()
             XCTAssertTrue(sidebar.staticTexts["Holdings"].waitForExistence(timeout: 5))
-            // Focus the native child row before checking keyboard selection of its parent.
             sidebar.staticTexts["Holdings"].click()
-            app.typeKey(.upArrow, modifierFlags: [])
+            XCTAssertTrue(app.textFields["Search holdings by name or symbol"].waitForExistence(timeout: 5))
+            // Detail replacement can reset the first responder. Refocus its selected sidebar row.
+            sidebar.staticTexts["Holdings"].click()
+            XCTAssertFalse(app.staticTexts["Portfolio Overview"].exists)
+            sidebar.typeKey(.upArrow, modifierFlags: [])
             XCTAssertTrue(app.staticTexts["Portfolio Overview"].waitForExistence(timeout: 5))
             XCTAssertTrue(app.staticTexts["Positions"].exists)
             XCTAssertTrue(app.staticTexts["Funds"].exists)
