@@ -40,6 +40,26 @@ Keep Kite's API secret and token exchange on the backend. The backend owns broke
 credential storage, login correlation, and app authorization. KiteConnect supplies the
 broker protocol implementation.
 
+### Trading funds contract
+
+`GET /portfolio/funds` requires app authorization and a validated Kite session.
+The pinned SDK reads `GET /user/margins`. ``TradingFundsSource`` maps the documented
+equity and commodity segments into Shared `TradingFunds`. Each segment preserves
+its enabled state, net availability, total utilisation (`debits`), and component balances
+as Decimal values. Negative and zero balances remain valid reported amounts.
+No components are added together and no funds enter holdings performance or wealth.
+
+Disabled segments remain explicit successful results. The pinned SDK requires both
+segments and their documented fields. Missing segment data is a malformed response,
+reported as a retryable HTTP 503 with `portfolioUnavailable`, never a disabled segment
+or an invented zero balance. Provider diagnostics and extra fields are excluded.
+Retrieval time uses Foundation Codable seconds since 2001. Responses use `no-store`.
+
+Funds requests have independent supersession checks. Old responses after logout,
+confirmed expiry, a new login, or a newer funds read cannot disclose old balances or
+remove newer authority. Temporary failures preserve the valid session. Confirmed token
+rejection uses the existing authority-removal and `kiteSignInRequired` contract.
+
 ### Securities holdings contract
 
 `GET /portfolio/holdings` requires app authorization and a validated Kite session.

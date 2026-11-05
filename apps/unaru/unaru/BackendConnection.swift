@@ -18,6 +18,7 @@
             didSet {
                 if case .signedIn = phase {} else {
                     portfolio.clear()
+                    funds.clear()
                     isRefreshingAccount = false
                     accountRefreshFailed = false
                     saveRevision += 1
@@ -31,9 +32,20 @@
 
         /// Holdings are shared in memory by all windows.
         let portfolio = PortfolioStore()
+        /// Trading balances have their own source state and request lifetime.
+        let funds = FundsStore()
+
+        /// Retries funds without cancelling or refreshing a successful holdings source.
+        func refreshFunds() {
+            guard case .signedIn = phase, let configuration else { return }
+            funds.refresh(transport: transport, configuration: configuration) { [weak self] failure in
+                self?.phase = failure == .signedOut ? .signedOut : .startupFailed
+            }
+        }
 
         /// Loads through the existing connection without disturbing account refresh work.
         func refreshPortfolio() {
+            refreshFunds()
             guard case .signedIn = phase, let configuration else { return }
             portfolio.refresh(transport: transport, configuration: configuration) { [weak self] failure in
                 self?.phase = failure == .signedOut ? .signedOut : .startupFailed

@@ -10,7 +10,8 @@
       "testBundledBackendStartsWithoutConnectionSetupAndRelaunches",
       "testBackendConfigurationFailureDoesNotAskForKiteSignIn",
       "testSaveFailureKeepsAccountUsableAndRetryClearsWarning",
-      "testPortfolioRefreshRetainsStaleRowsAndRetriesWithoutLogin"
+      "testPortfolioRefreshRetainsStaleRowsAndRetriesWithoutLogin",
+      "testFundsNavigationShowsSegmentBalancesAndKeyboardInspection"
     ],
     "measured_case_seconds": 148.635
   },
@@ -24,7 +25,8 @@
       "testRejectedInternalAuthorizationCanRetryWithoutSettings",
       "testAccountSheetDistinguishesMissingAndEmptyDetails",
       "testKiteBrowserCompletionShowsAccountButton",
-      "testPortfolioRejectsSupersededSuccessAndFailure"
+      "testPortfolioRejectsSupersededSuccessAndFailure",
+      "testFundsRejectsSupersededSuccessAndFailure"
     ],
     "measured_case_seconds": 149.916
   },
@@ -40,7 +42,9 @@
       "testTemporaryLoginFailureRetriesCompletionWithoutAnotherBrowserHandoff",
       "testTemporaryServerFailureOffersRetry",
       "testLateSaveResponseCannotClearNewLoginWarning",
-      "testHoldingsKeyboardInspectionShowsSourceFieldsAndLimitations"
+      "testHoldingsKeyboardInspectionShowsSourceFieldsAndLimitations",
+      "testFundsFailureIsIndependentAndRetryRetainsStaleBalances",
+      "testFundsRelaunchLoadsFreshBalancesWithoutBrowserLogin"
     ],
     "measured_case_seconds": 150.032
   },
@@ -57,7 +61,9 @@
       "testUnfinishedCancellationSurvivesRelaunchAndRejectsDelayedIdentity",
       "testPortfolioDefaultsToOverviewAndLoadsHoldings",
       "testPortfolioAuthorityRemovalClearsWindowsAndRejectsOldResponses",
-      "testPortfolioRelaunchLoadsFreshSourceWithoutBrowserSignIn"
+      "testPortfolioRelaunchLoadsFreshSourceWithoutBrowserSignIn",
+      "testFundsLoadingDisabledAndAbsentSegmentsAreDistinct",
+      "testFundsAuthorityRemovalClearsWindowsAndRejectsOldResponses"
     ],
     "measured_case_seconds": 87.204
   }

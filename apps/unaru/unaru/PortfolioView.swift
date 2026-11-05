@@ -14,6 +14,8 @@
         case portfolio
         /// Lists every security returned by the source for inspection.
         case holdings
+        /// Keeps trading balances separate from investment analysis.
+        case funds
     }
 
     /// Native source status and navigation, with no combined investment total in this slice.

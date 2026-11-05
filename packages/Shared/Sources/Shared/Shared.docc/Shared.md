@@ -43,6 +43,11 @@ fields separate from ordinary inventory. These contracts expose no broker creden
 or combined investment total. HTTP 503 with `portfolioUnavailable` permits retrying the
 source without another sign-in.
 
+``TradingFunds`` describes a successful trading-funds read. ``TradingFundsSegment``
+preserves enabled state, net availability, total utilisation, and whitelisted components
+without combining overlapping balances. These balances remain separate from holdings
+value and returns. A disabled segment is not a source failure.
+
 ## Topics
 
 ### Scaffold
@@ -63,6 +68,11 @@ source without another sign-in.
 - ``SecuritiesHoldings``
 - ``SecurityHolding``
 - ``HoldingMTF``
+
+### Trading funds
+
+- ``TradingFunds``
+- ``TradingFundsSegment``
 
 ### Connection pairing
 

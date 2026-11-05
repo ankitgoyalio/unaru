@@ -61,6 +61,8 @@ actor KiteLogin {
     private var profileRequestID: UUID?
     /// Superseded portfolio responses cannot publish or remove authority.
     private var holdingsRequestID: UUID?
+    /// Funds responses are superseded independently of holdings and profile reads.
+    private var fundsRequestID: UUID?
 
     /// Creates an installation with production transport unless tests supply HTTP responses.
     init(
@@ -227,6 +229,29 @@ actor KiteLogin {
         } catch {
             guard authenticated === client, holdingsRequestID == requestID else {
                 throw Abort(.serviceUnavailable, reason: "Holdings request was superseded.")
+            }
+            if Self.isAuthenticationRejection(error) {
+                try removeAuthority()
+                throw Abort(.unauthorized)
+            }
+            throw RecoveryFailure(code: .portfolioUnavailable)
+        }
+    }
+
+    /// Reads trading funds through the pinned SDK, checking authority after every suspension.
+    func funds() async throws -> TradingFunds {
+        try await restore()
+        guard let client = authenticated else { throw Abort(.unauthorized) }
+        let requestID = UUID()
+        fundsRequestID = requestID
+        do {
+            let rows = try await client.margins()
+            guard authenticated === client, fundsRequestID == requestID else { throw CancellationError() }
+            try Task.checkCancellation()
+            return TradingFunds(segments: TradingFundsSource.normalize(rows), retrievedAt: now())
+        } catch {
+            guard authenticated === client, fundsRequestID == requestID else {
+                throw Abort(.serviceUnavailable, reason: "Funds request was superseded.")
             }
             if Self.isAuthenticationRejection(error) {
                 try removeAuthority()

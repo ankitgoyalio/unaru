@@ -19,6 +19,16 @@ actor KiteResponses: KiteHTTPTransport {
     private var profileTimeout = false
     private var invalidationBody = #"{"status":"success","data":true}"#
     private var invalidationDisconnect = false
+    private var fundsStatus = 200
+    private var fundsBody = "{}"
+    private var fundsFailure: URLError.Code?
+
+    func setFunds(status: Int = 200, body: String, failure: URLError.Code? = nil) {
+        fundsStatus = status
+        fundsBody = body
+        fundsFailure = failure
+    }
+
     private var holdingsStatus = 200
     private var holdingsBody = #"{"status":"success","data":[]}"#
     private var holdingsFailure: URLError.Code?
@@ -87,6 +97,12 @@ actor KiteResponses: KiteHTTPTransport {
                 observer?.resume()
                 observer = nil
             }
+        }
+        if request.url.path == "/user/margins" {
+            if let fundsFailure {
+                throw URLError(fundsFailure)
+            }
+            return KiteHTTPResponse(statusCode: fundsStatus, body: Data(fundsBody.utf8))
         }
         if request.url.path == "/portfolio/holdings" {
             if let holdingsFailure {
