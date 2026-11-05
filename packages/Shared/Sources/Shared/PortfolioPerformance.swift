@@ -26,6 +26,8 @@ public struct PortfolioPerformance: Codable, Sendable {
     public let sources: PortfolioPerformanceRequest
     /// Final per-row eligibility, suitable for value-based allocation and ordering without recalculation.
     public let rows: [PortfolioHoldingPerformance]?
+    /// Value-based allocation from the same eligible ordinary inventory.
+    public let allocation: PortfolioAllocation?
     /// Sum of available acquisition costs, possibly covering fewer holdings than current value.
     public let investedCost: Decimal?
     /// Sum of available ordinary holding values, including valued rows without cost.
@@ -51,8 +53,9 @@ public struct PortfolioPerformance: Codable, Sendable {
 
     /// Creates an aggregate contract; all financial arithmetic belongs to the backend.
     public init(sources: PortfolioPerformanceRequest, investedCost: Decimal?, currentValue: Decimal?, gain: Decimal?, returnPercent: Decimal?,
-                matchedCost: Decimal?, matchedValue: Decimal?, totalHoldings: Int, costCount: Int, valueCount: Int, returnCount: Int, excludedMTFCount: Int, rows: [PortfolioHoldingPerformance]? = nil)
+                matchedCost: Decimal?, matchedValue: Decimal?, totalHoldings: Int, costCount: Int, valueCount: Int, returnCount: Int, excludedMTFCount: Int, rows: [PortfolioHoldingPerformance]? = nil, allocation: PortfolioAllocation? = nil)
     {
+        self.allocation = allocation
         self.rows = rows
         self.sources = sources
         self.investedCost = investedCost

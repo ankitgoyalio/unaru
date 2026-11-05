@@ -4,6 +4,8 @@
 //
 //  Created by Ankit Goyal on 05/11/2026.
 
+public import Foundation
+
 /// A source-qualified valuation used consistently by combined analysis and holding inspection.
 public struct PortfolioHoldingPerformance: Codable, Sendable, Identifiable {
     /// Stable within this pair of source reads; source prefixes prevent row-ID collisions.
@@ -17,6 +19,8 @@ public struct PortfolioHoldingPerformance: Codable, Sendable, Identifiable {
     public let sourceRowID: String
     /// Final backend eligibility and values, including cross-source overlap exclusions.
     public let values: HoldingPerformance
+    /// Share of the positive combined valued total, unavailable for excluded or unvalued rows.
+    public let allocationPercent: Decimal?
     /// Both records remain inspectable when depository identity could represent the same inventory.
     public let overlapsSources: Bool
 
@@ -29,7 +33,8 @@ public struct PortfolioHoldingPerformance: Codable, Sendable, Identifiable {
     }
 
     /// Creates a projection without merging or removing source rows.
-    public init(source: Source, sourceRowID: String, values: HoldingPerformance, overlapsSources: Bool) {
+    public init(source: Source, sourceRowID: String, values: HoldingPerformance, overlapsSources: Bool, allocationPercent: Decimal? = nil) {
+        self.allocationPercent = allocationPercent
         self.source = source
         self.sourceRowID = sourceRowID
         self.values = values

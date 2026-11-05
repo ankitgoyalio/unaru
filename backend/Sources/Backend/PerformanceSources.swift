@@ -36,10 +36,17 @@ struct PerformanceSources {
         let matchedCost = sum(matched.compactMap(\.investedCost), total: rows.count)
         let matchedValue = sum(matched.compactMap(\.currentValue), total: rows.count)
         let percent = matchedCost.flatMap { cost in cost > 0 ? gain.flatMap { HoldingValuation.finite($0 / cost * 100) } : nil }
-        return PortfolioPerformance(sources: request, investedCost: sum(costs, total: rows.count), currentValue: sum(values, total: rows.count),
+        let currentValue = sum(values, total: rows.count)
+        let allocation = HoldingAllocation.analyze(projection, securities: securities, mutualFunds: mutualFunds, currentValue: currentValue)
+        let shares = Dictionary(uniqueKeysWithValues: allocation.largestHoldings.map { ($0.id, $0.allocationPercent) })
+        let allocatedRows = projection.map {
+            PortfolioHoldingPerformance(source: $0.source, sourceRowID: $0.sourceRowID, values: $0.values,
+                                        overlapsSources: $0.overlapsSources, allocationPercent: shares[$0.id] ?? nil)
+        }
+        return PortfolioPerformance(sources: request, investedCost: sum(costs, total: rows.count), currentValue: currentValue,
                                     gain: gain, returnPercent: percent, matchedCost: matchedCost, matchedValue: matchedValue,
                                     totalHoldings: rows.count, costCount: costs.count, valueCount: values.count,
-                                    returnCount: matched.count, excludedMTFCount: all.count - rows.count, rows: projection)
+                                    returnCount: matched.count, excludedMTFCount: all.count - rows.count, rows: allocatedRows, allocation: allocation)
     }
 
     /// Cross-source ambiguity withholds calculations while retaining a source-qualified inspection row.

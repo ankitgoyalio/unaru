@@ -16,7 +16,8 @@
       "testFundsNavigationShowsSegmentBalancesAndKeyboardInspection",
       "testMutualFundLoadingFailureStaleRecoveryAndSourceSpecificRetry",
       "testPerformanceWithholdsMixedRefreshTotalsAndRecoversOnlyFailedSource",
-      "testSupportingFailuresPreserveHoldingsTotalsAndRecoverIndependently"
+      "testSupportingFailuresPreserveHoldingsTotalsAndRecoverIndependently",
+      "testAllocationShowsRankedHoldingsSupportedGroupsAndCoverageInBothAppearances"
     ],
     "measured_case_seconds": 148.635
   },
@@ -35,7 +36,8 @@
       "testFundsRejectsSupersededSuccessAndFailure",
       "testMutualFundsRejectsSupersededSuccessAndFailure",
       "testPerformanceRejectsObsoleteAggregateSuccessAndAuthorityFailure",
-      "testOpenHoldingInspectionShowsPendingStaleRetrievalAndRetry"
+      "testOpenHoldingInspectionShowsPendingStaleRetrievalAndRetry",
+      "testAllocationRefreshUpdatesRankingAndWithholdsStaleInspectionWeights"
     ],
     "measured_case_seconds": 149.916
   },
@@ -57,7 +59,8 @@
       "testFundsRelaunchLoadsFreshBalancesWithoutBrowserLogin",
       "testMutualFundsAuthorityRemovalClearsWindowsAndRejectsOldResponses",
       "testPerformanceAuthorityRemovalClearsWindowsAndRejectsOldAggregate",
-      "testEitherHoldingsRetryCanReplaceStaleRowsWithEmptyAndRestoreTotals"
+      "testEitherHoldingsRetryCanReplaceStaleRowsWithEmptyAndRestoreTotals",
+      "testAllocationDistinguishesEmptyInventoryAndUnavailableValuations"
     ],
     "measured_case_seconds": 150.032
   },

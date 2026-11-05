@@ -18,6 +18,8 @@
         let holding: SecurityHolding
         /// Final cross-source eligibility, when both sources have been analysed.
         let analysis: PortfolioHoldingPerformance?
+        /// Allocation requires a current combined denominator, even when stale source values remain inspectable.
+        let allocationIsCurrent: Bool
         @Environment(\.dismiss) private var dismiss
 
         var body: some View {
@@ -28,7 +30,8 @@
                         SourceInspectionStatus(source: "Securities holdings", isLoading: store.isLoading,
                                                failed: store.failed, retrievedAt: store.snapshot?.retrievedAt,
                                                retryTitle: "Retry Securities") { connection.refreshPortfolio(source: .securities) }
-                        HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true)
+                        HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true,
+                                               allocationPercent: allocationIsCurrent ? analysis?.allocationPercent : nil)
                         GroupBox("Identity and Source") {
                             fields {
                                 field("Symbol", holding.symbol)

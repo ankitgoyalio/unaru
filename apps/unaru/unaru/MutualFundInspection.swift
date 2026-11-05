@@ -17,6 +17,8 @@
         let holding: MutualFundHolding
         /// Final cross-source eligibility, when both sources have been analysed.
         let analysis: PortfolioHoldingPerformance?
+        /// Allocation requires a current combined denominator, even when stale source values remain inspectable.
+        let allocationIsCurrent: Bool
         @Environment(\.dismiss) private var dismiss
 
         var body: some View {
@@ -27,7 +29,8 @@
                         SourceInspectionStatus(source: "Mutual fund holdings", isLoading: store.mutualFundsLoading,
                                                failed: store.mutualFundsFailed, retrievedAt: store.mutualFundsSnapshot?.retrievedAt,
                                                retryTitle: "Retry Mutual Funds") { connection.refreshPortfolio(source: .mutualFunds) }
-                        HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true)
+                        HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true,
+                                               allocationPercent: allocationIsCurrent ? analysis?.allocationPercent : nil)
                         GroupBox("Identity and Source") {
                             fields {
                                 field("Fund", holding.fund)

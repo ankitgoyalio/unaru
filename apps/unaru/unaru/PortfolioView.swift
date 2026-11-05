@@ -42,6 +42,9 @@
                         .foregroundStyle(.secondary)
                     if destination == .portfolio {
                         PortfolioPerformanceView(store: store)
+                        if let allocation = store.performance?.allocation {
+                            PortfolioAllocationView(allocation: allocation)
+                        }
                     }
                     Text("Securities Holdings").font(.title2).accessibilityAddTraits(.isHeader)
                     if store.isLoading {
@@ -97,8 +100,8 @@
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .accessibilityLabel("Portfolio content")
-            .sheet(item: $inspectedMutualFund) { holding in MutualFundInspection(store: store, holding: holding, analysis: store.analyzedRow(source: .mutualFunds, id: holding.id)) }
-            .sheet(item: $inspected) { holding in HoldingInspection(store: store, holding: holding, analysis: store.analyzedRow(source: .securities, id: holding.id)) }
+            .sheet(item: $inspectedMutualFund) { holding in MutualFundInspection(store: store, holding: holding, analysis: store.analyzedRow(source: .mutualFunds, id: holding.id), allocationIsCurrent: store.performance != nil) }
+            .sheet(item: $inspected) { holding in HoldingInspection(store: store, holding: holding, analysis: store.analyzedRow(source: .securities, id: holding.id), allocationIsCurrent: store.performance != nil) }
             .onReceive(store.$snapshot) { _ in
                 selection = nil
                 inspected = nil
