@@ -68,6 +68,7 @@
         func testFundsRelaunchLoadsFreshBalancesWithoutBrowserLogin() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
+            backend.usePersistence("saved")
             backend.respond(path: "/portfolio/funds", status: 200, body: fundsFixture())
             let app = launch(backend: backend)
             defer { cleanUp(app) }

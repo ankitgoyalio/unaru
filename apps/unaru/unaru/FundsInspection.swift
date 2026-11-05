@@ -11,6 +11,9 @@
 
     /// Inspectable broker components retain their meanings without additive totals.
     struct FundsInspection: View {
+        @EnvironmentObject private var connection: BackendConnection
+        /// Tracks this supporting source independently of holdings and positions.
+        @ObservedObject var store: FundsStore
         /// One enabled segment from the current source snapshot.
         let segment: TradingFundsSegment
         @Environment(\.dismiss) private var dismiss
@@ -20,6 +23,9 @@
                 Text("\(segment.displayName) Funds Details").font(.title).accessibilityAddTraits(.isHeader)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        SourceInspectionStatus(source: "Trading funds", isLoading: store.isLoading,
+                                               failed: store.failed, retrievedAt: store.snapshot?.retrievedAt,
+                                               retryTitle: "Retry Funds") { connection.refreshFunds() }
                         Text("Broker-reported components overlap. Cash includes intraday pay-in; collateral is margin from pledged securities. These amounts are not additional investment wealth.")
                             .foregroundStyle(.secondary)
                         GroupBox("Availability Components") {

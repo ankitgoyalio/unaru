@@ -15,7 +15,8 @@
       "testPositionsRelaunchFetchesNewDataWithoutAnotherBrowserLogin",
       "testFundsNavigationShowsSegmentBalancesAndKeyboardInspection",
       "testMutualFundLoadingFailureStaleRecoveryAndSourceSpecificRetry",
-      "testPerformanceWithholdsMixedRefreshTotalsAndRecoversOnlyFailedSource"
+      "testPerformanceWithholdsMixedRefreshTotalsAndRecoversOnlyFailedSource",
+      "testSupportingFailuresPreserveHoldingsTotalsAndRecoverIndependently"
     ],
     "measured_case_seconds": 148.635
   },
@@ -33,7 +34,8 @@
       "testPositionsRejectSupersededSuccessAndFailure",
       "testFundsRejectsSupersededSuccessAndFailure",
       "testMutualFundsRejectsSupersededSuccessAndFailure",
-      "testPerformanceRejectsObsoleteAggregateSuccessAndAuthorityFailure"
+      "testPerformanceRejectsObsoleteAggregateSuccessAndAuthorityFailure",
+      "testOpenHoldingInspectionShowsPendingStaleRetrievalAndRetry"
     ],
     "measured_case_seconds": 149.916
   },
@@ -54,7 +56,8 @@
       "testFundsFailureIsIndependentAndRetryRetainsStaleBalances",
       "testFundsRelaunchLoadsFreshBalancesWithoutBrowserLogin",
       "testMutualFundsAuthorityRemovalClearsWindowsAndRejectsOldResponses",
-      "testPerformanceAuthorityRemovalClearsWindowsAndRejectsOldAggregate"
+      "testPerformanceAuthorityRemovalClearsWindowsAndRejectsOldAggregate",
+      "testEitherHoldingsRetryCanReplaceStaleRowsWithEmptyAndRestoreTotals"
     ],
     "measured_case_seconds": 150.032
   },
@@ -78,7 +81,8 @@
       "testMutualFundsShowFractionalUnitsDatesAndKeyboardInspection",
       "testMutualFundsRelaunchLoadsFreshSourceWithoutBrowserSignIn",
       "testPerformanceOverviewAndRowsShowAuthoritativeValuesAndCoverage",
-      "testPerformanceCrossSourceOverlapWithholdsRowValues"
+      "testPerformanceCrossSourceOverlapWithholdsRowValues",
+      "testOtherSourceInspectionsKeepRetrievalAndRecoveryVisible"
     ],
     "measured_case_seconds": 87.204
   }

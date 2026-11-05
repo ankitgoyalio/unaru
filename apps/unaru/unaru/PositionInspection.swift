@@ -11,6 +11,9 @@
 
     /// Raw broker details explain trading exposure without calculating investment returns.
     struct PositionInspection: View {
+        @EnvironmentObject private var connection: BackendConnection
+        /// Observes the retained source rather than treating an open row as newly retrieved.
+        @ObservedObject var store: PositionsStore
         /// One row of the net collection at the displayed retrieval.
         let position: TradingPosition
         @Environment(\.dismiss) private var dismiss
@@ -20,6 +23,9 @@
                 Text("Position Details").font(.title).accessibilityAddTraits(.isHeader)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        SourceInspectionStatus(source: "Positions", isLoading: store.isLoading,
+                                               failed: store.failed, retrievedAt: store.snapshot?.retrievedAt,
+                                               retryTitle: "Retry Positions") { connection.refreshPositions() }
                         GroupBox("Identity and Exposure") {
                             fields {
                                 field("Symbol", position.symbol)

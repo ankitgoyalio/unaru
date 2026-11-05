@@ -86,16 +86,24 @@
                 XCTAssertTrue(second.buttons["View Holdings"].waitForExistence(timeout: 5))
                 second.buttons["View Holdings"].click()
                 XCTAssertTrue(second.staticTexts["STOCK"].waitForExistence(timeout: 5))
+                let inspectionWindow = second
+                inspectionWindow.outlines["Securities holdings"].staticTexts["STOCK"].click()
+                inspectionWindow.buttons["Inspect Holding"].click()
+                XCTAssertTrue(inspectionWindow.sheets.firstMatch.staticTexts["Holding Details"].waitForExistence(timeout: 5))
                 let oldBody = expiry ? portfolioFixture(symbol: "OBSOLETE") : #"{"code":"kiteSignInRequired"}"#
                 backend.respond(path: "/portfolio/holdings", status: expiry ? 200 : 401, hold: true, body: oldBody)
-                second.buttons["Refresh Portfolio"].click()
+                app.typeKey("r", modifierFlags: .command)
                 waitForPending(backend)
                 if expiry {
                     backend.respond(path: "/portfolio/holdings", status: 401, body: #"{"code":"kiteSignInRequired"}"#)
-                    second.buttons["Refresh Portfolio"].click()
+                    app.typeKey("r", modifierFlags: .command)
                 } else {
-                    second.buttons["Open Kite account"].click()
-                    second.sheets.firstMatch.buttons["Log Out"].click()
+                    app.typeKey("`", modifierFlags: .command)
+                    let removalWindow = try XCTUnwrap(app.windows.allElementsBoundByIndex.first { !$0.sheets.firstMatch.exists })
+                    removalWindow.buttons["Open Kite account"].click()
+                    XCTAssertTrue(app.buttons["Log Out"].waitForExistence(timeout: 5))
+                    XCTAssertTrue(app.staticTexts["Holding Details"].firstMatch.exists)
+                    app.buttons["Log Out"].click()
                     XCTAssertTrue(app.sheets["alert"].waitForExistence(timeout: 5))
                     app.sheets["alert"].buttons["Log Out"].click()
                 }
@@ -103,6 +111,7 @@
                     XCTAssertTrue(window.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
                     XCTAssertFalse(window.staticTexts["STOCK"].exists)
                     XCTAssertFalse(window.buttons["Inspect Holding"].exists)
+                    XCTAssertFalse(window.staticTexts["Holding Details"].exists)
                     XCTAssertFalse(window.buttons["Open Kite account"].exists)
                 }
                 // New authority is established before either obsolete outcome is released.
@@ -124,6 +133,7 @@
         func testPortfolioRelaunchLoadsFreshSourceWithoutBrowserSignIn() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
+            backend.usePersistence("saved")
             backend.respond(path: "/portfolio/holdings", status: 200, body: portfolioFixture())
             let app = launch(backend: backend)
             defer { cleanUp(app) }

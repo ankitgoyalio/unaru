@@ -11,6 +11,9 @@
 
     /// Broker fields and authoritative current-holdings values stay inspectable with their limitations.
     struct HoldingInspection: View {
+        @EnvironmentObject private var connection: BackendConnection
+        /// Observes source recovery even when another window starts the refresh.
+        @ObservedObject var store: PortfolioStore
         /// The selected source row, including separate financing metadata.
         let holding: SecurityHolding
         /// Final cross-source eligibility, when both sources have been analysed.
@@ -22,6 +25,9 @@
                 Text("Holding Details").font(.title).accessibilityAddTraits(.isHeader)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        SourceInspectionStatus(source: "Securities holdings", isLoading: store.isLoading,
+                                               failed: store.failed, retrievedAt: store.snapshot?.retrievedAt,
+                                               retryTitle: "Retry Securities") { connection.refreshPortfolio(source: .securities) }
                         HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true)
                         GroupBox("Identity and Source") {
                             fields {

@@ -97,8 +97,8 @@
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .accessibilityLabel("Portfolio content")
-            .sheet(item: $inspectedMutualFund) { holding in MutualFundInspection(holding: holding, analysis: store.analyzedRow(source: .mutualFunds, id: holding.id)) }
-            .sheet(item: $inspected) { holding in HoldingInspection(holding: holding, analysis: store.analyzedRow(source: .securities, id: holding.id)) }
+            .sheet(item: $inspectedMutualFund) { holding in MutualFundInspection(store: store, holding: holding, analysis: store.analyzedRow(source: .mutualFunds, id: holding.id)) }
+            .sheet(item: $inspected) { holding in HoldingInspection(store: store, holding: holding, analysis: store.analyzedRow(source: .securities, id: holding.id)) }
             .onReceive(store.$snapshot) { _ in
                 selection = nil
                 inspected = nil

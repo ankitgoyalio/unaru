@@ -53,6 +53,7 @@
         func testPositionsRelaunchFetchesNewDataWithoutAnotherBrowserLogin() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
+            backend.usePersistence("saved")
             backend.respond(path: "/portfolio/positions", status: 200, body: positionsFixture())
             let app = launch(backend: backend)
             defer { cleanUp(app) }
@@ -125,16 +126,24 @@
                 XCTAssertTrue(second.staticTexts["Portfolio Overview"].waitForExistence(timeout: 5))
                 second.staticTexts["Positions"].firstMatch.click()
                 XCTAssertTrue(second.staticTexts["SHORTFUT"].waitForExistence(timeout: 5))
+                let inspectionWindow = second
+                inspectionWindow.outlines["Current net positions"].staticTexts["SHORTFUT"].click()
+                inspectionWindow.buttons["Inspect Position"].click()
+                XCTAssertTrue(inspectionWindow.sheets.firstMatch.staticTexts["Position Details"].waitForExistence(timeout: 5))
                 let old = expiry ? positionsFixture(symbol: "OBSOLETE") : #"{"code":"kiteSignInRequired"}"#
                 backend.respond(path: "/portfolio/positions", status: expiry ? 200 : 401, hold: true, body: old)
-                second.buttons["Refresh Portfolio"].click()
+                app.typeKey("r", modifierFlags: .command)
                 waitForPending(backend)
                 if expiry {
                     backend.respond(path: "/portfolio/positions", status: 401, body: #"{"code":"kiteSignInRequired"}"#)
-                    second.buttons["Refresh Portfolio"].click()
+                    app.typeKey("r", modifierFlags: .command)
                 } else {
-                    second.buttons["Open Kite account"].click()
-                    second.sheets.firstMatch.buttons["Log Out"].click()
+                    app.typeKey("`", modifierFlags: .command)
+                    let removalWindow = try XCTUnwrap(app.windows.allElementsBoundByIndex.first { !$0.sheets.firstMatch.exists })
+                    removalWindow.buttons["Open Kite account"].click()
+                    XCTAssertTrue(app.buttons["Log Out"].waitForExistence(timeout: 5))
+                    XCTAssertTrue(app.staticTexts["Position Details"].firstMatch.exists)
+                    app.buttons["Log Out"].click()
                     XCTAssertTrue(app.sheets["alert"].waitForExistence(timeout: 5))
                     app.sheets["alert"].buttons["Log Out"].click()
                 }
@@ -142,6 +151,7 @@
                     XCTAssertTrue(window.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
                     XCTAssertFalse(window.staticTexts["SHORTFUT"].exists)
                     XCTAssertFalse(window.buttons["Inspect Position"].exists)
+                    XCTAssertFalse(window.staticTexts["Position Details"].exists)
                     XCTAssertFalse(window.buttons["Open Kite account"].exists)
                 }
                 backend.respond(path: "/portfolio/positions", status: 200, body: positionsFixture(symbol: "NEW-ACCOUNT"))

@@ -57,16 +57,25 @@
                 XCTAssertTrue(second.buttons["View Holdings"].waitForExistence(timeout: 5))
                 second.buttons["View Holdings"].click()
                 XCTAssertTrue(second.staticTexts["Sample Growth Fund"].waitForExistence(timeout: 5))
+                let inspectionWindow = second
+                inspectionWindow.scrollViews["Portfolio content"].scroll(byDeltaX: 0, deltaY: -500)
+                inspectionWindow.outlines["Mutual fund holdings"].staticTexts["Sample Growth Fund"].click()
+                inspectionWindow.buttons["Inspect Mutual Fund"].click()
+                XCTAssertTrue(inspectionWindow.sheets.firstMatch.staticTexts["Mutual Fund Details"].waitForExistence(timeout: 5))
                 let oldBody = expiry ? mutualFundFixture(name: "OBSOLETE") : #"{"code":"kiteSignInRequired"}"#
                 backend.respond(path: "/portfolio/mutual-funds", status: expiry ? 200 : 401, hold: true, body: oldBody)
-                second.buttons["Refresh Portfolio"].click()
+                app.typeKey("r", modifierFlags: .command)
                 waitForPending(backend)
                 if expiry {
                     backend.respond(path: "/portfolio/mutual-funds", status: 401, body: #"{"code":"kiteSignInRequired"}"#)
-                    second.buttons["Refresh Portfolio"].click()
+                    app.typeKey("r", modifierFlags: .command)
                 } else {
-                    second.buttons["Open Kite account"].click()
-                    second.sheets.firstMatch.buttons["Log Out"].click()
+                    app.typeKey("`", modifierFlags: .command)
+                    let removalWindow = try XCTUnwrap(app.windows.allElementsBoundByIndex.first { !$0.sheets.firstMatch.exists })
+                    removalWindow.buttons["Open Kite account"].click()
+                    XCTAssertTrue(app.buttons["Log Out"].waitForExistence(timeout: 5))
+                    XCTAssertTrue(app.staticTexts["Mutual Fund Details"].firstMatch.exists)
+                    app.buttons["Log Out"].click()
                     XCTAssertTrue(app.sheets["alert"].waitForExistence(timeout: 5))
                     app.sheets["alert"].buttons["Log Out"].click()
                 }
@@ -74,6 +83,7 @@
                     XCTAssertTrue(window.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
                     XCTAssertFalse(window.staticTexts["Sample Growth Fund"].exists)
                     XCTAssertFalse(window.buttons["Inspect Mutual Fund"].exists)
+                    XCTAssertFalse(window.staticTexts["Mutual Fund Details"].exists)
                     XCTAssertFalse(window.buttons["Open Kite account"].exists)
                 }
                 // New authority is established before either obsolete outcome is released.
@@ -95,6 +105,7 @@
         func testMutualFundsRelaunchLoadsFreshSourceWithoutBrowserSignIn() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }
+            backend.usePersistence("saved")
             backend.respond(path: "/portfolio/mutual-funds", status: 200, body: mutualFundFixture())
             let app = launch(backend: backend)
             defer { cleanUp(app) }

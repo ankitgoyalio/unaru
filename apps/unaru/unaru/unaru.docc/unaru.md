@@ -116,6 +116,19 @@ expiry clears balances across windows and dismisses inspection. Obsolete success
 failure cannot restore old balances or invalidate newer authority. Relaunch performs a
 fresh read rather than restoring saved portfolio data.
 
+``SourceInspectionStatus`` keeps retrieval time and source recovery visible inside
+each inspection sheet. A refresh leaves the selected row inspectable and identifies
+the previous retrieval while the request is pending. A temporary failure shows a
+stale notice and a source-specific Retry action. Retry uses the valid Kite session.
+A successful response replaces the retained source, including an empty response,
+and dismisses inspection of the replaced row. Sign-out or confirmed session expiry
+clears every source and dismisses inspection across windows.
+
+Securities and mutual fund failures withhold combined investment totals until both
+sources have succeeded. Positions and Funds failures affect only their supporting
+source. Retrieval times remain separate from market-price and NAV dates. Separate
+source reads do not establish an atomic account snapshot.
+
 ## Topics
 
 ### Application and content

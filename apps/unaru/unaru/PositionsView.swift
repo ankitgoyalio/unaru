@@ -57,7 +57,7 @@
             }
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .sheet(item: $inspected) { position in PositionInspection(position: position) }
+            .sheet(item: $inspected) { position in PositionInspection(store: store, position: position) }
             .onChange(of: currentSelection) { _, value in
                 if value != nil {
                     closedSelection = nil

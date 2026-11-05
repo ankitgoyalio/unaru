@@ -10,6 +10,9 @@
 
     /// Broker-reported units, prices and dates with explicit limits on their interpretation.
     struct MutualFundInspection: View {
+        @EnvironmentObject private var connection: BackendConnection
+        /// Source status follows refreshes started in any window.
+        @ObservedObject var store: PortfolioStore
         /// Source row retained without merging matching fund symbols or folios.
         let holding: MutualFundHolding
         /// Final cross-source eligibility, when both sources have been analysed.
@@ -21,6 +24,9 @@
                 Text("Mutual Fund Details").font(.title).accessibilityAddTraits(.isHeader)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        SourceInspectionStatus(source: "Mutual fund holdings", isLoading: store.mutualFundsLoading,
+                                               failed: store.mutualFundsFailed, retrievedAt: store.mutualFundsSnapshot?.retrievedAt,
+                                               retryTitle: "Retry Mutual Funds") { connection.refreshPortfolio(source: .mutualFunds) }
                         HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true)
                         GroupBox("Identity and Source") {
                             fields {

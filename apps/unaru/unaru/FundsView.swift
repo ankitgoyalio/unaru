@@ -68,7 +68,7 @@
             }
             .padding(24)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .sheet(item: $inspected) { segment in FundsInspection(segment: segment) }
+            .sheet(item: $inspected) { segment in FundsInspection(store: store, segment: segment) }
             .onReceive(store.$snapshot) { _ in inspected = nil }
             .onAppear { connection.refreshFunds() }
         }
