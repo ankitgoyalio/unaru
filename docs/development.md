@@ -26,7 +26,7 @@ incompatible compiler, Xcode version, or formatter.
 ## Run checks
 
 ```fish
-swiftformat . --lint --config .swiftformat
+python3 Scripts/format-swift.py --lint
 python3 -m unittest discover -s Tests/Hooks -p 'test_*.py'
 python3 -m unittest discover -s Tests/Documentation -p 'test_*.py'
 python3 -m unittest discover -s Tests/CI -p 'test_*.py'
@@ -151,9 +151,22 @@ output.
 
 ## Resolve commit check failures
 
-The hook checks staged documentation links, authored file sizes, and Swift
-formatting. Files larger than 20,000 bytes fail. Generated files, lockfiles, and
+The hook checks staged documentation links, authored file sizes, Swift headers,
+and formatting. Files larger than 20,000 bytes fail. Generated files, lockfiles, and
 vendored sources use staged `.gitattributes` exemptions.
+
+Header checks require the filename, `unaru`, a nonempty author, and a valid
+`DD/MM/YYYY` date. The formatting command adds missing headers with the configured
+Git `user.name` and the current UTC date. Existing author and date fields remain
+unchanged, including after a squash merge. Renames update only the filename.
+Correct malformed author and date fields manually. Swift package manifests keep
+their first-line `swift-tools-version` directive and do not require a header.
+
+Run `python3 Scripts/format-swift.py` to format all authored Swift files, or pass
+files and directories to limit the selection. The command includes untracked and
+hidden Swift files and uses `.gitattributes` to exclude generated and vendored files.
+SwiftFormat itself leaves headers unchanged. Use the Python command to generate
+and validate headers as well as format code.
 
 Formatting reads staged Swift blobs and the staged `.swiftformat`. The hook
 leaves the index and working files unchanged, so partial staging is preserved.
@@ -161,7 +174,7 @@ To fix a rejection, format the affected file, review the diff, and stage the
 intended hunks again. Changing formatter policy checks all authored Swift files.
 
 ```fish
-swiftformat path/to/file.swift --config .swiftformat
+python3 Scripts/format-swift.py path/to/file.swift
 python3 .githooks/pre-commit --base origin/main
 ```
 

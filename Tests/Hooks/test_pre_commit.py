@@ -25,6 +25,7 @@ class StagedCommitChecksTests(unittest.TestCase):
         self.git("config", "user.email", "hook@example.invalid")
         (self.repo / "Scripts").mkdir()
         shutil.copy2(ROOT / "Scripts/check-documentation.py", self.repo / "Scripts/check-documentation.py")
+        shutil.copy2(ROOT / "Scripts/swift_headers.py", self.repo / "Scripts/swift_headers.py")
         hooks = self.repo / ".githooks"
         hooks.mkdir()
         shutil.copy2(ROOT / ".githooks/pre-commit", hooks / "pre-commit")
@@ -70,6 +71,11 @@ class StagedCommitChecksTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
         self.git("add", "--", name)
+
+    def swift_source(self, name, content):
+        filename = Path(name).name.replace("\\", "\\\\").replace("\n", "\\n")
+        return (f"//\n//  {filename}\n//  unaru\n//\n"
+                "//  Created by Hook Test on 04/11/2026.\n\n").encode() + content
 
     def check_hook(self, succeeds):
         result = subprocess.run(
@@ -155,16 +161,23 @@ class StagedCommitChecksTests(unittest.TestCase):
         self.stage(".swiftformat", (self.repo / ".swiftformat").read_bytes() + b"\n")
         self.assertIn("SwiftFormat failed", self.check_hook(False))
 
+    def test_header_policy_change_checks_unchanged_swift(self):
+        self.stage("source.swift", b"let value = 1\n")
+        self.git("-c", "core.hooksPath=/dev/null", "commit", "--quiet", "-m", "Missing baseline header")
+        policy = (self.repo / "Scripts/swift_headers.py").read_bytes()
+        self.stage("Scripts/swift_headers.py", policy + b"\n")
+        self.assertIn("missing source header", self.check_hook(False))
+
     def test_rule_change_does_not_expand_size_guard_to_unchanged_files(self):
-        self.stage("source.swift", b"x" * 20_001)
+        self.stage("source.swift", self.swift_source("source.swift", b"x" * 20_001))
         self.git("-c", "core.hooksPath=/dev/null", "commit", "--quiet", "-m", "Baseline")
         self.stage(".swiftformat", (self.repo / ".swiftformat").read_bytes() + b"\n")
         self.check_hook(True)
 
     def test_exact_limit_passes_but_one_more_byte_blocks(self):
-        self.stage("source.swift", b"x" * 20_000)
+        self.stage("source.txt", b"x" * 20_000)
         self.check_hook(True)
-        self.stage("source.swift", b"x" * 20_001)
+        self.stage("source.txt", b"x" * 20_001)
         error = self.check_hook(False)
         self.assertIn("5,000.25 tokens", error)
         self.assertIn("Group code by responsibility", error)
@@ -175,8 +188,8 @@ class StagedCommitChecksTests(unittest.TestCase):
         self.assertIn("20,002 bytes", self.check_hook(False))
 
     def test_large_unstaged_content_does_not_block_small_staged_blob(self):
-        self.stage("source.swift", b"small")
-        (self.repo / "source.swift").write_bytes(b"x" * 25_000)
+        self.stage("source.txt", b"small")
+        (self.repo / "source.txt").write_bytes(b"x" * 25_000)
         (self.repo / "untracked.md").write_bytes(b"x" * 25_000)
         self.check_hook(True)
 
@@ -244,16 +257,17 @@ class StagedCommitChecksTests(unittest.TestCase):
 
     def test_formatting_reads_staged_content_and_config(self):
         name = "space ' quote\nfile.swift"
-        self.stage(name, b"let value = 1\n")
+        content = self.swift_source(name, b"let value = 1\n")
+        self.stage(name, content)
         (self.repo / name).write_bytes(b"UNFORMATTED working copy")
         config = (self.repo / ".swiftformat").read_bytes()
         (self.repo / ".swiftformat").write_text("unstaged invalid config")
         before = self.git("write-tree").stdout
         self.check_hook(True)
-        self.assertEqual((self.repo / "formatter-input").read_bytes(), b"let value = 1\n")
+        self.assertEqual((self.repo / "formatter-input").read_bytes(), content)
         self.assertEqual((self.repo / "formatter-config").read_bytes(), config)
         args = json.loads((self.repo / "formatter-args").read_text())
-        self.assertEqual(json.loads((self.repo / "formatter-files").read_text()), {name: "let value = 1\n"})
+        self.assertEqual(json.loads((self.repo / "formatter-files").read_text()), {name: content.decode()})
         self.assertIn("--lint", args)
         self.assertEqual(self.git("write-tree").stdout, before)
         self.assertEqual((self.repo / name).read_bytes(), b"UNFORMATTED working copy")
@@ -262,13 +276,13 @@ class StagedCommitChecksTests(unittest.TestCase):
         names = ["one.swift", "folder/雪.swift", ".hidden.swift", ".folder/two.swift",
                  "space ' quote\nfile.swift"]
         for name in names:
-            self.stage(name, b"let value = 1\n")
+            self.stage(name, self.swift_source(name, b"let value = 1\n"))
             (self.repo / name).write_bytes(b"UNFORMATTED working copy")
         before = self.git("write-tree").stdout
         self.check_hook(True)
         self.assertEqual((self.repo / "formatter-calls").read_text(), "lint\n")
         self.assertEqual(json.loads((self.repo / "formatter-files").read_text()),
-                         {name: "let value = 1\n" for name in names})
+                         {name: self.swift_source(name, b"let value = 1\n").decode() for name in names})
         self.assertEqual(self.git("write-tree").stdout, before)
         # A failure anywhere in the batch still blocks the hook.
         self.stage(".hidden.swift", b"UNFORMATTED staged blob")
@@ -298,11 +312,11 @@ class StagedCommitChecksTests(unittest.TestCase):
         self.stage("source.swift", b"let value = 1\n")
         self.assertIn("SwiftFormat 0.64.5 is required", self.check_hook(False))
 
-    def test_formatter_discovers_header_metadata_without_hook_git_locators(self):
+    def test_formatter_does_not_inherit_hook_git_locators(self):
         self.env["GIT_DIR"] = str(self.repo / ".git")
         self.env["GIT_WORK_TREE"] = str(self.repo)
         self.env["GIT_COMMON_DIR"] = str(self.repo / ".git")
-        self.stage("source.swift", b"let value = 1\n")
+        self.stage("source.swift", self.swift_source("source.swift", b"let value = 1\n"))
         self.check_hook(True)
         observed = json.loads((self.repo / "formatter-environment").read_text())
         self.assertEqual(observed, {"GIT_DIR": None, "GIT_WORK_TREE": None, "GIT_COMMON_DIR": None})
@@ -321,7 +335,7 @@ class StagedCommitChecksTests(unittest.TestCase):
         self.assertIn("stage the root .swiftformat", self.check_hook(False))
 
     def test_deleted_swift_does_not_require_formatter(self):
-        self.stage("source.swift", b"let value = 1\n")
+        self.stage("source.swift", self.swift_source("source.swift", b"let value = 1\n"))
         self.git("commit", "--quiet", "-m", "Baseline")
         self.git("rm", "source.swift")
         (self.bin / "swiftformat").write_text("#!/bin/sh\nexit 1\n")

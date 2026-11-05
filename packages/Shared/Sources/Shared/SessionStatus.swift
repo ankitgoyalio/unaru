@@ -1,3 +1,9 @@
+//
+//  SessionStatus.swift
+//  unaru
+//
+//  Created by Ankit Goyal on 01/11/2026.
+
 /// The backend's current Kite authentication status, disclosed only to authorized clients.
 public struct SessionStatus: Codable, Sendable {
     /// The Kite session state. Additional states accompany future authentication support.

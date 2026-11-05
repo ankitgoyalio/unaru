@@ -71,7 +71,7 @@ def main():
         if size > MAX_BYTES:
             oversized.append((path, size))
     if not oversized:
-        if {path for path, _ in files} & {b".swiftformat", b".gitattributes"}:
+        if {path for path, _ in files} & {b".swiftformat", b".gitattributes", b"Scripts/swift_headers.py"}:
             # Rule changes affect all authored Swift, but size checks stay limited
             # to changed files, preserving the staged-file size contract.
             swift_files = []
