@@ -47,11 +47,11 @@
             sidebar.typeKey(.downArrow, modifierFlags: [])
             XCTAssertTrue(app.textFields["Search holdings by name or symbol"].waitForExistence(timeout: 5))
             sidebar.typeKey(.downArrow, modifierFlags: [])
-            XCTAssertTrue(app.staticTexts["Current Net Positions"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.staticTexts["No Positions"].waitForExistence(timeout: 5))
             sidebar.typeKey(.downArrow, modifierFlags: [])
             XCTAssertTrue(app.staticTexts["Trading Funds"].waitForExistence(timeout: 5))
             sidebar.typeKey(.upArrow, modifierFlags: [])
-            XCTAssertTrue(app.staticTexts["Current Net Positions"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.staticTexts["No Positions"].waitForExistence(timeout: 5))
             XCTAssertTrue(app.staticTexts["Positions"].exists)
             XCTAssertTrue(app.staticTexts["Funds"].exists)
         }
