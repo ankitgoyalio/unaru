@@ -79,6 +79,9 @@
                 XCTAssertTrue(app.buttons["View Holdings"].waitForExistence(timeout: 10))
                 app.buttons["View Holdings"].click()
                 XCTAssertTrue(app.staticTexts["STOCK"].waitForExistence(timeout: 10))
+                app.staticTexts["Holdings"].firstMatch.click()
+                app.typeKey(.upArrow, modifierFlags: [])
+                XCTAssertTrue(app.staticTexts["Portfolio Overview"].waitForExistence(timeout: 5))
                 app.typeKey("n", modifierFlags: .command)
                 let windows = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in app.windows.count == 2 }, object: nil)
                 XCTAssertEqual(XCTWaiter.wait(for: [windows], timeout: 5), .completed)
@@ -98,8 +101,12 @@
                     backend.respond(path: "/portfolio/holdings", status: 401, body: #"{"code":"kiteSignInRequired"}"#)
                     app.typeKey("r", modifierFlags: .command)
                 } else {
-                    app.typeKey("`", modifierFlags: .command)
-                    let removalWindow = try XCTUnwrap(app.windows.allElementsBoundByIndex.first { !$0.sheets.firstMatch.exists })
+                    let windowMenu = app.menuBars.menuBarItems["Window"]
+                    windowMenu.click()
+                    windowMenu.menuItems.matching(identifier: "makeKeyAndOrderFront:").element(boundBy: 0).click()
+                    // Identify the other window by its destination before opening the account.
+                    let removalWindow = try XCTUnwrap(app.windows.allElementsBoundByIndex.first { $0.staticTexts["Portfolio Overview"].exists })
+                    removalWindow.click()
                     removalWindow.buttons["Open Kite account"].click()
                     XCTAssertTrue(app.buttons["Log Out"].waitForExistence(timeout: 5))
                     app.buttons["Log Out"].click()

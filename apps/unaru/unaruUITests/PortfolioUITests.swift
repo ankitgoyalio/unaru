@@ -28,6 +28,8 @@
             app.staticTexts["Holdings"].firstMatch.click()
             XCTAssertTrue(app.staticTexts["Securities Holdings"].waitForExistence(timeout: 5))
             backend.respond(path: "/portfolio/holdings", status: 200, body: #"{"holdings":[],"retrievedAt":815000001}"#)
+            // Keep keyboard navigation in the sidebar after the detail controls finish loading.
+            app.staticTexts["Holdings"].firstMatch.click()
             app.typeKey(.upArrow, modifierFlags: [])
             XCTAssertTrue(app.staticTexts["Portfolio Overview"].waitForExistence(timeout: 5))
             XCTAssertTrue(app.staticTexts["Positions"].exists)
