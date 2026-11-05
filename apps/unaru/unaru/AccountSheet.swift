@@ -29,7 +29,6 @@
         /// The current in-memory Kite account profile.
         let profile: AccountProfile
         @Environment(\.dismiss) private var dismiss
-        @State private var showingAvatar = false
         @State private var confirmingLogout = false
 
         var body: some View {
@@ -59,27 +58,7 @@
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         HStack(alignment: .top, spacing: 12) {
-                            Button { showingAvatar = true } label: {
-                                AccountAvatar(profile: profile)
-                            }
-                            .buttonStyle(.borderless)
-                            .accessibilityLabel("Enlarge account avatar")
-                            .help("Enlarge account avatar")
-                            .popover(isPresented: $showingAvatar, arrowEdge: .trailing) {
-                                AsyncImage(url: profile.avatarURL) { image in
-                                    image.resizable().scaledToFit()
-                                } placeholder: {
-                                    AccountAvatar(profile: profile, size: 240)
-                                }
-                                .frame(width: 240, height: 240)
-                                .accessibilityElement(children: .ignore)
-                                .accessibilityLabel("Avatar for \(profile.name)")
-                                .padding(24)
-                                .background {
-                                    SheetEscapeKey { showingAvatar = false }
-                                        .frame(width: 0, height: 0).accessibilityHidden(true)
-                                }
-                            }
+                            AccountAvatar(profile: profile)
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(available(profile.name) ?? "Not available")
                                     .font(.title3.bold())
@@ -125,13 +104,8 @@
             .frame(width: 520, height: 640)
             .background {
                 if !confirmingLogout {
-                    SheetEscapeKey {
-                        if showingAvatar {
-                            showingAvatar = false
-                        } else {
-                            dismiss()
-                        }
-                    }.frame(width: 0, height: 0).accessibilityHidden(true)
+                    SheetEscapeKey { dismiss() }
+                        .frame(width: 0, height: 0).accessibilityHidden(true)
                 }
             }
             .alert("Log out of your Kite account?", isPresented: $confirmingLogout) {

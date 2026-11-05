@@ -21,7 +21,17 @@ func routes(
     let protected = app.grouped(ConnectionAuthorization(token: connectionToken, pairing: pairing))
     protected.get("session") { _ async throws -> Response in
         let response = Response(status: .ok)
-        try await response.content.encode(login.session(), as: .json)
+        do {
+            try await response.content.encode(login.session(), as: .json)
+        } catch let error as KiteLogin.RecoveryFailure {
+            response.status = .serviceUnavailable
+            try response.content.encode(ConnectionProblem(code: error.code), as: .json)
+        }
+        return response
+    }
+    protected.post("session", "save") { _ async throws -> Response in
+        let response = Response(status: .ok)
+        try await response.content.encode(login.retrySave(), as: .json)
         return response
     }
     protected.post("logout") { _ async throws -> Response in
@@ -34,7 +44,7 @@ func routes(
         // Match the Mac client's Foundation date representation.
         do {
             try await response.content.encode(login.start(), using: JSONEncoder())
-        } catch let error as any AbortError where error.status == .serviceUnavailable {
+        } catch KiteLogin.ConfigurationError.missingCredentials {
             response.status = .serviceUnavailable
             try response.content.encode(ConnectionProblem(code: .backendNotConfigured), as: .json)
         }
@@ -45,14 +55,17 @@ func routes(
         try await response.content.encode(login.status(id: request.parameters.get("id") ?? ""), as: .json)
         return response
     }
-    protected.delete("login", ":id") { request async -> HTTPStatus in
-        await login.cancel(id: request.parameters.get("id") ?? "")
+    protected.delete("login", ":id") { request async throws -> HTTPStatus in
+        try await login.cancel(id: request.parameters.get("id") ?? "")
         return .noContent
     }
     protected.get("profile") { _ async throws -> Response in
         let response = Response(status: .ok)
         do {
             try await response.content.encode(login.profile(), as: .json)
+        } catch let error as KiteLogin.RecoveryFailure {
+            response.status = .serviceUnavailable
+            try response.content.encode(ConnectionProblem(code: error.code), as: .json)
         } catch let error as any AbortError where error.status == .unauthorized {
             response.status = .unauthorized
             try response.content.encode(ConnectionProblem(code: .kiteSignInRequired), as: .json)

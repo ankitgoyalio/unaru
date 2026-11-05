@@ -26,9 +26,9 @@
                     case .checking:
                         ProgressView("Verifying Connection…")
                     case .signedOut:
-                        Text("Kite Sign-In Required").font(.title2)
+                        Text(connection.isLoggingOut ? (connection.isCancellingLogin ? "Cancelling Sign-In…" : "Logging Out…") : "Kite Sign-In Required").font(.title2)
                         if connection.isLoggingOut {
-                            ProgressView("Ending Kite API Session…")
+                            ProgressView(connection.isCancellingLogin ? "Removing This Sign-In…" : "Ending Kite API Session…")
                         }
                         if connection.logoutUnconfirmed {
                             Text("Unaru signed out locally, but couldn’t confirm that the Kite API session ended.")
@@ -59,6 +59,21 @@
                         Text("Set Up Kite").font(.title2)
                         Text("Add your Kite API key and secret to the .env file in Unaru’s configuration folder, then choose Retry.")
                         Button("Open Configuration Folder") { connection.openConfiguration() }
+                        retryButton
+                    case .logoutFailed:
+                        Text(connection.isCancellingLogin ? "Couldn’t Finish Cancelling Sign-In" : "Couldn’t Finish Logging Out").font(.title2)
+                        Text(connection.isCancellingLogin
+                            ? "Unaru couldn’t confirm removal of this sign-in. Retry to finish cancelling before signing in again."
+                            : "Unaru couldn’t confirm removal of your saved sign-in. Retry to finish logging out before signing in again.")
+                        Button(connection.isCancellingLogin ? "Retry Cancellation" : "Retry Log Out") { connection.retry() }
+                            .keyboardShortcut(.defaultAction)
+                    case .sessionUnavailable:
+                        Text("Can’t Verify Kite Session").font(.title2)
+                        Text("Unaru couldn’t verify your saved Kite session. Check your internet connection, then retry.")
+                        retryButton
+                    case .storageUnavailable:
+                        Text("Saved Session Unavailable").font(.title2)
+                        Text("Unaru couldn’t read your saved Kite session from Keychain. Retry to check it again.")
                         retryButton
                     case .unavailable:
                         Text("Connection Unavailable").font(.title2)

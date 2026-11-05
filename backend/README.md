@@ -22,8 +22,29 @@ directly to its child process. It does not save a connection credential in Keych
 publish pairing authority. The helper listens only on `127.0.0.1:8080`; an occupied port
 shows a startup error with **Retry**. Close the conflicting service and retry. The app
 never attaches to another running backend. It stops its helper on quit, including an
-abrupt exit. Kite sessions stay in memory, so quitting requires another browser login.
-Closing a window alone keeps the session available.
+abrupt exit. The helper saves validated Kite authorization in login Keychain and
+validates it again after restarting. Valid sessions survive quit, crashes, and compatible
+signed replacement builds without another browser handoff. Kite expiry or confirmed
+invalidation requires sign-in again. Closing a window alone keeps the session available.
+
+The helper uses the explicit signing identifier `io.ankitgoyal.unaru.backend`.
+Replacement builds must use a compatible designated requirement, including the signing
+team. Keep the signing channel consistent. Ad hoc signatures do not establish continuity
+between different executable hashes. The app does not share token access through sandbox
+inheritance. Keychain items belong to the helper, use a hash of the configured API key,
+and contain the validated account ID with its token. The store never synchronizes items.
+
+Temporary validation or Keychain read failures preserve saved authorization, including
+across helper restarts. The account stays hidden until validation succeeds. A failed
+save leaves the current session usable. **Sign-In Not Saved** explains that quitting
+requires another sign-in. Choose **Retry Saving** to save the current session without
+opening the browser again. The notice clears after a successful save.
+
+Sign-out reports local completion only after durable removal. **Couldn’t Finish Logging
+Out** offers **Retry Log Out** and keeps sign-in blocked until removal succeeds. The app
+retains this unfinished action across helper restarts and app relaunches, so it finishes
+removal before checking for a saved session. A separate notice reports unconfirmed Kite
+API revocation after local removal succeeds.
 
 ## Run a standalone backend for development
 
@@ -101,8 +122,9 @@ guidance](https://kite.trade/docs/connect/v3/apps/) permits a personal loopback
 redirect. The browser must run on the backend's Mac for a loopback callback; use your
 public HTTPS backend address otherwise.
 
-Each installation serves one Kite account and keeps its access token only in memory.
-Restarting the backend requires another login. A new login supersedes any earlier
+Each installation serves one Kite account. Standalone backends keep their access token
+only in memory and require another login after restart. Bundled Mac helpers restore
+from Keychain and validate the saved account before exposing identity. A new login supersedes any earlier
 attempt. Cancellation and the five-minute deadline reject old callbacks, including
 exchanges or profile responses already in flight. Callback authority is consumed before
 exchange, so a failed exchange needs a new login. A temporary profile failure permits
@@ -123,8 +145,21 @@ browser cookies.
 - For a local startup error, close other copies or services using port 8080 and choose
   **Retry**. If the embedded helper is missing, rebuild or reinstall the app.
 - For **Set Up Kite**, edit the app-owned `.env` and choose **Retry** to reload it.
-- For a temporary network or Kite failure, restore connectivity and choose **Retry**.
-  The app validates an existing Kite session before displaying identity.
+- For **Can’t Verify Kite Session**, check your internet connection and choose **Retry**.
+  Network failures, timeouts, rate limits, and temporary Kite failures preserve the saved
+  session. Retry validates the existing token without another browser sign-in.
+- For **Saved Session Unavailable**, choose **Retry** to access Keychain again. This error
+  does not mean that no session is saved or that Kite rejected the token. The account
+  stays hidden until the helper reads and validates the session.
+- For **Connection Unavailable**, restore connectivity and choose **Retry**.
+- For **Sign-In Not Saved**, choose **Retry Saving**. You can keep using the account
+  while storage is unavailable. Quitting before saving requires another browser sign-in.
+- For **Couldn’t Finish Logging Out**, choose **Retry Log Out**. The app retries durable
+  removal before allowing another sign-in, including after relaunch. Local completion
+  does not imply that Kite confirmed provider revocation.
+- For **Couldn’t Finish Cancelling Sign-In**, choose **Retry Cancellation**. The app
+  retains this attempt's cancellation across relaunch and retries before restoring any
+  saved session. Another sign-in remains blocked until the helper confirms removal.
 - For **Retry Sign-In**, retry the pending read without another token exchange or
   browser handoff. Cancelled, denied, or expired attempts need a new sign-in.
 

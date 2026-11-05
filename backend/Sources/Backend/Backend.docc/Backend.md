@@ -27,8 +27,8 @@ backend to consume. A network caller cannot approve a code. The app polls `GET
 
 Attempts expire after five minutes. Polling and cancellation require a signature from
 the candidate private key, not the public ID or comparison code. Pairing responses use
-`Cache-Control: no-store`. Approved public verification keys survive restart; Kite
-sessions remain in memory. Protected endpoints reject unapproved credentials with HTTP
+`Cache-Control: no-store`. Approved public verification keys survive restart. Standalone Kite
+sessions remain in memory; bundled Mac helpers use private Keychain storage. Protected endpoints reject unapproved credentials with HTTP
 401. A missing legacy-only configuration can still return HTTP 503 with
 `backendNotConfigured`.
 
@@ -75,7 +75,6 @@ replaces only its external HTTP transport during tests.
 - `GET /login/:id` returns `LoginStatus`: `pending`, `signedIn` with a public
   `AccountProfile`, `failed`, or `expired`. After exchange, this operation fetches
   the profile. HTTP 503 permits retrying that read without repeating exchange.
-- `DELETE /login/:id` invalidates that attempt, including in-flight responses.
 - `GET /profile` retrieves the backend-held session's current public identity.
   A missing session or Kite `TokenException` returns HTTP 401 with
   `{"code":"kiteSignInRequired"}`. A token rejection invalidates the session.
@@ -83,11 +82,30 @@ replaces only its external HTTP transport during tests.
   runs, without that code. Other upstream failures, including transport errors,
   rate limits, malformed responses, and permission errors, return HTTP 503
   without discarding the Kite session.
-- `GET /session` reports whether an in-memory session exists after exchange and
-  profile retrieval. This status alone does not validate a saved Kite token.
-  On launch and retry, the app follows `signedIn` with `GET /profile` and presents
-  identity only after that fresh provider request succeeds. A backend restart
-  returns `signedOut`, and the app requests browser login again.
+- `GET /session` restores saved bundled-helper authorization and validates its account
+  before returning `signedIn`. Missing or confirmed invalid authorization returns
+  `signedOut`. Temporary provider failures return HTTP 503 with
+  `{"code":"kiteSessionUnavailable"}`. Secure-storage read failures return HTTP 503 with
+  `{"code":"sessionStorageUnavailable"}`. Both preserve the item and permit retrying the
+  same request without browser login or token exchange, including after helper restart.
+  Neither response contains account identity. `GET /profile` uses the same codes when
+  restoration fails before a validated session exists.
+  The optional `persistence` field is `saved`, `saveFailed`, or `memoryOnly` for signed-in
+  sessions. The app follows `signedIn` with a fresh `GET /profile` before showing identity.
+- `POST /session/save` retries saving the current validated session and returns
+  `SessionStatus`. A failed save returns `saveFailed` while retaining usable identity.
+  It performs no browser handoff or exchange. Connection authorization is required.
+- Signed-in `LoginStatus` responses also include optional credential-free `persistence`
+  status so clients can present save failures immediately after browser completion.
+- `DELETE /login/:id` detaches the matching browser attempt and validated authority
+  before secure deletion. HTTP 503 leaves removal pending and requires retry. A successful
+  response acknowledges durable removal of that attempt's saved authorization.
+  The saved value retains a credential-free attempt ID so cancellation can be replayed
+  before restoration after helper restart. An old cancellation cannot delete a newer
+  saved session. Clients retain the cancellation intent until acknowledgement.
+- `POST /logout` detaches old authority and removes saved authorization before returning
+  `LogoutResult`. Failed secure deletion returns HTTP 503 and permits another logout
+  request. Remote revocation remains bounded and may be `unconfirmed` after local success.
 - Public `GET /kite/callback` accepts Kite's `state`, `status`, and
   `request_token` query fields. A matching unconsumed attempt must exist and
   remain within its five-minute deadline. Callback authority is consumed before
@@ -95,8 +113,13 @@ replaces only its external HTTP transport during tests.
   HTTP 400 with a fixed message and no credential data.
 
 A cancelled browser tab sends no callback. The app provides cancellation and a bounded
-wait. The backend keeps only one attempt and one authenticated session in memory. A
-restart discards both.
+wait. The backend keeps one browser attempt and one authenticated session in memory.
+A restart discards browser authority. Only a bundled Mac helper selects the narrow
+``KiteSessionStore`` boundary's Keychain implementation, ``KeychainKiteSessionStore``.
+The store scopes authorization to the API key and validated account. Synchronous storage
+operations cannot complete after newer actor authority; restored provider requests must
+still pass generation and request-order checks. An older restore response cannot clear
+or replace a newer validated session. Standalone and test coordinators default to no storage.
 
 The following example compiles as a Swift Testing test body without a network request:
 

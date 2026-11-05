@@ -9,6 +9,51 @@
 
     @MainActor
     extension unaruUITests {
+        func testSavedSessionRecoveryRetriesWithoutRevealingIdentityOrOpeningBrowser() throws {
+            for (code, heading, appearance) in [
+                ("kiteSessionUnavailable", "Can’t Verify Kite Session", "Light"),
+                ("sessionStorageUnavailable", "Saved Session Unavailable", "Dark"),
+            ] {
+                let backend = try ControlledBackend()
+                defer { backend.stop() }
+                let app = launch(backend: backend, appearance: appearance)
+                defer { cleanUp(app) }
+                beginLogin(app, backend: backend)
+                backend.completeLogin()
+                XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").waitForExistence(timeout: 10))
+                app.terminate()
+                backend.respond(path: "/session", status: 503, body: "{\"code\":\"\(code)\"}")
+                app.launch()
+                XCTAssertTrue(app.staticTexts[heading].waitForExistence(timeout: 10))
+                assertConnectionSheet(app)
+                XCTAssertFalse(accountIdentity(app, containing: "Asha Rao").exists)
+                XCTAssertFalse(accountIdentity(app, containing: "AB1234").exists)
+                XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
+                XCTAssertTrue(app.buttons["Retry"].isHittable)
+                let requests = backend.requests
+                app.typeKey(.return, modifierFlags: [])
+                let retried = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in backend.requests > requests }, object: nil)
+                XCTAssertEqual(XCTWaiter.wait(for: [retried], timeout: 5), .completed)
+                XCTAssertTrue(app.staticTexts[heading].waitForExistence(timeout: 10))
+                XCTAssertFalse(app.buttons["Open Kite account"].exists)
+                XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
+                capture(app, name: "Saved session retry - \(appearance)")
+                backend.respond(path: "/session", status: 200, body: #"{"state":"signedIn","persistence":"saved"}"#)
+                backend.respond(path: "/profile", status: 200, hold: true)
+                app.buttons["Retry"].click()
+                waitForPending(backend)
+                XCTAssertFalse(app.buttons["Open Kite account"].exists)
+                XCTAssertFalse(app.buttons["Sign in with Kite"].exists)
+                backend.releaseResponses()
+                XCTAssertTrue(accountIdentity(app, containing: "Asha Rao").waitForExistence(timeout: 10))
+                XCTAssertTrue(accountIdentity(app, containing: "AB1234").isHittable)
+                XCTAssertFalse(app.buttons["Retry"].exists)
+                XCTAssertFalse(app.staticTexts[heading].exists)
+                XCTAssertEqual(backend.browserHandoffs, 1)
+                XCTAssertEqual(backend.loginAttempts, 1)
+            }
+        }
+
         func testRelaunchValidatesBeforeRestoringIdentityWithoutBrowserLogin() throws {
             let backend = try ControlledBackend()
             defer { backend.stop() }

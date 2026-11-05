@@ -82,9 +82,13 @@ public struct LoginStatus: Codable, Sendable {
     /// Present only after successful authentication and profile retrieval.
     public let profile: AccountProfile?
 
+    /// Whether the usable session was securely saved; absent for older helpers.
+    public let persistence: SessionStatus.Persistence?
+
     /// Creates a credential-free attempt result.
-    public init(state: State, profile: AccountProfile? = nil) {
+    public init(state: State, profile: AccountProfile? = nil, persistence: SessionStatus.Persistence? = nil) {
         self.state = state
         self.profile = profile
+        self.persistence = persistence
     }
 }

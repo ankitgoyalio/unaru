@@ -61,6 +61,35 @@
             return root.appendingPathComponent("Unaru", isDirectory: true)
         }
 
+        /// Credential-free intent survives helper failure and application relaunch.
+        private static var logoutMarker: URL {
+            configurationDirectory.appendingPathComponent(".pending-kite-logout")
+        }
+
+        /// Startup replays unfinished removal before requesting a restorable session.
+        static var pendingRemoval: SessionRemoval? {
+            guard FileManager.default.fileExists(atPath: logoutMarker.path) else { return nil }
+            guard let data = try? Data(contentsOf: logoutMarker) else { return .unreadable }
+            // Preserve unfinished logout from builds that wrote the original marker.
+            if data == Data("pending\n".utf8) {
+                return .logout
+            }
+            return (try? JSONDecoder().decode(SessionRemoval.self, from: data)) ?? .unreadable
+        }
+
+        /// Completion requires both helper deletion and clearing its durable intent.
+        static func setRemovalPending(_ removal: SessionRemoval?) throws {
+            if let removal {
+                if case .unreadable = removal {
+                    throw CocoaError(.fileReadCorruptFile)
+                }
+                try FileManager.default.createDirectory(at: configurationDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+                try JSONEncoder().encode(removal).write(to: logoutMarker, options: .atomic)
+            } else if FileManager.default.fileExists(atPath: logoutMarker.path) {
+                try FileManager.default.removeItem(at: logoutMarker)
+            }
+        }
+
         /// Connects lifetime cleanup to the application's termination notification.
         init() {
             terminationObserver = NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
@@ -105,6 +134,12 @@
             // Do not inherit remote deployment settings, credentials, or dotenv selection.
             helper.environment = ["PATH": "/usr/bin:/bin", "HOME": NSHomeDirectory(),
                                   "UNARU_BUNDLED": "1", "UNARU_CONNECTION_TOKEN": token]
+            #if DEBUG
+                if Self.isUITest {
+                    helper.environment?["UNARU_TEST_STORAGE"] = ProcessInfo.processInfo.environment["UNARU_TEST_STORAGE"]
+                    helper.environment?["UNARU_TEST_KITE_URL"] = ProcessInfo.processInfo.environment["UNARU_TEST_KITE_URL"]
+                }
+            #endif
             let pipe = Pipe()
             helper.standardInput = pipe
             let output = Pipe()

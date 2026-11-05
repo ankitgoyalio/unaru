@@ -46,7 +46,9 @@ The backend loads Vapor dotenv files from its working directory. Copy
 configuration, as described in [backend setup](../backend/README.md). Real dotenv
 files stay out of Git and Docker build contexts. The subprocess configuration tests
 use temporary dotenv files and fake credentials to check startup, precedence, logging,
-and authorized login initiation. They make no live Kite requests or Keychain changes.
+and authorized login initiation. They make no live Kite requests. The opt-in signed
+lifecycle test separately uses real Keychain with a unique fake API key and UUID namespace;
+it deletes only its own items during cleanup.
 
 Linux CI runs the Shared and Backend suites with Swift 6.4.2. Apple CI also
 compiles the app and its tests for iOS and visionOS simulators, runs macOS UI tests,
@@ -87,7 +89,8 @@ Xcode DerivedData, result bundles, and generated documentation sites are not cac
 The Mac app build runs `Scripts/bundle-backend.sh` to compile Backend for each requested
 architecture, combine the slices, and sign the helper with sandbox inheritance. The app
 allows incoming and outgoing networking so its child can bind loopback and call Kite.
-The helper lives in `Contents/Helpers`; iOS and visionOS builds skip this phase. SwiftPM
+The helper has the explicit signing identifier `io.ankitgoyal.unaru.backend` and owns
+its saved Kite authorization in Keychain. The helper lives in `Contents/Helpers`; iOS and visionOS builds skip this phase. SwiftPM
 builds use `.build/bundled-backend` and run outside Xcode's script sandbox. App Sandbox
 remains enabled. Distribution archives require the usual signing identity for both
 executables. No standalone backend needs to be launched for the Mac app.
@@ -103,11 +106,37 @@ recovery. Debug builds accept `UNARU_TEST_STORAGE` with a UUID to isolate config
 `UNARU_TEST_BACKEND_ADDRESS` to select the controlled loopback server, and
 `UNARU_TEST_BROWSER=1` to replace the browser handoff. Tests that launch the actual helper
 use `UNARU_TEST_BACKEND_PORT` to avoid occupying the owner's callback port.
+The app forwards the isolated UUID to the helper so it cannot select production session
+storage. `UNARU_TEST_KITE_URL` accepts only an HTTP loopback origin with an explicit
+port, only in a Debug helper with that UUID. Release builds ignore both overrides.
+An isolated Debug helper also accepts `UNARU_TEST_SESSION_FAILURE_FILE`. Its contents
+select `save` or `delete` failure injection for lifecycle tests; removing it restores
+normal Keychain behavior. It requires the UUID namespace and has no Release effect.
+The signed test host edits this file inside its own sandbox container.
 `UNARU_TEST_APPEARANCE=Light` or `Dark` fixes appearance, and
 `UNARU_TEST_REVALIDATION_SECONDS` accelerates session checks. Every override requires the
 isolated UUID and is ignored by Release builds. No test uses real Kite credentials or
 browser cookies. The subprocess suite checks bundled authorization, missing Kite
 configuration, disabled pairing, and helper exit after its parent pipe closes.
+
+To verify signed helper replacement locally, select a compatible Apple signing identity:
+
+```fish
+env UNARU_SIGNING_IDENTITY='<identity hash from security find-identity -v -p codesigning>' python3 -m unittest discover -s Tests/BackendConfiguration -p test_session_lifecycle.py
+```
+
+Build the Debug backend first with `swift build --package-path backend`. The opt-in test
+compiles a sandboxed parent, signs two helper variants with different code hashes under
+the stable helper identifier, and exercises normal quit, parent crash, restoration,
+launch-credential rotation, failed validation followed by helper restart and Retry,
+save failure/retry, and failed deletion/retry across restart against fake loopback Kite
+responses. Cancellation acceptance covers validation completed before the app accepts
+identity, failed deletion, repeated retry, helper restart before retry, and stale
+cancellation before and after replacement. Cancellation intent is replayed before any
+session restoration.
+It uses unique fake credentials and a UUID Keychain service with cleanup. Without the
+identity variable, this test is explicitly skipped. CI's ad hoc signatures cannot replace
+this signing-aware evidence. Tests never access the owner's Kite session.
 
 Run UI tests in an unlocked Mac login session with Xcode UI automation authorization.
 CI prepares a display of at least 1280 × 1024 points before UI tests so the

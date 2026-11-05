@@ -10,39 +10,19 @@
     import Foundation
     import Shared
 
-    /// Owns the bundled backend and its currently verified Kite session.
+    /// Owns the helper and verified Kite session.
     @MainActor
     final class BackendConnection: ObservableObject {
-        /// The app-visible state of the current connection, never a cached identity.
-        enum Phase: Equatable {
-            /// The app is launching its embedded helper.
-            case starting
-            /// The embedded helper could not start or authorize the app.
-            case startupFailed
-            /// The app is making an authorized session-status request.
-            case checking
-            /// The backend is reachable and requires Kite authentication.
-            case signedOut
-            /// An authorized browser attempt is pending.
-            case loggingIn
-            /// A temporary profile/status error can retry the same attempt.
-            case loginUnavailable
-            /// The browser attempt failed and can be started again.
-            case loginFailed
-            /// Exchange and profile retrieval have both completed.
-            case signedIn(AccountProfile)
-            /// The server configuration needs repair, rather than Kite reauthentication.
-            case backendError
-            /// A temporary connection or server failure permits retry.
-            case unavailable
-        }
-
-        /// The state presented by every main window.
+        /// State shared by all windows.
         @Published private(set) var phase: Phase = .starting {
             didSet {
                 if case .signedIn = phase {} else {
                     isRefreshingAccount = false
                     accountRefreshFailed = false
+                    saveRevision += 1
+                    saveTask?.cancel()
+                    isSavingSession = false
+                    sessionSaveFailed = false
                 }
                 scheduleRevalidation()
             }
@@ -54,10 +34,23 @@
         @Published private(set) var logoutUnconfirmed = false
         /// Verification cannot reattach old backend authority after local logout.
         private var requiresSignIn = false
+        /// Cancellation or logout stays pending until the helper acknowledges durable removal.
+        private var pendingRemoval = BundledBackend.pendingRemoval
+        /// Cancellation has its own progress and retry language while sharing durable cleanup.
+        @Published private(set) var isCancellingLogin = false
         /// Refresh activity shared by sheets in every window.
         @Published private(set) var isRefreshingAccount = false
         /// A retryable failure never removes an already validated identity.
         @Published private(set) var accountRefreshFailed = false
+
+        /// A storage failure does not remove the usable account.
+        @Published private(set) var sessionSaveFailed = false
+        /// Prevents duplicate save requests while keeping the account usable.
+        @Published private(set) var isSavingSession = false
+        /// Save completion cannot update a different login.
+        private var saveRevision = 0
+        /// Save recovery runs independently of profile refreshes.
+        private var saveTask: Task<Void, Never>?
 
         /// Launches and stops the backend bundled inside this application.
         private let backend = BundledBackend()
@@ -71,7 +64,7 @@
         private var configuration: (url: URL, token: String)?
         /// The app's current attempt, retained only for retrying profile/status reads.
         private var activeAttempt: LoginAttempt?
-        /// An ephemeral transport that refuses redirects carrying credentials.
+        /// Ephemeral transport with redirects disabled.
         private let transport = BackendTransport()
 
         /// Starts the helper automatically without restoring external connection settings.
@@ -81,7 +74,9 @@
 
         /// Starts or restarts the helper, then waits for its private readiness signal.
         private func start() {
-            cancelLogin()
+            revision += 1
+            task?.cancel()
+            activeAttempt = nil
             configuration = nil
             phase = .starting
             let currentRevision = revision
@@ -91,7 +86,9 @@
                     try await backend.waitUntilReady()
                     guard !Task.isCancelled, revision == currentRevision else { return }
                     self.configuration = configuration
-                    if requiresSignIn {
+                    if pendingRemoval != nil {
+                        finishRemoval()
+                    } else if requiresSignIn {
                         phase = .signedOut
                     } else {
                         verify()
@@ -106,6 +103,15 @@
 
         /// Retries an available session or restarts the helper after startup/configuration failure.
         func retry() {
+            if pendingRemoval != nil {
+                if backend.isRunning, configuration != nil {
+                    finishRemoval()
+                } else {
+                    backend.stop()
+                    start()
+                }
+                return
+            }
             if !backend.isRunning || phase == .startupFailed || phase == .backendError {
                 backend.stop()
                 start()
@@ -122,6 +128,7 @@
         deinit {
             task?.cancel()
             revalidationTask?.cancel()
+            saveTask?.cancel()
         }
 
         /// Rechecks provider authentication while the app remains open, including after sleep.
@@ -171,6 +178,7 @@
             if !preservingIdentity {
                 phase = .checking
             }
+            let currentSaveRevision = saveRevision
             task = Task {
                 defer {
                     if currentRevision == revision {
@@ -189,6 +197,9 @@
                         let profile = try JSONDecoder().decode(AccountProfile.self, from: profileData)
                         guard !Task.isCancelled, currentRevision == revision else { return }
                         accountRefreshFailed = false
+                        if saveRevision == currentSaveRevision, !isSavingSession {
+                            sessionSaveFailed = status.persistence == .saveFailed
+                        }
                         phase = .signedIn(profile)
                     }
                 } catch {
@@ -203,9 +214,37 @@
                             accountRefreshFailed = true
                             scheduleRevalidation()
                         } else {
-                            phase = .unavailable
+                            switch error {
+                            case BackendTransport.Failure.sessionUnavailable: phase = .sessionUnavailable
+                            case BackendTransport.Failure.storageUnavailable: phase = .storageUnavailable
+                            default: phase = .unavailable
+                            }
                         }
                     }
+                }
+            }
+        }
+
+        /// Saves current helper-held authority without another browser handoff.
+        func retrySavingSession() {
+            guard case .signedIn = phase, let configuration, !isSavingSession else { return }
+            saveRevision += 1
+            let currentSaveRevision = saveRevision
+            isSavingSession = true
+            saveTask = Task {
+                defer {
+                    if saveRevision == currentSaveRevision {
+                        isSavingSession = false
+                    }
+                }
+                do {
+                    let data = try await transport.send("session/save", method: "POST", configuration: configuration)
+                    let status = try JSONDecoder().decode(SessionStatus.self, from: data)
+                    guard !Task.isCancelled, saveRevision == currentSaveRevision, case .signedIn = phase else { return }
+                    sessionSaveFailed = status.state != .signedIn || status.persistence != .saved
+                } catch {
+                    guard !Task.isCancelled, saveRevision == currentSaveRevision, case .signedIn = phase else { return }
+                    sessionSaveFailed = true
                 }
             }
         }
@@ -267,6 +306,29 @@
         /// Removes identity in every window synchronously, before contacting the backend.
         func logOut() {
             guard !isLoggingOut, case .signedIn = phase else { return }
+            pendingRemoval = .logout
+            finishRemoval()
+        }
+
+        /// Makes earlier results obsolete, retaining cancellation until durable acknowledgement.
+        func cancelLogin() {
+            guard !isLoggingOut else { return }
+            if let attempt = activeAttempt {
+                pendingRemoval = .cancellation(attempt.id)
+                finishRemoval()
+            } else {
+                revision += 1
+                task?.cancel()
+                phase = configuration == nil ? .starting : .signedOut
+            }
+        }
+
+        /// Persists credential-free intent before any helper request and replays it after restart.
+        private func finishRemoval() {
+            if case .some(.unreadable) = pendingRemoval {
+                pendingRemoval = BundledBackend.pendingRemoval ?? .unreadable
+            }
+            guard !isLoggingOut, let removal = pendingRemoval else { return }
             revision += 1
             let currentRevision = revision
             task?.cancel()
@@ -275,39 +337,34 @@
             activeAttempt = nil
             requiresSignIn = true
             isLoggingOut = true
+            isCancellingLogin = removal.isCancellation
             logoutUnconfirmed = false
             phase = .signedOut
             let oldConfiguration = configuration
+            do {
+                try BundledBackend.setRemovalPending(removal)
+            } catch {
+                isLoggingOut = false
+                phase = .logoutFailed
+                return
+            }
             task = Task {
                 do {
                     guard let oldConfiguration else { throw BackendTransport.Failure.unavailable }
-                    let data = try await transport.send("logout", method: "POST", configuration: oldConfiguration)
-                    let result = try JSONDecoder().decode(LogoutResult.self, from: data)
+                    let unconfirmed = try await removal.perform(using: transport, configuration: oldConfiguration)
                     guard !Task.isCancelled, revision == currentRevision else { return }
-                    logoutUnconfirmed = result.revocation != .confirmed
+                    try BundledBackend.setRemovalPending(nil)
+                    pendingRemoval = nil
+                    logoutUnconfirmed = unconfirmed
                     isLoggingOut = false
+                    isCancellingLogin = false
                 } catch {
                     guard !Task.isCancelled, revision == currentRevision else { return }
-                    logoutUnconfirmed = true
-                    // An unreachable helper may still hold the old token. Destroy its
-                    // authority before accepting another session check or login.
                     configuration = nil
                     backend.stop()
                     isLoggingOut = false
-                    start()
+                    phase = .logoutFailed
                 }
-            }
-        }
-
-        /// Makes earlier browser/profile results obsolete immediately, then revokes the server attempt.
-        func cancelLogin() {
-            revision += 1
-            task?.cancel()
-            let oldAttempt = activeAttempt
-            activeAttempt = nil
-            phase = configuration == nil ? .starting : .signedOut
-            if let oldAttempt, let configuration {
-                Task { _ = try? await transport.send("login/\(oldAttempt.id)", method: "DELETE", configuration: configuration) }
             }
         }
 
@@ -325,6 +382,7 @@
                     guard let profile = result.profile else { throw BackendTransport.Failure.failed }
                     activeAttempt = nil
                     requiresSignIn = false
+                    sessionSaveFailed = result.persistence == .saveFailed
                     phase = .signedIn(profile)
                     return
                 case .failed, .expired:
@@ -334,7 +392,6 @@
                 }
             }
             cancelLogin()
-            phase = .loginFailed
         }
 
         /// Maps login errors to an actionable state without displaying server diagnostics.
@@ -355,7 +412,6 @@
                 phase = .backendError
             case BackendTransport.Failure.failed:
                 cancelLogin()
-                phase = .loginFailed
             default:
                 phase = .loginUnavailable
             }

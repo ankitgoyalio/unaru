@@ -22,6 +22,17 @@
         private var responseBody: String?
         private var responseLocation: String?
         private var requestCount = 0
+        private var paths: [String] = []
+        private var persistence: String?
+
+        var requestedPaths: [String] {
+            lock.withLock { paths }
+        }
+
+        func usePersistence(_ value: String?) {
+            lock.withLock { persistence = value }
+        }
+
         private var completedCount = 0
         private var loginResult = "pending"
         private var handoffs = 0
@@ -183,6 +194,7 @@
                 let path = lines[0].split(separator: " ").dropFirst().first.map(String.init) ?? ""
                 let (configuredStatus, hold, configuredBody, location, signedIn) = lock.withLock {
                     requestCount += 1
+                    paths.append(path)
                     if path == "/profile" {
                         profileRequests += 1
                     }
@@ -192,6 +204,7 @@
                 }
                 let authorized = lines.contains { $0.lowercased() == "authorization: bearer ui-test-token" }
                 let status = authorized ? configuredStatus : 401
+                let persistenceField = lock.withLock { persistence.map { ",\"persistence\":\"\($0)\"" } ?? "" }
                 let body: String
                 if path == "/logout", text.hasPrefix("POST") {
                     lock.withLock {
@@ -220,8 +233,9 @@
                     body = "{}"
                 } else if path.hasPrefix("/login/ui-attempt-"), text.hasPrefix("DELETE") {
                     lock.withLock {
-                        if path == "/login/ui-attempt-\(attemptNumber)" {
+                        if path == "/login/ui-attempt-\(attemptNumber)", status == 200 {
                             loginResult = "failed"
+                            authenticated = false
                         }
                     }
                     body = "{}"
@@ -231,13 +245,13 @@
                     }
                     let avatarField = avatar.map { ",\"avatarURL\":\"\($0)\"" } ?? ""
                     body = configuredBody ?? (result == "signedIn"
-                        ? "{\"state\":\"signedIn\",\"profile\":\(accountProfile(avatarField: avatarField))}"
+                        ? "{\"state\":\"signedIn\",\"profile\":\(accountProfile(avatarField: avatarField))\(persistenceField)}"
                         : "{\"state\":\"\(result)\"}")
                 } else if path == "/profile" {
                     let avatarField = lock.withLock { avatar.map { ",\"avatarURL\":\"\($0)\"" } ?? "" }
                     body = configuredBody ?? accountProfile(avatarField: avatarField)
                 } else {
-                    body = configuredBody ?? (status == 200 ? "{\"state\":\"\(signedIn ? "signedIn" : "signedOut")\"}" : "{}")
+                    body = configuredBody ?? (status == 200 ? "{\"state\":\"\(signedIn ? "signedIn" : "signedOut")\"\(persistenceField)}" : "{}")
                 }
                 let locationHeader = location.map { "Location: \($0)\r\n" } ?? ""
                 let response = "HTTP/1.1 \(status) Response\r\n\(locationHeader)Content-Type: application/json\r\nCache-Control: no-store\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
