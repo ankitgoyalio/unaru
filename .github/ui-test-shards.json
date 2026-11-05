@@ -12,7 +12,8 @@
       "testSaveFailureKeepsAccountUsableAndRetryClearsWarning",
       "testPortfolioRefreshRetainsStaleRowsAndRetriesWithoutLogin",
       "testPositionsLoadingRecoveryAndEmptyRemainSeparateFromHoldings",
-      "testPositionsRelaunchFetchesNewDataWithoutAnotherBrowserLogin"
+      "testPositionsRelaunchFetchesNewDataWithoutAnotherBrowserLogin",
+      "testFundsNavigationShowsSegmentBalancesAndKeyboardInspection"
     ],
     "measured_case_seconds": 148.635
   },
@@ -27,7 +28,8 @@
       "testAccountSheetDistinguishesMissingAndEmptyDetails",
       "testKiteBrowserCompletionShowsAccountButton",
       "testPortfolioRejectsSupersededSuccessAndFailure",
-      "testPositionsRejectSupersededSuccessAndFailure"
+      "testPositionsRejectSupersededSuccessAndFailure",
+      "testFundsRejectsSupersededSuccessAndFailure"
     ],
     "measured_case_seconds": 149.916
   },
@@ -44,7 +46,9 @@
       "testTemporaryServerFailureOffersRetry",
       "testLateSaveResponseCannotClearNewLoginWarning",
       "testHoldingsKeyboardInspectionShowsSourceFieldsAndLimitations",
-      "testPositionsAuthorityRemovalClearsEveryWindowAndRejectsOldAccount"
+      "testPositionsAuthorityRemovalClearsEveryWindowAndRejectsOldAccount",
+      "testFundsFailureIsIndependentAndRetryRetainsStaleBalances",
+      "testFundsRelaunchLoadsFreshBalancesWithoutBrowserLogin"
     ],
     "measured_case_seconds": 150.032
   },
@@ -62,7 +66,9 @@
       "testPortfolioDefaultsToOverviewAndLoadsHoldings",
       "testPortfolioAuthorityRemovalClearsWindowsAndRejectsOldResponses",
       "testPortfolioRelaunchLoadsFreshSourceWithoutBrowserSignIn",
-      "testPositionsGroupsNetExposureAndInspectsBrokerDetailsWithKeyboard"
+      "testPositionsGroupsNetExposureAndInspectsBrokerDetailsWithKeyboard",
+      "testFundsLoadingDisabledAndAbsentSegmentsAreDistinct",
+      "testFundsAuthorityRemovalClearsWindowsAndRejectsOldResponses"
     ],
     "measured_case_seconds": 87.204
   }

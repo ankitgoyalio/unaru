@@ -31,7 +31,7 @@
             app.typeKey(.upArrow, modifierFlags: [])
             XCTAssertTrue(app.staticTexts["Portfolio Overview"].waitForExistence(timeout: 5))
             XCTAssertTrue(app.staticTexts["Positions"].exists)
-            XCTAssertFalse(app.staticTexts["Funds"].exists)
+            XCTAssertTrue(app.staticTexts["Funds"].exists)
         }
 
         func testHoldingsKeyboardInspectionShowsSourceFieldsAndLimitations() throws {

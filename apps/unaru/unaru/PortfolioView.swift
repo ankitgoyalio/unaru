@@ -16,6 +16,8 @@
         case holdings
         /// Trading exposure stays separate from investment holdings.
         case positions
+        /// Keeps trading balances separate from investment analysis.
+        case funds
     }
 
     /// Native source status and navigation, with no combined investment total in this slice.

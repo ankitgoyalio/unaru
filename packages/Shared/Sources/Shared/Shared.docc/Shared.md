@@ -49,6 +49,11 @@ positions, with retrieval time separate from the unavailable market-price date.
 P&L, and supporting buy/sell fields. Its `state` groups nonzero quantities as current
 and zero quantities as closed. These values do not contribute to holdings returns.
 
+``TradingFunds`` describes a successful trading-funds read. ``TradingFundsSegment``
+preserves enabled state, net availability, total utilisation, and whitelisted components
+without combining overlapping balances. These balances remain separate from holdings
+value and returns. A disabled segment is not a source failure.
+
 ## Topics
 
 ### Scaffold
@@ -74,6 +79,11 @@ and zero quantities as closed. These values do not contribute to holdings return
 
 - ``NetPositions``
 - ``TradingPosition``
+
+### Trading funds
+
+- ``TradingFunds``
+- ``TradingFundsSegment``
 
 ### Connection pairing
 

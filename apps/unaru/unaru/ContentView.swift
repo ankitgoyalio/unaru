@@ -53,6 +53,8 @@ struct ContentView: View {
                                     .tag(PortfolioDestination.holdings)
                                 Label("Positions", systemImage: "arrow.left.arrow.right")
                                     .tag(PortfolioDestination.positions)
+                                Label("Funds", systemImage: "banknote")
+                                    .tag(PortfolioDestination.funds)
                             } label: {
                                 Label("Portfolio", systemImage: "briefcase")
                             }
@@ -88,6 +90,8 @@ struct ContentView: View {
                         if case .signedIn = connection.phase {
                             if destination == .positions {
                                 PositionsView(store: connection.positions)
+                            } else if destination == .funds {
+                                FundsView(store: connection.funds)
                             } else {
                                 PortfolioView(destination: $destination, store: connection.portfolio)
                             }

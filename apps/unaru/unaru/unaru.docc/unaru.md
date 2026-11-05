@@ -78,6 +78,19 @@ holdings and valid Kite authority. A failed refresh retains positions with a sta
 notice. Authority removal clears positions and inspection across every window, and
 obsolete successes or failures cannot replace newer source data or authority.
 
+The Funds child opens ``FundsView``. ``FundsStore`` shares balances across windows in
+memory and refreshes independently of holdings. Each enabled segment shows Kite's net
+availability and total utilisation. Disabled or absent segments have explicit labels,
+without invented zero availability. Native inspection sheets expose broker components
+and explain their overlap. Funds never contribute to holdings performance or wealth.
+
+Opening Funds or choosing Refresh Portfolio retrieves fresh balances. Retry Funds
+recovers only this source. Initial loading, successful empty data, disabled segments,
+retrieval time, failed retrieval, and stale balances remain distinct. Logout or confirmed
+expiry clears balances across windows and dismisses inspection. Obsolete success and
+failure cannot restore old balances or invalidate newer authority. Relaunch performs a
+fresh read rather than restoring saved portfolio data.
+
 ## Topics
 
 ### Application and content

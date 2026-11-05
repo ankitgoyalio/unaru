@@ -62,6 +62,9 @@ actor KiteLogin {
     /// Superseded portfolio responses cannot publish or remove authority.
     private var holdingsRequestID: UUID?
 
+    /// Funds responses are superseded independently of other reads.
+    private var fundsRequestID: UUID?
+
     /// Positions supersede only older positions reads, independently of holdings.
     private var positionsRequestID: UUID?
 
@@ -262,6 +265,29 @@ actor KiteLogin {
         }
     }
 
+    /// Reads trading funds through the pinned SDK, checking authority after every suspension.
+    func funds() async throws -> TradingFunds {
+        try await restore()
+        guard let client = authenticated else { throw Abort(.unauthorized) }
+        let requestID = UUID()
+        fundsRequestID = requestID
+        do {
+            let rows = try await client.margins()
+            guard authenticated === client, fundsRequestID == requestID else { throw CancellationError() }
+            try Task.checkCancellation()
+            return TradingFunds(segments: TradingFundsSource.normalize(rows), retrievedAt: now())
+        } catch {
+            guard authenticated === client, fundsRequestID == requestID else {
+                throw Abort(.serviceUnavailable, reason: "Funds request was superseded.")
+            }
+            if Self.isAuthenticationRejection(error) {
+                try removeAuthority()
+                throw Abort(.unauthorized)
+            }
+            throw RecoveryFailure(code: .portfolioUnavailable)
+        }
+    }
+
     /// Reports only whether a completed backend-held session exists.
     func session() async throws -> SessionStatus {
         try await restore()
@@ -384,22 +410,6 @@ actor KiteLogin {
             return problem.errorType == "TokenException"
         }
         return false
-    }
-
-    /// Restricts avatar requests to public HTTPS addresses without credentials or query data.
-    private static func identity(_ profile: KiteUserProfile) -> AccountProfile {
-        let url = profile.avatarURL.flatMap(URL.init(string:))
-        let safe = url.flatMap { url -> URL? in
-            guard url.scheme == "https", url.host != nil, url.user == nil, url.password == nil,
-                  url.query == nil, url.fragment == nil else { return nil }
-            return url
-        }
-        return AccountProfile(
-            name: profile.userName, userID: profile.userID, avatarURL: safe,
-            email: profile.email, broker: profile.broker, accountType: profile.userType,
-            exchanges: profile.exchanges.map(\.rawValue), products: profile.products.map(\.rawValue),
-            orderTypes: profile.orderTypes.map(\.rawValue),
-        )
     }
 
     /// In-memory attempt data, discarded on restart or replacement.
