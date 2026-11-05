@@ -20,6 +20,8 @@ struct ContentView: View {
         @State private var destination: PortfolioDestination? = .portfolio
         /// Keeps the selectable Portfolio parent expanded initially.
         @State private var portfolioExpanded = true
+        /// Keeps native row navigation in the sidebar when a destination replaces the detail.
+        @FocusState private var sidebarFocused: Bool
     #endif
 
     /// The current platform's initial content.
@@ -67,6 +69,8 @@ struct ContentView: View {
                             .tag(PortfolioDestination.portfolio)
                         }
                         .listStyle(.sidebar)
+                        .focused($sidebarFocused)
+                        .onChange(of: destination) { _, _ in sidebarFocused = true }
                         AccountFooter(profile: profile)
                     } else {
                         Spacer(minLength: 0)

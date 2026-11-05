@@ -54,8 +54,9 @@ iOS and visionOS retain their initial content and deployment targets.
 Each window opens Portfolio after sign-in or a change of account authority. Sign-out and
 session expiry reset the destination. Routine profile revalidation of the same account
 preserves each window's selection. Selecting the Portfolio label opens the overview. Its
-disclosure triangle expands or collapses Holdings, Positions, and Funds. The Holdings child
-lists securities and mutual funds reported by Kite in one native table. Search matches source names and symbols
+disclosure triangle expands or collapses Holdings, Positions, and Funds. Destination changes
+focus the native sidebar so arrow keys continue selecting rows after the detail changes.
+The Holdings child lists securities and mutual funds reported by Kite in one native table. Search matches source names and symbols
 without merging records. Investment Type filters the same list by Mutual Funds or Unknown.
 Unknown preserves securities whose source supplies no verified asset classification.
 A search or filter with no matches has its own state and reset action. Current Value,
