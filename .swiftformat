@@ -5,9 +5,8 @@
 --allman false
 --commas always
 --self remove
---header "//\n//  {file}\n//  unaru\n//\n//  Created by {author.name} on {created}."
---date-format dmy
---timezone utc
+# Scripts/format-swift.py owns header generation and validation.
+--header ignore
 --exclude **/DocumentationExamples.swift,.build,**/.build,.scratch,Vendor,vendor,**/Generated/**,**/generated/**,**/*.generated.swift,**/*.g.swift
 --blank-line-after-switch-case "always"
 --line-between-guards "true"
