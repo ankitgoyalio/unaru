@@ -28,8 +28,19 @@
             app.staticTexts["Holdings"].firstMatch.click()
             XCTAssertTrue(app.staticTexts["Securities Holdings"].waitForExistence(timeout: 5))
             backend.respond(path: "/portfolio/holdings", status: 200, body: #"{"holdings":[],"retrievedAt":815000001}"#)
-            // Keep keyboard navigation in the sidebar after the detail controls finish loading.
-            app.staticTexts["Holdings"].firstMatch.click()
+            let sidebar = app.outlines["Sidebar"]
+            sidebar.buttons["Portfolio"].click()
+            XCTAssertTrue(app.staticTexts["Portfolio Overview"].waitForExistence(timeout: 5))
+            XCTAssertTrue(sidebar.staticTexts["Holdings"].exists)
+            XCTAssertTrue(sidebar.staticTexts["Positions"].exists)
+            XCTAssertTrue(sidebar.staticTexts["Funds"].exists)
+            sidebar.disclosureTriangles.firstMatch.click()
+            XCTAssertTrue(sidebar.staticTexts["Holdings"].waitForNonExistence(timeout: 5))
+            XCTAssertTrue(app.staticTexts["Portfolio Overview"].exists)
+            sidebar.disclosureTriangles.firstMatch.click()
+            XCTAssertTrue(sidebar.staticTexts["Holdings"].waitForExistence(timeout: 5))
+            // Focus the native child row before checking keyboard selection of its parent.
+            sidebar.staticTexts["Holdings"].click()
             app.typeKey(.upArrow, modifierFlags: [])
             XCTAssertTrue(app.staticTexts["Portfolio Overview"].waitForExistence(timeout: 5))
             XCTAssertTrue(app.staticTexts["Positions"].exists)

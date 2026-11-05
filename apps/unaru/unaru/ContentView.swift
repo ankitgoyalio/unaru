@@ -60,7 +60,9 @@ struct ContentView: View {
                                 Label("Funds", systemImage: "banknote")
                                     .tag(PortfolioDestination.funds)
                             } label: {
-                                Label("Portfolio", systemImage: "briefcase")
+                                NavigationLink(value: PortfolioDestination.portfolio) {
+                                    Label("Portfolio", systemImage: "briefcase")
+                                }
                             }
                             .tag(PortfolioDestination.portfolio)
                         }
