@@ -164,6 +164,19 @@ sources have succeeded. Positions and Funds failures affect only their supportin
 source. Retrieval times remain separate from market-price and NAV dates. Separate
 source reads do not establish an atomic account snapshot.
 
+## Portfolio examples
+
+These screens use sample account data. The overview identifies separate value, cost,
+and return coverage. Holding details retain unavailable calculations when the source
+cannot support them.
+
+@Image(source: "portfolio-overview.png", alt: "Portfolio overview with invested cost, current value, unrealised gain and return, and separate coverage counts.")
+
+Holdings lists securities and mutual funds together. Search, type filters, and sorting
+use the current in-memory snapshot. This example uses Dark appearance.
+
+@Image(source: "portfolio-holdings.png", alt: "Holdings in Dark appearance with search, type filters, current-value sorting, and unavailable acquisition cost and return for a transferred fund.")
+
 ## Topics
 
 ### Application and content
