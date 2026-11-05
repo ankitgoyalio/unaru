@@ -72,6 +72,19 @@ func routes(
         }
         return response
     }
+    protected.get("portfolio", "holdings") { _ async throws -> Response in
+        let response = Response(status: .ok)
+        do {
+            try await response.content.encode(login.holdings(), using: JSONEncoder())
+        } catch let error as KiteLogin.RecoveryFailure {
+            response.status = .serviceUnavailable
+            try response.content.encode(ConnectionProblem(code: error.code), as: .json)
+        } catch let error as any AbortError where error.status == .unauthorized {
+            response.status = .unauthorized
+            try response.content.encode(ConnectionProblem(code: .kiteSignInRequired), as: .json)
+        }
+        return response
+    }
     app.get("kite", "callback") { request async -> Response in
         let response: Response
         do {

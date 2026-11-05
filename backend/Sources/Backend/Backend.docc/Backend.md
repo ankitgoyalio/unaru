@@ -40,6 +40,27 @@ Keep Kite's API secret and token exchange on the backend. The backend owns broke
 credential storage, login correlation, and app authorization. KiteConnect supplies the
 broker protocol implementation.
 
+### Securities holdings contract
+
+`GET /portfolio/holdings` requires app authorization and a validated Kite session.
+The real pinned SDK reads Kite's securities holdings. ``SecuritiesHoldingSource`` maps
+only supported inspection fields into Shared `SecuritiesHoldings`; arbitrary provider
+metadata and credentials never enter the response. Foundation Codable dates use
+seconds since 2001. Retrieval time records when the helper obtained the response.
+The source provides no security name, investment classification, or price valuation date.
+
+Every source row remains visible, including potentially overlapping records and
+nonpositive prices. Ordinary, T1, used, collateral, and MTF fields remain separate.
+Used quantity is not subtracted again. Pledge and MTF relationships are not inferred,
+and this operation calculates no combined investment total.
+
+A successful empty source returns HTTP 200 with an empty `holdings` array. Temporary
+provider failures return HTTP 503 with `portfolioUnavailable` and preserve the session.
+Missing Kite authority or confirmed `TokenException` returns HTTP 401 with
+`kiteSignInRequired`. Missing app authorization is rejected before the operation runs.
+An obsolete response after authority removal or a newer holdings read returns no old
+data and cannot invalidate newer authority. Authorized responses use `Cache-Control: no-store`.
+
 ### Environment configuration
 
 ``Entrypoint`` uses Vapor's automatic dotenv loading before configuring logging and

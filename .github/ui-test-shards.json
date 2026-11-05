@@ -9,7 +9,8 @@
       "testRelaunchValidatesBeforeRestoringIdentityWithoutBrowserLogin",
       "testBundledBackendStartsWithoutConnectionSetupAndRelaunches",
       "testBackendConfigurationFailureDoesNotAskForKiteSignIn",
-      "testSaveFailureKeepsAccountUsableAndRetryClearsWarning"
+      "testSaveFailureKeepsAccountUsableAndRetryClearsWarning",
+      "testPortfolioRefreshRetainsStaleRowsAndRetriesWithoutLogin"
     ],
     "measured_case_seconds": 148.635
   },
@@ -22,7 +23,8 @@
       "testRevokedSessionOnLaunchOffersKiteLoginInsteadOfConnectionSettings",
       "testRejectedInternalAuthorizationCanRetryWithoutSettings",
       "testAccountSheetDistinguishesMissingAndEmptyDetails",
-      "testKiteBrowserCompletionShowsAccountButton"
+      "testKiteBrowserCompletionShowsAccountButton",
+      "testPortfolioRejectsSupersededSuccessAndFailure"
     ],
     "measured_case_seconds": 149.916
   },
@@ -37,7 +39,8 @@
       "testConnectionFailureCanRetryWithoutRepeatingSetup",
       "testTemporaryLoginFailureRetriesCompletionWithoutAnotherBrowserHandoff",
       "testTemporaryServerFailureOffersRetry",
-      "testLateSaveResponseCannotClearNewLoginWarning"
+      "testLateSaveResponseCannotClearNewLoginWarning",
+      "testHoldingsKeyboardInspectionShowsSourceFieldsAndLimitations"
     ],
     "measured_case_seconds": 150.032
   },
@@ -51,7 +54,10 @@
       "testRedirectDoesNotForwardConnectionCredentials",
       "testUnfinishedLogoutSurvivesRelaunchBeforeAnySessionRestore",
       "testSavedSessionRecoveryRetriesWithoutRevealingIdentityOrOpeningBrowser",
-      "testUnfinishedCancellationSurvivesRelaunchAndRejectsDelayedIdentity"
+      "testUnfinishedCancellationSurvivesRelaunchAndRejectsDelayedIdentity",
+      "testPortfolioDefaultsToOverviewAndLoadsHoldings",
+      "testPortfolioAuthorityRemovalClearsWindowsAndRejectsOldResponses",
+      "testPortfolioRelaunchLoadsFreshSourceWithoutBrowserSignIn"
     ],
     "measured_case_seconds": 87.204
   }

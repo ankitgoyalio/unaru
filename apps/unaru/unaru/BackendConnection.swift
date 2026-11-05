@@ -17,6 +17,7 @@
         @Published private(set) var phase: Phase = .starting {
             didSet {
                 if case .signedIn = phase {} else {
+                    portfolio.clear()
                     isRefreshingAccount = false
                     accountRefreshFailed = false
                     saveRevision += 1
@@ -25,6 +26,17 @@
                     sessionSaveFailed = false
                 }
                 scheduleRevalidation()
+            }
+        }
+
+        /// Holdings are shared in memory by all windows.
+        let portfolio = PortfolioStore()
+
+        /// Loads through the existing connection without disturbing account refresh work.
+        func refreshPortfolio() {
+            guard case .signedIn = phase, let configuration else { return }
+            portfolio.refresh(transport: transport, configuration: configuration) { [weak self] failure in
+                self?.phase = failure == .signedOut ? .signedOut : .startupFailed
             }
         }
 

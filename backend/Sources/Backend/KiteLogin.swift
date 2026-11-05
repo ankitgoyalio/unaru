@@ -59,6 +59,8 @@ actor KiteLogin {
     private var authenticated: KiteClient?
     /// Only the latest authenticated profile read may publish identity or reject the session.
     private var profileRequestID: UUID?
+    /// Superseded portfolio responses cannot publish or remove authority.
+    private var holdingsRequestID: UUID?
 
     /// Creates an installation with production transport unless tests supply HTTP responses.
     init(
@@ -209,6 +211,29 @@ actor KiteLogin {
             throw Abort(.unauthorized, reason: "Kite sign-in required.")
         }
         return Self.identity(profile)
+    }
+
+    /// Reads securities through the pinned SDK, checking authority after every suspension.
+    func holdings() async throws -> SecuritiesHoldings {
+        try await restore()
+        guard let client = authenticated else { throw Abort(.unauthorized) }
+        let requestID = UUID()
+        holdingsRequestID = requestID
+        do {
+            let rows = try await client.holdings()
+            guard authenticated === client, holdingsRequestID == requestID else { throw CancellationError() }
+            try Task.checkCancellation()
+            return SecuritiesHoldings(holdings: SecuritiesHoldingSource.normalize(rows), retrievedAt: now())
+        } catch {
+            guard authenticated === client, holdingsRequestID == requestID else {
+                throw Abort(.serviceUnavailable, reason: "Holdings request was superseded.")
+            }
+            if Self.isAuthenticationRejection(error) {
+                try removeAuthority()
+                throw Abort(.unauthorized)
+            }
+            throw RecoveryFailure(code: .portfolioUnavailable)
+        }
     }
 
     /// Reports only whether a completed backend-held session exists.

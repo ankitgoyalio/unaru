@@ -13,6 +13,14 @@ struct unaruApp: App {
         /// One shared backend connection across app windows.
         @StateObject private var connection = BackendConnection()
 
+        /// Refresh belongs to the validated account shared across windows.
+        private var isSignedIn: Bool {
+            if case .signedIn = connection.phase {
+                return true
+            }
+            return false
+        }
+
         /// Forces deterministic appearance only for Debug UI tests with isolated storage.
         private var testColorScheme: ColorScheme? {
             #if DEBUG
@@ -37,7 +45,14 @@ struct unaruApp: App {
                     .environmentObject(connection)
                     .preferredColorScheme(testColorScheme)
             }
-            .commands { SidebarCommands() }
+            .commands {
+                SidebarCommands()
+                CommandGroup(after: .sidebar) {
+                    Button("Refresh Portfolio") { connection.refreshPortfolio() }
+                        .keyboardShortcut("r", modifiers: .command)
+                        .disabled(!isSignedIn)
+                }
+            }
         #else
             WindowGroup {
                 ContentView()

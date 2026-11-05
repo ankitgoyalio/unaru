@@ -35,6 +35,14 @@ The following example compiles as a Swift Testing test body:
 hello()
 ```
 
+``SecuritiesHoldings`` represents a successful securities-source read, including an
+empty result. It preserves retrieval time separately from the optional price valuation
+date. ``SecurityHolding`` retains each source row and its limitations, including unknown
+classification, unusable prices, and potential overlap. ``HoldingMTF`` keeps financing
+fields separate from ordinary inventory. These contracts expose no broker credentials
+or combined investment total. HTTP 503 with `portfolioUnavailable` permits retrying the
+source without another sign-in.
+
 ## Topics
 
 ### Scaffold
@@ -49,6 +57,12 @@ hello()
 - ``LoginAttempt``
 - ``LoginStatus``
 - ``AccountProfile``
+
+### Securities holdings
+
+- ``SecuritiesHoldings``
+- ``SecurityHolding``
+- ``HoldingMTF``
 
 ### Connection pairing
 

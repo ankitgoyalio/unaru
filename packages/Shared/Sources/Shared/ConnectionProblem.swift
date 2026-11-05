@@ -16,6 +16,8 @@ public struct ConnectionProblem: Codable, Sendable {
         case kiteSessionUnavailable
         /// Secure storage could not be read; absence or token invalidity is not established.
         case sessionStorageUnavailable
+        /// A portfolio source can be retried without another Kite sign-in.
+        case portfolioUnavailable
     }
 
     /// The corrective category without credential values.

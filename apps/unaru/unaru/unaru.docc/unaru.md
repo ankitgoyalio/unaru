@@ -51,6 +51,21 @@ provider revocation after successful local removal.
 
 iOS and visionOS retain their initial content and deployment targets.
 
+The initial signed-in destination is Portfolio. Its Holdings child lists each security
+reported by Kite in a native table. Return opens inspection for the selected row.
+Inspection separates ordinary inventory, prices, financing, and source limitations.
+The account control remains in the sidebar footer. This source contains securities,
+not mutual fund holdings, trading positions, or a combined investment total.
+
+``PortfolioStore`` shares fetched holdings across windows in memory. Opening Portfolio
+and Refresh Portfolio fetch the source. The toolbar and menu offer Refresh Portfolio
+with Command-R. Initial loading, an empty source, retrieval time, missing price date,
+and read failures have separate visible states. Retry preserves the valid Kite session.
+A failed refresh retains previous rows with a stale notice. Authority removal clears
+holdings across every window. Obsolete success and failure cannot restore old rows or
+invalidate a newer session. App relaunch fetches holdings again without restoring a
+portfolio snapshot.
+
 ## Topics
 
 ### Application and content
