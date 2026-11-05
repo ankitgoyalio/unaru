@@ -28,7 +28,7 @@ class RealSwiftFormatTests(unittest.TestCase):
         cls.helper = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cls.helper)
 
-    def test_snapshot_keeps_history_and_new_file_identity_in_a_worktree(self):
+    def test_snapshot_keeps_recorded_headers_and_partial_staging_in_a_worktree(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory) / "repo"
             worktree = Path(directory) / "worktree"
@@ -46,8 +46,12 @@ class RealSwiftFormatTests(unittest.TestCase):
             git("config", "user.email", "original@example.invalid")
             git("config", "core.hooksPath", "/dev/null")
             shutil.copy2(ROOT / ".swiftformat", repo / ".swiftformat")
+            (repo / "Scripts").mkdir()
+            for name in ("format-swift.py", "swift_headers.py"):
+                shutil.copy2(ROOT / "Scripts" / name, repo / "Scripts" / name)
             old = repo / "old.swift"
-            old.write_text("let value = 1\n")
+            old.write_text("//\n//  old.swift\n//  unaru\n//\n"
+                           "//  Created by Original Author on 02/01/2020.\n\nlet value = 1\n")
             git("add", ".")
             with patch.dict(env, {"GIT_AUTHOR_DATE": "2020-01-02T12:00:00Z",
                                   "GIT_COMMITTER_DATE": "2020-01-02T12:00:00Z"}):
@@ -60,9 +64,9 @@ class RealSwiftFormatTests(unittest.TestCase):
                 path.parent.mkdir(exist_ok=True)
                 if name != "old.swift":
                     path.write_text("let value = 1\n")
-                subprocess.run([str(self.binary), str(path), "--config",
-                                str(worktree / ".swiftformat"), "--cache", "ignore"],
-                               cwd=worktree, env=env, capture_output=True, check=True)
+                formatted = subprocess.run(["python3", "Scripts/format-swift.py", str(path)],
+                                           cwd=worktree, env=env, capture_output=True)
+                self.assertEqual(formatted.returncode, 0, formatted.stderr)
             self.assertIn("Created by Original Author on 02/01/2020.",
                           (worktree / "old.swift").read_text())
             self.assertIn("Created by Current Author on",

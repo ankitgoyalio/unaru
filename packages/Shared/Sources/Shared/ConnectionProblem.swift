@@ -1,3 +1,9 @@
+//
+//  ConnectionProblem.swift
+//  unaru
+//
+//  Created by Ankit Goyal on 01/11/2026.
+
 /// A machine-readable recovery category without credential or provider diagnostics.
 public struct ConnectionProblem: Codable, Sendable {
     /// The supported recovery codes.
