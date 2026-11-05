@@ -37,35 +37,35 @@
                         HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true,
                                                allocationPercent: allocationIsCurrent ? analysis?.allocationPercent : nil)
                         GroupBox("Identity and Source") {
-                            fields {
-                                field("Symbol", holding.symbol)
-                                field("Name", holding.name.flatMap { $0.isEmpty ? nil : $0 } ?? "Name unavailable")
-                                field("Investment type", "Unknown investment type")
-                                field("Exchange", holding.exchange)
-                                field("ISIN", holding.isin.isEmpty ? "Unavailable" : holding.isin)
-                                field("Instrument token", String(holding.instrumentToken))
-                                field("Product", holding.product)
-                                field("Source", "Kite securities holdings")
-                                field("Source row", holding.id)
+                            inspectionFields {
+                                inspectionField("Symbol", holding.symbol)
+                                inspectionField("Name", holding.name.flatMap { $0.isEmpty ? nil : $0 } ?? "Name unavailable")
+                                inspectionField("Investment type", "Unknown investment type")
+                                inspectionField("Exchange", holding.exchange)
+                                inspectionField("ISIN", holding.isin.isEmpty ? "Unavailable" : holding.isin)
+                                inspectionField("Instrument token", String(holding.instrumentToken))
+                                inspectionField("Product", holding.product)
+                                inspectionField("Source", "Kite securities holdings")
+                                inspectionField("Source row", holding.id)
                             }
                         }
                         GroupBox("Quantities — Broker Reported") {
-                            fields {
-                                field("Ordinary quantity (Kite)", String(holding.quantity))
-                                field("T1 quantity", String(holding.t1Quantity))
-                                field("Realised quantity", String(holding.realisedQuantity))
-                                field("Opening quantity", String(holding.openingQuantity))
-                                field("Used quantity", holding.usedQuantity.map(String.init) ?? "Unavailable")
-                                field("Authorised quantity", String(holding.authorisedQuantity))
-                                field("Short quantity", holding.shortQuantity.map(String.init) ?? "Unavailable")
-                                field("Collateral quantity", String(holding.collateralQuantity))
-                                field("Collateral type", holding.collateralType.flatMap { $0.isEmpty ? nil : $0 } ?? "Unavailable")
+                            inspectionFields {
+                                inspectionField("Ordinary quantity (Kite)", String(holding.quantity))
+                                inspectionField("T1 quantity", String(holding.t1Quantity))
+                                inspectionField("Realised quantity", String(holding.realisedQuantity))
+                                inspectionField("Opening quantity", String(holding.openingQuantity))
+                                inspectionField("Used quantity", holding.usedQuantity.map(String.init) ?? "Unavailable")
+                                inspectionField("Authorised quantity", String(holding.authorisedQuantity))
+                                inspectionField("Short quantity", holding.shortQuantity.map(String.init) ?? "Unavailable")
+                                inspectionField("Collateral quantity", String(holding.collateralQuantity))
+                                inspectionField("Collateral type", holding.collateralType.flatMap { $0.isEmpty ? nil : $0 } ?? "Unavailable")
                             }
                         }
                         GroupBox("Prices") {
-                            fields {
-                                field("Average acquisition price", usablePrice(holding.averagePrice))
-                                field("Market price", usablePrice(holding.lastPrice))
+                            inspectionFields {
+                                inspectionField("Average acquisition price", usablePrice(holding.averagePrice))
+                                inspectionField("Market price", usablePrice(holding.lastPrice))
                                 LabeledContent("Price valuation date") {
                                     Text(valuationDate ?? "Unavailable").accessibilityIdentifier("Holding valuation date")
                                 }
@@ -73,21 +73,21 @@
                                     Text("Price valuation date unavailable").foregroundStyle(.secondary)
                                 }
                                 if holding.averagePrice <= 0 {
-                                    field("Reported acquisition price", reportedDecimal(holding.averagePrice))
+                                    inspectionField("Reported acquisition price", reportedDecimal(holding.averagePrice))
                                 }
                                 if holding.lastPrice <= 0 {
-                                    field("Reported market price", reportedDecimal(holding.lastPrice))
+                                    inspectionField("Reported market price", reportedDecimal(holding.lastPrice))
                                 }
                             }
                         }
                         if let mtf = holding.mtf {
                             GroupBox("MTF — Broker Reported") {
-                                fields {
-                                    field("Financed quantity", String(mtf.quantity))
-                                    field("MTF used quantity", String(mtf.usedQuantity))
-                                    field("MTF average acquisition price", reportedDecimal(mtf.averagePrice))
-                                    field("Gross value", reportedDecimal(mtf.value))
-                                    field("Initial margin", reportedDecimal(mtf.initialMargin))
+                                inspectionFields {
+                                    inspectionField("Financed quantity", String(mtf.quantity))
+                                    inspectionField("MTF used quantity", String(mtf.usedQuantity))
+                                    inspectionField("MTF average acquisition price", reportedDecimal(mtf.averagePrice))
+                                    inspectionField("Gross value", reportedDecimal(mtf.value))
+                                    inspectionField("Initial margin", reportedDecimal(mtf.initialMargin))
                                     Text("Separate from ordinary holdings. Gross value and initial margin do not establish financing-adjusted returns.")
                                         .foregroundStyle(.secondary)
                                 }
@@ -95,7 +95,7 @@
                         }
                         if !holding.limitations.isEmpty {
                             GroupBox("Data Limitations") {
-                                fields {
+                                inspectionFields {
                                     ForEach(holding.limitations, id: \.rawValue) { limitation in
                                         Text(limitation.description)
                                     }
@@ -111,18 +111,6 @@
             }
             .padding(24)
             .frame(width: 560, height: 640)
-        }
-
-        /// Aligned native labels retain text selection and wrap long provider values.
-        private func field(_ label: String, _ value: String) -> some View {
-            LabeledContent(label) {
-                Text(value).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-            }
-        }
-
-        private func fields(@ViewBuilder content: () -> some View) -> some View {
-            VStack(alignment: .leading, spacing: 10, content: content)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(8)
         }
     }
 

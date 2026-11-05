@@ -5,6 +5,9 @@
 //  Created by Ankit Goyal on 01/11/2026.
 
 import SwiftUI
+#if os(macOS)
+    import Shared
+#endif
 
 /// Displays the native Mac shell while preserving the other platforms' initial screen.
 struct ContentView: View {
@@ -23,6 +26,7 @@ struct ContentView: View {
     var body: some View {
         #if os(macOS)
             navigation
+                .onChange(of: signedInAccountID) { _, _ in destination = .portfolio }
                 .frame(minWidth: 1024, minHeight: 794)
                 .sheet(isPresented: .constant(needsConnection)) {
                     ConnectionStatusView()
@@ -105,6 +109,14 @@ struct ContentView: View {
                     .help("Refresh portfolio sources (⌘R)")
                     .disabled(needsConnection)
             }
+        }
+
+        /// Authority transitions reset this window; profile revalidation of the same account preserves navigation.
+        private var signedInAccountID: String? {
+            if case let .signedIn(profile) = connection.phase {
+                return profile.userID
+            }
+            return nil
         }
 
         /// Connection work stays modal until the account has been verified.

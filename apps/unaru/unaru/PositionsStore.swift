@@ -18,15 +18,12 @@
         @Published private(set) var isLoading = false
         /// A failed source is different from a successful empty source.
         @Published private(set) var failed = false
-        /// Makes cancellation safe even when a transport resumes after cancellation.
-        private var revision = 0
-        /// Only this store owns positions request lifetime; closing a window does not log out.
-        private var task: Task<Void, Never>?
+        /// This source retains its own cancellation and response ordering.
+        private let request = SourceRequest()
 
         /// Discards all account-bound data before any new account can be presented.
         func clear() {
-            revision += 1
-            task?.cancel()
+            request.cancel()
             snapshot = nil
             isLoading = false
             failed = false
@@ -34,33 +31,11 @@
 
         /// Uses the existing authenticated transport, rejecting both obsolete success and failure.
         func refresh(transport: BackendTransport, configuration: (url: URL, token: String), authorityFailure: @escaping @MainActor (BackendTransport.Failure) -> Void) {
-            revision += 1
-            let currentRevision = revision
-            task?.cancel()
             isLoading = true
             failed = false
-            task = Task {
-                defer {
-                    if currentRevision == revision {
-                        isLoading = false
-                    }
-                }
-                do {
-                    let data = try await transport.send("portfolio/positions", configuration: configuration)
-                    let result = try JSONDecoder().decode(NetPositions.self, from: data)
-                    guard !Task.isCancelled, revision == currentRevision else { return }
-                    snapshot = result
-                } catch {
-                    guard !Task.isCancelled, revision == currentRevision else { return }
-                    switch error {
-                    case BackendTransport.Failure.signedOut: authorityFailure(.signedOut)
-                    case BackendTransport.Failure.configuration: authorityFailure(.configuration)
-                    default: failed = true
-                    }
-                }
-            }
+            request.load("portfolio/positions", transport: transport, configuration: configuration, authorityFailure: authorityFailure,
+                         receive: { (result: NetPositions) in self.snapshot = result },
+                         failure: { self.failed = true }, completion: { self.isLoading = false })
         }
-
-        deinit { task?.cancel() }
     }
 #endif

@@ -75,11 +75,11 @@ struct FundsTests {
             let source = try response.content.decode(TradingFunds.self, using: JSONDecoder())
             #expect(source.segments.count == 2)
             #expect(source.segments.allSatisfy { !$0.enabled })
-            #expect(source.segments[0].availableComponents == ["cash": 9000, "openingBalance": 8000,
-                                                               "liveBalance": 7000, "intradayPayin": 1000, "adhocMargin": 2000, "collateral": 3000])
-            #expect(source.segments[0].utilisedComponents == ["debits": -25, "span": 100, "exposure": 20,
-                                                              "m2mUnrealised": -30, "m2mRealised": 5, "optionPremium": 10, "holdingSales": 200,
-                                                              "liquidCollateral": 2, "delivery": 3, "stockCollateral": 4, "turnover": 0, "payout": 50])
+            #expect(source.segments[0].availableComponents == [.cash: 9000, .openingBalance: 8000,
+                                                               .liveBalance: 7000, .intradayPayin: 1000, .adhocMargin: 2000, .collateral: 3000])
+            #expect(source.segments[0].utilisedComponents == [.debits: -25, .span: 100, .exposure: 20,
+                                                              .m2mUnrealised: -30, .m2mRealised: 5, .optionPremium: 10, .holdingSales: 200,
+                                                              .liquidCollateral: 2, .delivery: 3, .stockCollateral: 4, .turnover: 0, .payout: 50])
         }
     }
 }

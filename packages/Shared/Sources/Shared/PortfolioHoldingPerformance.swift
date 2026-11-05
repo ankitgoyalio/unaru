@@ -10,7 +10,7 @@ public import Foundation
 public struct PortfolioHoldingPerformance: Codable, Sendable, Identifiable {
     /// Stable within this pair of source reads; source prefixes prevent row-ID collisions.
     public var id: String {
-        source.rawValue + ":" + sourceRowID
+        source.qualifiedID(sourceRowID)
     }
 
     /// The original holdings source; positions and funds never enter this projection.
@@ -26,6 +26,11 @@ public struct PortfolioHoldingPerformance: Codable, Sendable, Identifiable {
 
     /// Supported contributing holdings sources.
     public enum Source: String, Codable, Sendable {
+        /// Qualifies an opaque source-local identity identically in Backend and the app.
+        public func qualifiedID(_ sourceRowID: String) -> String {
+            rawValue + ":" + sourceRowID
+        }
+
         /// Exchange-traded securities, without an invented asset classification.
         case securities
         /// Mutual fund units from the separate fund holdings source.

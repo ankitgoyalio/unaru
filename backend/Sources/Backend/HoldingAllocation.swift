@@ -12,8 +12,8 @@ enum HoldingAllocation {
     /// Produces mutually exclusive source-supported groups and a stable current-value ranking.
     static func analyze(_ rows: [PortfolioHoldingPerformance], securities: SecuritiesHoldings, mutualFunds: MutualFundHoldings, currentValue: Decimal?) -> PortfolioAllocation {
         let ordinary = rows.filter { !$0.values.excludedMTFOnly }
-        let names = Dictionary(uniqueKeysWithValues: securities.holdings.map { ("securities:" + $0.id, $0.name ?? $0.symbol) }
-            + mutualFunds.holdings.map { ("mutualFunds:" + $0.id, $0.fund) })
+        let names = Dictionary(uniqueKeysWithValues: securities.holdings.map { (PortfolioHoldingPerformance.Source.securities.qualifiedID($0.id), $0.name ?? $0.symbol) }
+            + mutualFunds.holdings.map { (PortfolioHoldingPerformance.Source.mutualFunds.qualifiedID($0.id), $0.fund) })
         let ranked = ordinary.compactMap { row -> PortfolioAllocationHolding? in
             guard let value = row.values.currentValue else { return nil }
             return PortfolioAllocationHolding(source: row.source, sourceRowID: row.sourceRowID, name: names[row.id] ?? row.sourceRowID,

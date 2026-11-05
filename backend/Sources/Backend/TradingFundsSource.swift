@@ -15,16 +15,16 @@ enum TradingFundsSource {
             TradingFundsSegment(segment: segment, enabled: row.enabled, available: row.net,
                                 utilised: row.utilised.debits,
                                 availableComponents: [
-                                    "cash": row.available.cash, "openingBalance": row.available.openingBalance,
-                                    "liveBalance": row.available.liveBalance, "intradayPayin": row.available.intradayPayin,
-                                    "adhocMargin": row.available.adhocMargin, "collateral": row.available.collateral,
+                                    .cash: row.available.cash, .openingBalance: row.available.openingBalance,
+                                    .liveBalance: row.available.liveBalance, .intradayPayin: row.available.intradayPayin,
+                                    .adhocMargin: row.available.adhocMargin, .collateral: row.available.collateral,
                                 ], utilisedComponents: [
-                                    "m2mUnrealised": row.utilised.m2mUnrealised, "m2mRealised": row.utilised.m2mRealised,
-                                    "debits": row.utilised.debits, "span": row.utilised.span,
-                                    "optionPremium": row.utilised.optionPremium, "holdingSales": row.utilised.holdingSales,
-                                    "exposure": row.utilised.exposure, "liquidCollateral": row.utilised.liquidCollateral,
-                                    "delivery": row.utilised.delivery, "stockCollateral": row.utilised.stockCollateral,
-                                    "turnover": row.utilised.turnover, "payout": row.utilised.payout,
+                                    .m2mUnrealised: row.utilised.m2mUnrealised, .m2mRealised: row.utilised.m2mRealised,
+                                    .debits: row.utilised.debits, .span: row.utilised.span,
+                                    .optionPremium: row.utilised.optionPremium, .holdingSales: row.utilised.holdingSales,
+                                    .exposure: row.utilised.exposure, .liquidCollateral: row.utilised.liquidCollateral,
+                                    .delivery: row.utilised.delivery, .stockCollateral: row.utilised.stockCollateral,
+                                    .turnover: row.utilised.turnover, .payout: row.utilised.payout,
                                 ])
         }
     }

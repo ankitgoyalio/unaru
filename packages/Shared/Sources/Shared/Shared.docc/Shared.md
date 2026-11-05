@@ -52,6 +52,8 @@ and zero quantities as closed. These values do not contribute to holdings return
 preserves enabled state, net availability, total utilisation, and whitelisted components
 without combining overlapping balances. These balances remain separate from holdings
 value and returns. A disabled segment is not a source failure.
+``TradingFundsComponent`` supplies typed keys to normalization and inspection. Component
+dictionaries retain their existing JSON object keys, such as `intradayPayin`.
 
 ``MutualFundHoldings`` records a separate successful mutual fund source read and retrieval
 time. ``MutualFundHolding`` preserves fractional Decimal units, acquisition price, latest
@@ -82,6 +84,10 @@ or nonpositive denominator. Unvalued holdings remain in source and performance r
 total counts. ``HoldingInvestmentType`` supports mutual funds from the dedicated source
 and unknown securities. Exchange listing does not establish direct equity, ETF, bond,
 or underlying exposure. Each ordinary row belongs to exactly one group.
+
+``PortfolioHoldingPerformance/Source/qualifiedID(_:)`` constructs the same source-qualified
+row identity for performance, allocation, and app lookups. It preserves the opaque local
+row ID without merging holdings by symbol.
 
 ## Topics
 
@@ -124,6 +130,7 @@ or underlying exposure. Each ordinary row belongs to exactly one group.
 
 - ``TradingFunds``
 - ``TradingFundsSegment``
+- ``TradingFundsComponent``
 
 ### Mutual fund holdings
 

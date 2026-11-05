@@ -31,9 +31,9 @@ public struct TradingFundsSegment: Codable, Sendable, Identifiable {
     /// Kite's total utilised margin (`debits`), including legitimate negative or zero values.
     public let utilised: Decimal
     /// Whitelisted available-funds components using SDK property names, not additional balances.
-    public let availableComponents: [String: Decimal]
+    public let availableComponents: [TradingFundsComponent: Decimal]
     /// Whitelisted utilisation components using SDK property names, not additive investment costs.
-    public let utilisedComponents: [String: Decimal]
+    public let utilisedComponents: [TradingFundsComponent: Decimal]
     /// One row per documented provider segment.
     public var id: String {
         segment
@@ -41,7 +41,7 @@ public struct TradingFundsSegment: Codable, Sendable, Identifiable {
 
     /// Creates a broker-reported segment with inspectable component values.
     public init(segment: String, enabled: Bool, available: Decimal, utilised: Decimal,
-                availableComponents: [String: Decimal], utilisedComponents: [String: Decimal])
+                availableComponents: [TradingFundsComponent: Decimal], utilisedComponents: [TradingFundsComponent: Decimal])
     {
         self.segment = segment
         self.enabled = enabled

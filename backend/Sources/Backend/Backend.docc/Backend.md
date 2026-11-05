@@ -269,6 +269,11 @@ let client = try KiteClient(apiKey: "documentation-api-key", configuration: conf
 _ = client
 ```
 
+``portfolioResponse(_:)`` maps all portfolio reads to the same credential-free response
+contract. Recovery failures use HTTP 503 with a structured problem code. Confirmed missing
+Kite authority uses HTTP 401 with `kiteSignInRequired`. Successful reads use Foundation's
+JSON date representation for the Mac client.
+
 ## Topics
 
 ### Application lifecycle

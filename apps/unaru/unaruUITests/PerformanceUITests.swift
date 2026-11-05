@@ -86,6 +86,39 @@
             XCTAssertTrue(sheet.staticTexts["Potential overlap across holdings sources — calculated contribution unavailable."].waitForExistence(timeout: 5))
             XCTAssertEqual(sheet.staticTexts["Holding current value"].value as? String, "Unavailable")
             app.typeKey(.escape, modifierFlags: [])
+            for source in ["securities", "mutualFunds"] {
+                backend.respond(path: "/portfolio/holdings", status: source == "securities" ? 200 : 503,
+                                body: source == "securities" ? performanceSecuritiesFixture().replacingOccurrences(of: "securities-read", with: "new-securities-read").replacingOccurrences(of: "\"id\":\"0\"", with: "\"id\":\"replacement\"") : #"{"code":"portfolioUnavailable"}"#)
+                backend.respond(path: "/portfolio/mutual-funds", status: source == "mutualFunds" ? 200 : 503,
+                                body: source == "mutualFunds" ? performanceFundsFixture().replacingOccurrences(of: "FUND\"", with: "TEST-ISIN\"").replacingOccurrences(of: "funds-read", with: "new-funds-read").replacingOccurrences(of: "mf-0", with: "replacement-fund") : #"{"code":"portfolioUnavailable"}"#)
+                app.typeKey("r", modifierFlags: .command)
+                XCTAssertTrue(app.staticTexts[source == "securities" ? "Stale mutual funds — showing the previous retrieval." : "Stale holdings — showing the previous retrieval."].waitForExistence(timeout: 10))
+                table.staticTexts[source == "securities" ? "STOCK" : "Fractional Fund"].click()
+                app.typeKey(.return, modifierFlags: [])
+                XCTAssertTrue(sheet.staticTexts["Potential overlap across holdings sources — calculated contribution unavailable."].waitForExistence(timeout: 5))
+                for field in ["Holding invested cost", "Holding current value", "Holding gain", "Holding allocation"] {
+                    XCTAssertEqual(sheet.staticTexts[field].value as? String, "Unavailable", field)
+                }
+                app.typeKey(.escape, modifierFlags: [])
+                // Unaffected source-only rows keep their supported value during partial failure.
+                table.staticTexts["Transferred Fund"].click()
+                app.typeKey(.return, modifierFlags: [])
+                XCTAssertTrue((sheet.staticTexts["Holding current value"].value as? String ?? "").contains("600.00"))
+                app.typeKey(.escape, modifierFlags: [])
+            }
+            // Successful source replacement alone cannot resolve a known overlap.
+            backend.respond(path: "/portfolio/holdings", status: 200, body: performanceSecuritiesFixture())
+            backend.respond(path: "/portfolio/mutual-funds", status: 200, body: performanceFundsFixture())
+            backend.respond(path: "/portfolio/performance", status: 200, hold: true, body: allocationFixture())
+            app.typeKey("r", modifierFlags: .command)
+            waitForPending(backend)
+            table.staticTexts["STOCK"].click()
+            app.typeKey(.return, modifierFlags: [])
+            XCTAssertTrue(sheet.staticTexts["Potential overlap across holdings sources — calculated contribution unavailable."].waitForExistence(timeout: 5))
+            backend.releaseResponses()
+            XCTAssertTrue(sheet.staticTexts["Potential overlap across holdings sources — calculated contribution unavailable."].waitForNonExistence(timeout: 5))
+            XCTAssertTrue((sheet.staticTexts["Holding current value"].value as? String ?? "").contains("1,200.00"))
+            app.typeKey(.escape, modifierFlags: [])
         }
     }
 

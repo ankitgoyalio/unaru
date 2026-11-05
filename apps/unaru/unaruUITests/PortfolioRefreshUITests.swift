@@ -118,6 +118,10 @@
                 app.buttons["Sign in with Kite"].firstMatch.click()
                 waitForHandoff(backend, count: 2)
                 backend.completeLogin()
+                for window in app.windows.allElementsBoundByIndex {
+                    XCTAssertTrue(window.staticTexts["Portfolio Overview"].waitForExistence(timeout: 10))
+                }
+                app.windows.firstMatch.staticTexts["Holdings"].firstMatch.click()
                 XCTAssertTrue(app.staticTexts["NEW-ACCOUNT"].firstMatch.waitForExistence(timeout: 10))
                 backend.releaseResponses()
                 let lost = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.staticTexts["NEW-ACCOUNT"].firstMatch)

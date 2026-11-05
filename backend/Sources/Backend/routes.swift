@@ -73,70 +73,22 @@ func routes(
         return response
     }
     protected.get("portfolio", "holdings") { _ async throws -> Response in
-        let response = Response(status: .ok)
-        do {
-            try await response.content.encode(login.holdings(), using: JSONEncoder())
-        } catch let error as KiteLogin.RecoveryFailure {
-            response.status = .serviceUnavailable
-            try response.content.encode(ConnectionProblem(code: error.code), as: .json)
-        } catch let error as any AbortError where error.status == .unauthorized {
-            response.status = .unauthorized
-            try response.content.encode(ConnectionProblem(code: .kiteSignInRequired), as: .json)
-        }
-        return response
+        try await portfolioResponse { try await login.holdings() }
     }
     protected.get("portfolio", "positions") { _ async throws -> Response in
-        let response = Response(status: .ok)
-        do {
-            try await response.content.encode(login.positions(), using: JSONEncoder())
-        } catch let error as KiteLogin.RecoveryFailure {
-            response.status = .serviceUnavailable
-            try response.content.encode(ConnectionProblem(code: error.code), as: .json)
-        } catch let error as any AbortError where error.status == .unauthorized {
-            response.status = .unauthorized
-            try response.content.encode(ConnectionProblem(code: .kiteSignInRequired), as: .json)
-        }
-        return response
+        try await portfolioResponse { try await login.positions() }
     }
     protected.get("portfolio", "funds") { _ async throws -> Response in
-        let response = Response(status: .ok)
-        do {
-            try await response.content.encode(login.funds(), using: JSONEncoder())
-        } catch let error as KiteLogin.RecoveryFailure {
-            response.status = .serviceUnavailable
-            try response.content.encode(ConnectionProblem(code: error.code), as: .json)
-        } catch let error as any AbortError where error.status == .unauthorized {
-            response.status = .unauthorized
-            try response.content.encode(ConnectionProblem(code: .kiteSignInRequired), as: .json)
-        }
-        return response
+        try await portfolioResponse { try await login.funds() }
     }
     protected.get("portfolio", "mutual-funds") { _ async throws -> Response in
-        let response = Response(status: .ok)
-        do {
-            try await response.content.encode(login.mutualFundHoldings(), using: JSONEncoder())
-        } catch let error as KiteLogin.RecoveryFailure {
-            response.status = .serviceUnavailable
-            try response.content.encode(ConnectionProblem(code: error.code), as: .json)
-        } catch let error as any AbortError where error.status == .unauthorized {
-            response.status = .unauthorized
-            try response.content.encode(ConnectionProblem(code: .kiteSignInRequired), as: .json)
-        }
-        return response
+        try await portfolioResponse { try await login.mutualFundHoldings() }
     }
     protected.post("portfolio", "performance") { request async throws -> Response in
-        let response = Response(status: .ok)
-        do {
+        try await portfolioResponse {
             let sources = try request.content.decode(PortfolioPerformanceRequest.self, using: JSONDecoder())
-            try await response.content.encode(login.performance(sources), using: JSONEncoder())
-        } catch let error as KiteLogin.RecoveryFailure {
-            response.status = .serviceUnavailable
-            try response.content.encode(ConnectionProblem(code: error.code), as: .json)
-        } catch let error as any AbortError where error.status == .unauthorized {
-            response.status = .unauthorized
-            try response.content.encode(ConnectionProblem(code: .kiteSignInRequired), as: .json)
+            return try await login.performance(sources)
         }
-        return response
     }
     app.get("kite", "callback") { request async -> Response in
         let response: Response

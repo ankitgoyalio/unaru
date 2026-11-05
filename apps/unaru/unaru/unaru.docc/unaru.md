@@ -51,7 +51,9 @@ provider revocation after successful local removal.
 
 iOS and visionOS retain their initial content and deployment targets.
 
-The initial signed-in destination is Portfolio. Its Holdings child lists securities and
+Each window opens Portfolio after sign-in or a change of account authority. Sign-out and
+session expiry reset the destination. Routine profile revalidation of the same account
+preserves each window's selection. Its Holdings child lists securities and
 mutual funds reported by Kite in one native table. Search matches source names and symbols
 without merging records. Investment Type filters the same list by Mutual Funds or Unknown.
 Unknown preserves securities whose source supplies no verified asset classification.
@@ -113,7 +115,16 @@ totals. Retained stale rows never count as success in a new refresh. A source-sp
 Retry can complete the current refresh without refetching its successful peer.
 Delayed aggregate success and failure cannot replace a newer refresh or authority.
 Source-qualified row projections use indexed lookups and apply only to their exact
-retrievals. The app formats Decimal values and performs no second financial calculation.
+retrievals. Backend-established overlap restrictions also follow the instrument identity
+across replacement source reads, including changed row IDs. A partial refresh cannot
+restore the affected calculations or remove the overlap warning. Only a new authoritative
+row projection resolves that restriction. Unaffected source-only rows retain supported values.
+The app formats Decimal values and performs no second financial calculation.
+
+``SourceRequest`` owns cancellation, response ordering, decoding, and authority errors for
+one source. Holdings, mutual funds, positions, funds, and combined analysis each use a
+separate instance. ``inspectionField(_:_:fillsTrailingColumn:)`` and ``inspectionFields(content:)``
+keep source inspection values copyable and wrapped with consistent group spacing.
 
 The Positions child shows Current Net Positions and Closed Positions in separate
 native tables. Return opens the selected row's broker details. Realised and unrealised

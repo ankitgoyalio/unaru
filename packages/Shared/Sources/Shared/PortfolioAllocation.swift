@@ -46,7 +46,7 @@ public struct PortfolioAllocation: Codable, Sendable {
 public struct PortfolioAllocationHolding: Codable, Sendable, Identifiable {
     /// Source-qualified row identity, never a symbol-only merge.
     public var id: String {
-        source.rawValue + ":" + sourceRowID
+        source.qualifiedID(sourceRowID)
     }
 
     /// Source of the supported ordinary inventory.

@@ -90,7 +90,8 @@
       "testPerformanceOverviewAndRowsShowAuthoritativeValuesAndCoverage",
       "testPerformanceCrossSourceOverlapWithholdsRowValues",
       "testOtherSourceInspectionsKeepRetrievalAndRecoveryVisible",
-      "testHoldingsInspectionPreservesSourceIdentityMetadataAndAuthoritativeAllocation"
+      "testHoldingsInspectionPreservesSourceIdentityMetadataAndAuthoritativeAllocation",
+      "testNewAuthorityResetsEveryWindowToPortfolioWithoutResettingRevalidation"
     ],
     "measured_case_seconds": 87.204
   }

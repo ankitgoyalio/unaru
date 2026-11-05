@@ -35,34 +35,34 @@
                         HoldingPerformanceView(performance: analysis?.values ?? holding.performance, overlapsSources: analysis?.overlapsSources == true,
                                                allocationPercent: allocationIsCurrent ? analysis?.allocationPercent : nil)
                         GroupBox("Identity and Source") {
-                            fields {
-                                field("Fund", holding.fund)
-                                field("Symbol / ISIN", holding.symbol.isEmpty ? "Unavailable" : holding.symbol)
-                                field("Folio", holding.folio.flatMap { $0.isEmpty ? nil : $0 } ?? "Unavailable")
-                                field("Investment type", "Mutual Fund")
-                                field("Source", "Kite mutual fund holdings")
-                                field("Source row", holding.id)
+                            inspectionFields {
+                                inspectionField("Fund", holding.fund)
+                                inspectionField("Symbol / ISIN", holding.symbol.isEmpty ? "Unavailable" : holding.symbol)
+                                inspectionField("Folio", holding.folio.flatMap { $0.isEmpty ? nil : $0 } ?? "Unavailable")
+                                inspectionField("Investment type", "Mutual Fund")
+                                inspectionField("Source", "Kite mutual fund holdings")
+                                inspectionField("Source row", holding.id)
                             }
                         }
                         GroupBox("Units and Prices — Broker Reported") {
-                            fields {
-                                field("Units", mutualFundDecimal(holding.quantity))
-                                field("Pledged units", holding.pledgedQuantity.map(mutualFundDecimal) ?? "Unavailable")
-                                field("Average acquisition price", holding.averagePrice > 0 ? mutualFundDecimal(holding.averagePrice) : "Unavailable")
-                                field("Latest NAV", holding.lastPrice > 0 ? mutualFundDecimal(holding.lastPrice) : "Unavailable")
-                                field("NAV date", holding.navDate ?? "Unavailable")
+                            inspectionFields {
+                                inspectionField("Units", mutualFundDecimal(holding.quantity))
+                                inspectionField("Pledged units", holding.pledgedQuantity.map(mutualFundDecimal) ?? "Unavailable")
+                                inspectionField("Average acquisition price", holding.averagePrice > 0 ? mutualFundDecimal(holding.averagePrice) : "Unavailable")
+                                inspectionField("Latest NAV", holding.lastPrice > 0 ? mutualFundDecimal(holding.lastPrice) : "Unavailable")
+                                inspectionField("NAV date", holding.navDate ?? "Unavailable")
                                 if holding.averagePrice <= 0 {
-                                    field("Reported acquisition price", mutualFundDecimal(holding.averagePrice))
+                                    inspectionField("Reported acquisition price", mutualFundDecimal(holding.averagePrice))
                                 }
                                 if holding.lastPrice <= 0 {
-                                    field("Reported NAV", mutualFundDecimal(holding.lastPrice))
+                                    inspectionField("Reported NAV", mutualFundDecimal(holding.lastPrice))
                                 }
                                 Text("Prices in INR. NAV date is separate from source retrieval time.").foregroundStyle(.secondary)
                             }
                         }
                         if !holding.limitations.isEmpty {
                             GroupBox("Data Limitations") {
-                                fields {
+                                inspectionFields {
                                     ForEach(holding.limitations, id: \.rawValue) { Text($0.description) }
                                 }
                             }
@@ -76,17 +76,6 @@
             }
             .padding(24)
             .frame(width: 560, height: 640)
-        }
-
-        private func field(_ label: String, _ value: String) -> some View {
-            LabeledContent(label) {
-                Text(value).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-            }
-        }
-
-        private func fields(@ViewBuilder content: () -> some View) -> some View {
-            VStack(alignment: .leading, spacing: 10, content: content)
-                .frame(maxWidth: .infinity, alignment: .leading).padding(8)
         }
     }
 

@@ -30,19 +30,19 @@
                             .foregroundStyle(.secondary)
                         GroupBox("Availability Components") {
                             components(segment.availableComponents, labels: [
-                                ("cash", "Cash (includes intraday pay-in)"), ("openingBalance", "Opening balance"),
-                                ("liveBalance", "Live balance"), ("intradayPayin", "Intraday pay-in"),
-                                ("adhocMargin", "Additional broker margin"), ("collateral", "Collateral margin"),
+                                (.cash, "Cash (includes intraday pay-in)"), (.openingBalance, "Opening balance"),
+                                (.liveBalance, "Live balance"), (.intradayPayin, "Intraday pay-in"),
+                                (.adhocMargin, "Additional broker margin"), (.collateral, "Collateral margin"),
                             ])
                         }
                         GroupBox("Utilisation Components") {
                             components(segment.utilisedComponents, labels: [
-                                ("debits", "Total utilised margin"), ("m2mUnrealised", "Unrealised intraday P&L"),
-                                ("m2mRealised", "Realised intraday P&L"), ("span", "SPAN margin"),
-                                ("optionPremium", "Option premium"), ("holdingSales", "Holding sales"),
-                                ("exposure", "Exposure margin"), ("liquidCollateral", "Liquid collateral utilised"),
-                                ("delivery", "Delivery margin"), ("stockCollateral", "Stock collateral utilised"),
-                                ("turnover", "Turnover utilised"), ("payout", "Payout"),
+                                (.debits, "Total utilised margin"), (.m2mUnrealised, "Unrealised intraday P&L"),
+                                (.m2mRealised, "Realised intraday P&L"), (.span, "SPAN margin"),
+                                (.optionPremium, "Option premium"), (.holdingSales, "Holding sales"),
+                                (.exposure, "Exposure margin"), (.liquidCollateral, "Liquid collateral utilised"),
+                                (.delivery, "Delivery margin"), (.stockCollateral, "Stock collateral utilised"),
+                                (.turnover, "Turnover utilised"), (.payout, "Payout"),
                             ])
                         }
                     }
@@ -56,7 +56,7 @@
         }
 
         /// Stable broker-field ordering and native label/value accessibility.
-        private func components(_ values: [String: Decimal], labels: [(String, String)]) -> some View {
+        private func components(_ values: [TradingFundsComponent: Decimal], labels: [(TradingFundsComponent, String)]) -> some View {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(labels, id: \.0) { key, label in
                     LabeledContent(label) {

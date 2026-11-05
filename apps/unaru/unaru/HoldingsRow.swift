@@ -29,7 +29,7 @@
 
         /// Source qualification prevents collisions across sources; refresh clears selection even for legacy responses.
         var id: String {
-            source.rawValue + ":" + (readID ?? "legacy") + ":" + sourceRowID
+            source.qualifiedID((readID ?? "legacy") + ":" + sourceRowID)
         }
 
         /// The authoritative source used to look up final cross-source eligibility.

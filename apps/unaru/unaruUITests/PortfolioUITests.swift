@@ -34,6 +34,53 @@
             XCTAssertTrue(app.staticTexts["Funds"].exists)
         }
 
+        func testNewAuthorityResetsEveryWindowToPortfolioWithoutResettingRevalidation() throws {
+            for expiry in [false, true] {
+                let backend = try ControlledBackend()
+                defer { backend.stop() }
+                backend.respond(path: "/portfolio/positions", status: 200, body: positionsFixture())
+                let app = launch(backend: backend, revalidationInterval: "2")
+                defer { cleanUp(app) }
+                beginLogin(app, backend: backend)
+                backend.completeLogin()
+                XCTAssertTrue(app.staticTexts["Portfolio Overview"].waitForExistence(timeout: 10))
+                app.staticTexts["Positions"].firstMatch.click()
+                app.typeKey("n", modifierFlags: .command)
+                let windows = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in app.windows.count == 2 }, object: nil)
+                XCTAssertEqual(XCTWaiter.wait(for: [windows], timeout: 5), .completed)
+                let fundsWindow = try XCTUnwrap(app.windows.allElementsBoundByIndex.first { $0.staticTexts["Portfolio Overview"].exists })
+                let positionsWindow = try XCTUnwrap(app.windows.allElementsBoundByIndex.first { $0.staticTexts["Current Net Positions"].exists })
+                fundsWindow.staticTexts["Funds"].firstMatch.click()
+                backend.respond(path: "/profile", status: 200, body: #"{"name":"Revalidated Person","userID":"AB1234"}"#)
+                XCTAssertTrue(accountIdentity(app, containing: "Revalidated Person").waitForExistence(timeout: 10))
+                XCTAssertTrue(positionsWindow.staticTexts["Current Net Positions"].exists)
+                XCTAssertTrue(fundsWindow.staticTexts["Trading Funds"].exists)
+                if expiry {
+                    backend.respond(path: "/profile", status: 401, body: #"{"code":"kiteSignInRequired"}"#)
+                } else {
+                    fundsWindow.buttons["Open Kite account"].click()
+                    XCTAssertTrue(app.buttons["Log Out"].waitForExistence(timeout: 5))
+                    app.buttons["Log Out"].click()
+                    XCTAssertTrue(app.sheets["alert"].waitForExistence(timeout: 5))
+                    app.sheets["alert"].buttons["Log Out"].click()
+                }
+                for window in app.windows.allElementsBoundByIndex {
+                    XCTAssertTrue(window.buttons["Sign in with Kite"].waitForExistence(timeout: 10))
+                }
+                backend.respond(path: "/profile", status: 200)
+                backend.respond(path: "/portfolio/holdings", status: 200, hold: true, body: portfolioFixture(symbol: "NEW-AUTHORITY"))
+                app.buttons["Sign in with Kite"].firstMatch.click()
+                waitForHandoff(backend, count: 2)
+                backend.completeLogin()
+                for window in app.windows.allElementsBoundByIndex {
+                    XCTAssertTrue(window.staticTexts["Portfolio Overview"].waitForExistence(timeout: 10))
+                }
+                waitForPending(backend)
+                backend.releaseResponses()
+                XCTAssertTrue(app.staticTexts["1 securities holdings"].firstMatch.waitForExistence(timeout: 10))
+            }
+        }
+
         func testHoldingsKeyboardInspectionShowsSourceFieldsAndLimitations() throws {
             for appearance in ["Light", "Dark"] {
                 let backend = try ControlledBackend()
