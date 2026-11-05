@@ -247,6 +247,8 @@
                     body = configuredBody ?? (result == "signedIn"
                         ? "{\"state\":\"signedIn\",\"profile\":\(accountProfile(avatarField: avatarField))\(persistenceField)}"
                         : "{\"state\":\"\(result)\"}")
+                } else if path == "/portfolio/positions" {
+                    body = configuredBody ?? #"{"positions":[],"retrievedAt":815000000}"#
                 } else if path == "/portfolio/holdings" {
                     body = configuredBody ?? #"{"holdings":[],"retrievedAt":815000000}"#
                 } else if path == "/profile" {

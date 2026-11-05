@@ -43,6 +43,12 @@ fields separate from ordinary inventory. These contracts expose no broker creden
 or combined investment total. HTTP 503 with `portfolioUnavailable` permits retrying the
 source without another sign-in.
 
+``NetPositions`` contains only current net collection rows, including returned closed
+positions, with retrieval time separate from the unavailable market-price date.
+``TradingPosition`` preserves signed quantities, multipliers, broker prices and trading
+P&L, and supporting buy/sell fields. Its `state` groups nonzero quantities as current
+and zero quantities as closed. These values do not contribute to holdings returns.
+
 ## Topics
 
 ### Scaffold
@@ -63,6 +69,11 @@ source without another sign-in.
 - ``SecuritiesHoldings``
 - ``SecurityHolding``
 - ``HoldingMTF``
+
+### Trading positions
+
+- ``NetPositions``
+- ``TradingPosition``
 
 ### Connection pairing
 

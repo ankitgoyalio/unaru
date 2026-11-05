@@ -30,7 +30,7 @@
             backend.respond(path: "/portfolio/holdings", status: 200, body: #"{"holdings":[],"retrievedAt":815000001}"#)
             app.typeKey(.upArrow, modifierFlags: [])
             XCTAssertTrue(app.staticTexts["Portfolio Overview"].waitForExistence(timeout: 5))
-            XCTAssertFalse(app.staticTexts["Positions"].exists)
+            XCTAssertTrue(app.staticTexts["Positions"].exists)
             XCTAssertFalse(app.staticTexts["Funds"].exists)
         }
 

@@ -66,6 +66,18 @@ holdings across every window. Obsolete success and failure cannot restore old ro
 invalidate a newer session. App relaunch fetches holdings again without restoring a
 portfolio snapshot.
 
+The Positions child shows Current Net Positions and Closed Positions in separate
+native tables. Return opens the selected row's broker details. Realised and unrealised
+trading P&L remain separate from holdings returns, and delivery purchases do not alter
+holdings. Prices without usable values are unavailable. Retrieval time is distinct
+from the unavailable price valuation date.
+
+``PositionsStore`` keeps this source in memory across windows, independently of holdings.
+Opening Positions or refreshing requests a new read. Retry preserves successful
+holdings and valid Kite authority. A failed refresh retains positions with a stale
+notice. Authority removal clears positions and inspection across every window, and
+obsolete successes or failures cannot replace newer source data or authority.
+
 ## Topics
 
 ### Application and content

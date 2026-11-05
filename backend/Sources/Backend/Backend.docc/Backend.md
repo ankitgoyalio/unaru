@@ -61,6 +61,28 @@ Missing Kite authority or confirmed `TokenException` returns HTTP 401 with
 An obsolete response after authority removal or a newer holdings read returns no old
 data and cannot invalidate newer authority. Authorized responses use `Cache-Control: no-store`.
 
+### Net positions contract
+
+`GET /portfolio/positions` requires app authorization and a validated Kite session.
+The pinned SDK reads Kite's positions, and ``NetPositionSource`` exposes only the
+`net` collection as Shared `NetPositions`. The overlapping `day` collection is not
+added or returned. Nonzero signed quantities are current positions. Returned zero
+quantities are closed positions. Every net row keeps its own retrieval-scoped identity.
+
+Signed quantities, contract multipliers, prices, realised and unrealised trading P&L,
+mark-to-market values, and buy/sell activity remain broker reported. No trading value
+or P&L contributes to holdings quantities or investment returns. Delivery purchases
+stay in Positions until the holdings source reports them. No market-price timestamp
+is supplied, so `valuationDate` remains absent. Retrieval time uses Foundation Codable
+seconds since 2001.
+
+An empty net collection is a successful source. Temporary failures return HTTP 503
+with `portfolioUnavailable` and preserve valid Kite authority. Confirmed token rejection
+returns HTTP 401 with `kiteSignInRequired`. The operation rejects obsolete responses
+after authority changes or a newer positions read. Holdings and positions reads do not
+supersede one another. Responses contain no broker credentials and use
+`Cache-Control: no-store`.
+
 ### Environment configuration
 
 ``Entrypoint`` uses Vapor's automatic dotenv loading before configuring logging and

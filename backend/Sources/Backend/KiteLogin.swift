@@ -62,6 +62,9 @@ actor KiteLogin {
     /// Superseded portfolio responses cannot publish or remove authority.
     private var holdingsRequestID: UUID?
 
+    /// Positions supersede only older positions reads, independently of holdings.
+    private var positionsRequestID: UUID?
+
     /// Creates an installation with production transport unless tests supply HTTP responses.
     init(
         apiKey: String? = Environment.get("KITE_API_KEY"),
@@ -227,6 +230,29 @@ actor KiteLogin {
         } catch {
             guard authenticated === client, holdingsRequestID == requestID else {
                 throw Abort(.serviceUnavailable, reason: "Holdings request was superseded.")
+            }
+            if Self.isAuthenticationRejection(error) {
+                try removeAuthority()
+                throw Abort(.unauthorized)
+            }
+            throw RecoveryFailure(code: .portfolioUnavailable)
+        }
+    }
+
+    /// Reads only SDK net positions, checking current authority after every suspension.
+    func positions() async throws -> NetPositions {
+        try await restore()
+        guard let client = authenticated else { throw Abort(.unauthorized) }
+        let requestID = UUID()
+        positionsRequestID = requestID
+        do {
+            let result = try await client.positions()
+            guard authenticated === client, positionsRequestID == requestID else { throw CancellationError() }
+            try Task.checkCancellation()
+            return NetPositions(positions: NetPositionSource.normalize(result.net), retrievedAt: now())
+        } catch {
+            guard authenticated === client, positionsRequestID == requestID else {
+                throw Abort(.serviceUnavailable, reason: "Positions request was superseded.")
             }
             if Self.isAuthenticationRejection(error) {
                 try removeAuthority()

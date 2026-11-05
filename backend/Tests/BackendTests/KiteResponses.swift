@@ -29,6 +29,16 @@ actor KiteResponses: KiteHTTPTransport {
         holdingsFailure = failure
     }
 
+    private var positionsStatus = 200
+    private var positionsBody = #"{"status":"success","data":{"net":[],"day":[]}}"#
+    private var positionsFailure: URLError.Code?
+
+    func setPositions(status: Int = 200, body: String = #"{"status":"success","data":{"net":[],"day":[]}}"#, failure: URLError.Code? = nil) {
+        positionsStatus = status
+        positionsBody = body
+        positionsFailure = failure
+    }
+
     private var heldPath: String?
     private var heldRequest: CheckedContinuation<Void, Never>?
     private var observer: CheckedContinuation<Void, Never>?
@@ -87,6 +97,12 @@ actor KiteResponses: KiteHTTPTransport {
                 observer?.resume()
                 observer = nil
             }
+        }
+        if request.url.path == "/portfolio/positions" {
+            if let positionsFailure {
+                throw URLError(positionsFailure)
+            }
+            return KiteHTTPResponse(statusCode: positionsStatus, body: Data(positionsBody.utf8))
         }
         if request.url.path == "/portfolio/holdings" {
             if let holdingsFailure {

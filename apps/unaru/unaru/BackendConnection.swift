@@ -18,6 +18,7 @@
             didSet {
                 if case .signedIn = phase {} else {
                     portfolio.clear()
+                    positions.clear()
                     isRefreshingAccount = false
                     accountRefreshFailed = false
                     saveRevision += 1
@@ -32,8 +33,20 @@
         /// Holdings are shared in memory by all windows.
         let portfolio = PortfolioStore()
 
+        /// Independent trading source, shared across windows in memory.
+        let positions = PositionsStore()
+
+        /// Retries positions without disturbing successfully loaded holdings.
+        func refreshPositions() {
+            guard case .signedIn = phase, let configuration else { return }
+            positions.refresh(transport: transport, configuration: configuration) { [weak self] failure in
+                self?.phase = failure == .signedOut ? .signedOut : .startupFailed
+            }
+        }
+
         /// Loads through the existing connection without disturbing account refresh work.
         func refreshPortfolio() {
+            refreshPositions()
             guard case .signedIn = phase, let configuration else { return }
             portfolio.refresh(transport: transport, configuration: configuration) { [weak self] failure in
                 self?.phase = failure == .signedOut ? .signedOut : .startupFailed
